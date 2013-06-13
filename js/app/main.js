@@ -58,7 +58,7 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                 title       = $route.attr("title"),
                 color       = $route.attr("color"),
                 opposite    = $route.attr("oppositeColor"),
-                directions  = [],
+                directions  = {},
                 stops       = {};
             
             $route.children("stop").each(function (i, s) {
@@ -83,12 +83,11 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                     stops.push(stopTag);
                 });
                 
-                directions.push({
-                    tag:    tag,
+                directions[tag] = {
                     title:  title,
                     name:   name,
                     stops:  stops
-                });
+                };
             });
             
             deferred.resolve({
@@ -105,22 +104,83 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         return deferred.promise();
     }
     
-    function showRoute(route, $prev) {
-        var $body = $("body"),
-            $detail = $body.find(".route-detail"),
+    function showStopsForDirection(route, tag, $prev) {
+        var direction = route.directions[tag],
+            $body = $("body"),
+            $stops = $body.find(".content-stops"),
             $container = $("<div class='topcoat-list__container'></div>"),
-            $header = $("<h2 class='topcoat-list__header'>" + route.title + "</h2>"),
-            $list = $("<ul class='topcoat-list route-directions'></ul>");
+            $header = $("<h2 class='topcoat-list__header'>" + direction.title + "</h2>"),
+            $list = $("<ul class='topcoat-list'></ul>");
+            
         
-        route.directions.forEach(function (direction) {
-            $list.append("<li class='topcoat-list__item route-name' data-tag='" +
-                         direction.tag + "'>" + direction.title + "</li>");
+        direction.stops.forEach(function (stopTag) {
+            $list.append("<li class='topcoat-list__item entry-stop' data-tag='" +
+                         stopTag + "'>" + route.stops[stopTag] + "</li>");
         });
         
         $container.append($header).append($list);
-        $detail.append($container);
+        $stops.append($container);
         $prev.hide();
-        $detail.show();
+        $stops.show();
+    }
+    
+    function showDirections(route, $prev) {
+        var $body = $("body"),
+            $directions = $body.find(".content-directions"),
+            $container = $("<div class='topcoat-list__container'></div>"),
+            $header = $("<h2 class='topcoat-list__header'>" + route.title + "</h2>"),
+            $list = $("<ul class='topcoat-list route-directions'></ul>"),
+            direction,
+            tag;
+        
+        for (tag in route.directions) {
+            if (route.directions.hasOwnProperty(tag)) {
+                direction = route.directions[tag];
+                $list.append("<li class='topcoat-list__item entry-direction' data-tag='" +
+                         tag + "'>" + direction.title + "</li>");
+            }
+        }
+        
+        $container.append($header).append($list);
+        $directions.append($container);
+        $prev.hide();
+        $directions.show();
+        
+        $directions.find(".entry-direction").each(function (i, d) {
+            var $direction = $(d),
+                tag = $direction.data("tag");
+            
+            $direction.on("click", function () {
+                showStopsForDirection(route, tag, $directions);
+            });
+        });
+    }
+    
+    function showRoutes(routes) {
+        var $body = $("body"),
+            $routelist = $body.find(".content-routes"),
+            $container = $("<div class='topcoat-list__container'></div>"),
+            $header = $("<h2 class='topcoat-list__header'>Routes</h2>"),
+            $list = $("<ul class='topcoat-list'></ul>");
+
+        routes.forEach(function (route) {
+            $list.append("<li class='topcoat-list__item entry-route' data-tag='" +
+                         route.tag + "'>" + route.title + "</li>");
+        });
+        
+        $container.append($header).append($list);
+        $routelist.append($container);
+        
+        $routelist.find(".entry-route").each(function (i, r) {
+            var $route = $(r),
+                tag = $route.data("tag");
+            
+            $route.on("click", function () {
+                getRoute(tag).done(function (route) {
+                    showDirections(route, $routelist);
+                });
+            });
+        });
     }
     
     var routesPromise = getRoutes();
@@ -128,33 +188,7 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     //the jquery.alpha.js and jquery.beta.js plugins have been loaded.
     $(function () {
         //$('body').alpha().beta();
-        routesPromise.done(function (routes) {
-            var $body = $("body"),
-                $routelist = $body.find(".route-list"),
-                $container = $("<div class='topcoat-list__container'></div>"),
-                $header = $("<h2 class='topcoat-list__header'>Routes</h2>"),
-                $list = $("<ul class='topcoat-list route-names'></ul>");
-
-            routes.forEach(function (route) {
-                $list.append("<li class='topcoat-list__item route-name' data-tag='" +
-                             route.tag + "'>" + route.title + "</li>");
-            });
-            
-            $container.append($header).append($list);
-            $routelist.append($container);
-            
-            $routelist.find(".route-name").each(function (i, r) {
-                var $route = $(r),
-                    tag = $route.data("tag");
-                
-                $route.on("click", function () {
-                    getRoute(tag).done(function (route) {
-                        showRoute(route, $body.find(".route-list"));
-                    });
-                });
-            });
-        });
+        routesPromise.done(showRoutes);
     });
-    
     
 });
