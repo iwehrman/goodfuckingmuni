@@ -7,8 +7,10 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     var $body = $("body"),
         $stops = $body.find(".content-stops"),
         $directions = $body.find(".content-directions"),
-        $routelist = $body.find(".content-routes");
-    
+        $routelist = $body.find(".content-routes"),
+        routesPromise,
+        locationPromise;
+        
     function commandURL(command) {
         var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
             fullURL = baseURL + "&command=" + command;
@@ -25,6 +27,25 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         return fullURL;
     }
     
+    function distance(pos1, pos2) {
+        function sq(x) {
+            return x * x;
+        }
+        
+        var latDist = pos2.lat - pos1.lat,
+            lonDist = pos2.lon - pos2.lon;
+        
+        return Math.sqrt(sq(latDist) + sq(lonDist));
+    }
+    
+    function positionComparator(main) {
+        return function (pos1, pos2) {
+            var dist1 = distance(main, pos1),
+                dist2 = distance(main, pos2);
+            
+            return dist2 - dist1;
+        };
+    }
     
     function getRoutes() {
         var deferred        = $.Deferred(),
@@ -66,45 +87,72 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                 directions  = {},
                 stops       = {};
             
-            $route.children("stop").each(function (i, s) {
-                var $stop   = $(s),
-                    tag     = $stop.attr("tag"),
-                    title   = $stop.attr("title");
+            locationPromise.done(function (position, timestamp) {
+                var minDist = Number.POSITIVE_INFINITY,
+                    maxDist = Number.NEGATIVE_INFINITY;
                 
-                stops[tag] = title;
-            });
-            
-            $route.children("direction").each(function (i, d) {
-                var $direction = $(d),
-                    tag = $direction.attr("tag"),
-                    title = $direction.attr("title"),
-                    name = $direction.attr("name"),
-                    stops = [];
-                
-                $direction.children("stop").each(function (i, s) {
-                    var $stop = $(s),
-                        stopTag = $stop.attr("tag");
+                $route.children("stop").each(function (i, s) {
+                    var $stop   = $(s),
+                        tag     = $stop.attr("tag"),
+                        title   = $stop.attr("title"),
+                        lat     = $stop.attr("lat"),
+                        lon     = $stop.attr("lon"),
+                        stopPos = {lat: lat, lon: lon},
+                        dist    = distance(position, stopPos);
                     
-                    stops.push(stopTag);
+                    if (dist > maxDist) {
+                        maxDist = dist;
+                    }
+                    
+                    if (dist < minDist) {
+                        minDist = dist;
+                    }
+                    
+                    stops[tag] = {
+                        title:  title,
+                        lat:    lat,
+                        lon:    lon,
+                        dist:   dist
+                    };
                 });
                 
-                directions[tag] = {
-                    title:  title,
-                    name:   name,
-                    stops:  stops
-                };
-            });
-            
-            deferred.resolve({
-                tag:            tag,
-                title:          title,
-                color:          color,
-                oppositeColor:  opposite,
-                directions:     directions,
-                stops:          stops
-            });
-            
+                stops.forEach(function (stop) {
+                    var range = maxDist - minDist;
+                });
+                
+                $route.children("direction").each(function (i, d) {
+                    var $direction = $(d),
+                        tag = $direction.attr("tag"),
+                        title = $direction.attr("title"),
+                        name = $direction.attr("name"),
+                        stops = [];
+                    
+                    $direction.children("stop").each(function (i, s) {
+                        var $stop = $(s),
+                            stopTag = $stop.attr("tag");
+                        
+                        stops.push(stopTag);
+                    });
+                    
+                    directions[tag] = {
+                        title:  title,
+                        name:   name,
+                        stops:  stops
+                    };
+                });
+                
+                deferred.resolve({
+                    tag:            tag,
+                    title:          title,
+                    color:          color,
+                    oppositeColor:  opposite,
+                    directions:     directions,
+                    stops:          stops
+                });
+                
+            }).fail(deferred.reject);
         }).fail(deferred.reject);
+            
         
         return deferred.promise();
     }
@@ -117,8 +165,10 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
             
         
         direction.stops.forEach(function (stopTag) {
+            var stop = route.stops[stopTag];
+            
             $list.append("<li class='topcoat-list__item entry-stop' data-tag='" +
-                         stopTag + "'>" + route.stops[stopTag] + "</li>");
+                         stopTag + "'>" + stop.title + " (" + stop.dist + ")</li>");
         });
         
         $container.append($header).append($list);
@@ -205,11 +255,24 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
             $directions.empty();
             showRoutes(state.routes);
         }
-        
     };
     
-    var routesPromise = getRoutes();
-    
+    routesPromise = getRoutes();
+    locationPromise = (function () {
+        var deferred = $.Deferred();
+        
+        navigator.geolocation.getCurrentPosition(function (position) {
+            position.coords.lat = position.coords.latitude;
+            position.coords.lon = position.coords.longitude;
+            deferred.resolve(position.coords, position.timestamp);
+        }, function (error) {
+            deferred.reject(error);
+        });
+        
+        return deferred.promise();
+    }());
+
+        
     $(function () {
         //$('body').alpha().beta();
         routesPromise.done(showRoutes);
