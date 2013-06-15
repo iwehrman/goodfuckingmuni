@@ -1,5 +1,5 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
-/*global define, $, PathUtils */
+/*global define, $, console */
 
 define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     "use strict";
@@ -11,9 +11,9 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         routesPromise,
         locationPromise;
         
-    function commandURL(command) {
+    function commandURL(commandName) {
         var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
-            fullURL = baseURL + "&command=" + command;
+            fullURL = baseURL + "&command=" + commandName;
         
         if (arguments.length > 1) {
             var params  = Array.prototype.slice.call(arguments, 1),
@@ -27,15 +27,37 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         return fullURL;
     }
     
+    function doCommand(commandName) {
+        var routeUrl        = commandURL.apply(null, arguments),
+            routeSettings   = {
+                datatype: "xml"
+            };
+        
+        return $.ajax(routeUrl, routeSettings).fail(function (jqXHR, textStatus, errorThrown) {
+            console.error("Command " + commandName + " failed: " + textStatus);
+        });
+    }
+    
     function distance(pos1, pos2) {
-        function sq(x) {
-            return x * x;
+        function toRad(x) {
+            return x * Math.PI / 180;
         }
         
-        var latDist = pos2.lat - pos1.lat,
-            lonDist = pos2.lon - pos2.lon;
+        var lat1 = pos1.lat,
+            lat2 = pos2.lat,
+            lon1 = pos1.lon,
+            lon2 = pos2.lon;
         
-        return Math.sqrt(sq(latDist) + sq(lonDist));
+        var R = 6371; // Radius of the earth in km
+        var dLat = toRad(lat2 - lat1);  // Javascript functions in radians
+        var dLon = toRad(lon2 - lon1);
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        var d = R * c; // Distance in km
+        
+        return d;
     }
     
     function positionComparator(main) {
@@ -48,13 +70,9 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     }
     
     function getRoutes() {
-        var deferred        = $.Deferred(),
-            routeUrl        = commandURL("routeList"),
-            routeSettings   = {
-                datatype: "xml"
-            };
+        var deferred = $.Deferred();
         
-        $.ajax(routeUrl, routeSettings).done(function (data) {
+        doCommand("routeList").done(function (data) {
             var routes  = [];
             
             $(data).find("route").each(function (i, r) {
@@ -71,13 +89,9 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     }
     
     function getRoute(tag) {
-        var deferred        = $.Deferred(),
-            routeURL        = commandURL("routeConfig", ["r", tag]),
-            routeSettings   = {
-                datatype: "xml"
-            };
+        var deferred = $.Deferred();
         
-        $.ajax(routeURL, routeSettings).done(function (data) {
+        doCommand("routeConfig",  ["r", tag]).done(function (data) {
             var $data       = $(data),
                 $route      = $data.find("route"),
                 tag         = $route.attr("tag"),
@@ -85,39 +99,24 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                 color       = $route.attr("color"),
                 opposite    = $route.attr("oppositeColor"),
                 directions  = {},
-                stops       = {};
+                allStops    = {};
             
             locationPromise.done(function (position, timestamp) {
-                var minDist = Number.POSITIVE_INFINITY,
-                    maxDist = Number.NEGATIVE_INFINITY;
-                
                 $route.children("stop").each(function (i, s) {
                     var $stop   = $(s),
                         tag     = $stop.attr("tag"),
                         title   = $stop.attr("title"),
-                        lat     = $stop.attr("lat"),
-                        lon     = $stop.attr("lon"),
+                        lat     = parseFloat($stop.attr("lat")),
+                        lon     = parseFloat($stop.attr("lon")),
                         stopPos = {lat: lat, lon: lon},
                         dist    = distance(position, stopPos);
                     
-                    if (dist > maxDist) {
-                        maxDist = dist;
-                    }
-                    
-                    if (dist < minDist) {
-                        minDist = dist;
-                    }
-                    
-                    stops[tag] = {
+                    allStops[tag] = {
                         title:  title,
                         lat:    lat,
                         lon:    lon,
                         dist:   dist
                     };
-                });
-                
-                stops.forEach(function (stop) {
-                    var range = maxDist - minDist;
                 });
                 
                 $route.children("direction").each(function (i, d) {
@@ -127,17 +126,31 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                         name = $direction.attr("name"),
                         stops = [];
                     
+                    var minDist = Number.POSITIVE_INFINITY,
+                        maxDist = Number.NEGATIVE_INFINITY;
+                    
                     $direction.children("stop").each(function (i, s) {
                         var $stop = $(s),
-                            stopTag = $stop.attr("tag");
+                            stopTag = $stop.attr("tag"),
+                            stop = allStops[stopTag];
                         
                         stops.push(stopTag);
+                        
+                        if (stop.dist > maxDist) {
+                            maxDist = stop.dist;
+                        }
+                        
+                        if (stop.dist < minDist) {
+                            minDist = stop.dist;
+                        }
                     });
                     
                     directions[tag] = {
                         title:  title,
                         name:   name,
-                        stops:  stops
+                        stops:  stops,
+                        maxDist: maxDist,
+                        minDist: minDist
                     };
                 });
                 
@@ -147,11 +160,11 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                     color:          color,
                     oppositeColor:  opposite,
                     directions:     directions,
-                    stops:          stops
+                    stops:          allStops
                 });
                 
-            }).fail(deferred.reject);
-        }).fail(deferred.reject);
+            }).fail(deferred.reject.bind(deferred));
+        }).fail(deferred.reject.bind(deferred));
             
         
         return deferred.promise();
@@ -162,13 +175,27 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
             $container = $("<div class='topcoat-list__container'></div>"),
             $header = $("<h2 class='topcoat-list__header'>" + direction.title + "</h2>"),
             $list = $("<ul class='topcoat-list'></ul>");
+        
+        function normalizeDist(direction, stop) {
+            var range = direction.maxDist - direction.minDist,
+                fromMin = stop.dist - direction.minDist;
             
+            return 1 - (fromMin / range);
+        }
         
         direction.stops.forEach(function (stopTag) {
-            var stop = route.stops[stopTag];
+            var stop = route.stops[stopTag],
+                norm = normalizeDist(direction, stop),
+                $item = $("<li class='topcoat-list__item entry-stop' data-tag='" +
+                          stopTag + "'>"),
+                $text = $("<span>").append(stop.title);
             
-            $list.append("<li class='topcoat-list__item entry-stop' data-tag='" +
-                         stopTag + "'>" + stop.title + " (" + stop.dist + ")</li>");
+            if (norm === 1) {
+                $text.css("font-weight", "bold");
+            }
+            
+            $item.append($text);
+            $list.append($item);
         });
         
         $container.append($header).append($list);
@@ -189,6 +216,7 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         for (tag in route.directions) {
             if (route.directions.hasOwnProperty(tag)) {
                 direction = route.directions[tag];
+                
                 $list.append("<li class='topcoat-list__item entry-direction' data-tag='" +
                          tag + "'>" + direction.title + "</li>");
             }
@@ -266,7 +294,12 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
             position.coords.lon = position.coords.longitude;
             deferred.resolve(position.coords, position.timestamp);
         }, function (error) {
+            console.error("Unable to geolocate: " + error);
             deferred.reject(error);
+        }, {
+            enableHighAccuracy: true,
+            timeout: undefined,
+            maximumAge: 1000 * 60 * 5
         });
         
         return deferred.promise();
