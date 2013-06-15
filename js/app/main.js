@@ -4,12 +4,63 @@
 define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
     "use strict";
     
+    var STOPS_KEY = "org.wehrman.goodfuckingmuni.stops";
+    
     var $body = $("body"),
         $stops = $body.find(".content-stops"),
         $directions = $body.find(".content-directions"),
         $routelist = $body.find(".content-routes"),
         routesPromise,
         locationPromise;
+    
+    function getAllStoredStops(routeTag, directionTag) {
+        var storeJSON = localStorage.getItem(STOPS_KEY),
+            store = storeJSON ? JSON.parse(storeJSON) : {};
+        
+        if (!store[routeTag]) {
+            store[routeTag] = {};
+        }
+        
+        if (!store[routeTag][directionTag]) {
+            store[routeTag][directionTag] = {};
+        }
+        
+        return store;
+    }
+    
+    function getStoredStops(routeTag, directionTag) {
+        var store = getAllStoredStops(routeTag, directionTag);
+        
+        return store[routeTag][directionTag];
+    }
+    
+    function updateStoredStop(routeTag, directionTag, callback) {
+        var store = getAllStoredStops(routeTag, directionTag);
+        
+        callback(store[routeTag][directionTag]);
+        
+        localStorage.setItem(STOPS_KEY, JSON.stringify(store));
+    }
+    
+    function rememberStop(routeTag, directionTag, stopTag) {
+        var _store;
+        updateStoredStop(routeTag, directionTag, function (store) {
+            store[stopTag] = true;
+            _store = store;
+        });
+        return _store;
+    }
+    
+    function forgetStop(routeTag, directionTag, stopTag) {
+        var _store;
+        updateStoredStop(routeTag, directionTag, function (store) {
+            if (store[stopTag]) {
+                delete store[stopTag];
+            }
+            _store = store;
+        });
+        return _store;
+    }
         
     function commandURL(commandName) {
         var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
@@ -170,11 +221,12 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         return deferred.promise();
     }
     
-    function showStopsForDirection(route, tag) {
-        var direction = route.directions[tag],
+    function showStopsForDirection(route, dirTag) {
+        var direction = route.directions[dirTag],
             $container = $("<div class='topcoat-list__container'></div>"),
             $header = $("<h2 class='topcoat-list__header'>" + direction.title + "</h2>"),
-            $list = $("<ul class='topcoat-list'></ul>");
+            $list = $("<ul class='topcoat-list'></ul>"),
+            storedStops = getStoredStops(route.tag, dirTag);
         
         function normalizeDist(direction, stop) {
             var range = direction.maxDist - direction.minDist,
@@ -191,8 +243,22 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
                 $text = $("<span>").append(stop.title);
             
             if (norm === 1) {
-                $text.css("font-weight", "bold");
+                $text.addClass("closest");
             }
+            
+            if (storedStops[stopTag]) {
+                $text.addClass("stored");
+            }
+            
+            $item.on("click", function () {
+                if (storedStops[stopTag]) {
+                    $text.removeClass("stored");
+                    storedStops = forgetStop(route.tag, dirTag, stopTag);
+                } else {
+                    $text.addClass("stored");
+                    storedStops = rememberStop(route.tag, dirTag, stopTag);
+                }
+            });
             
             $item.append($text);
             $list.append($item);
@@ -202,8 +268,8 @@ define(["jquery", "jquery.alpha", "jquery.beta"], function ($) {
         $stops.append($container);
         $stops.show();
         
-        var stateObj = { route: route, direction: tag };
-        history.pushState(stateObj, "Route: " + route.title, "#route=" + route.tag + "&direction=" + tag);
+        var stateObj = { route: route, direction: dirTag };
+        history.pushState(stateObj, undefined, "#route=" + route.tag + "&direction=" + dirTag);
     }
     
     function showDirections(routes, route) {

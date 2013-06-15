@@ -2,3 +2,11 @@
 .content-stops {
     display: none;   
 }
+
+.closest {
+    font-weight: bold;
+}
+
+.stored {
+    font-style: italic;
+}
