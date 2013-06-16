@@ -60,6 +60,10 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
         $stops.append($container);
         $stops.show();
         
+        $body.animate({
+            scrollTop: $list.find(".closest").parent().offset().top - $body.scrollTop()
+        });
+        
         var stateObj = { route: route, direction: dirTag };
         history.pushState(stateObj, undefined, "#route=" + route.tag + "&direction=" + dirTag);
     }
