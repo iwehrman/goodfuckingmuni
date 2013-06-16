@@ -48,7 +48,7 @@ define(["jquery"], function ($) {
             deferred.reject(error);
         }, {
             enableHighAccuracy: true,
-            timeout: undefined,
+            //timeout: 1000 * 60 * 1,
             maximumAge: 1000 * 60 * 5
         });
         
