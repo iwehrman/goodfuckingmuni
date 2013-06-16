@@ -47,6 +47,9 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
                     $text.addClass("stored");
                     storedStops = storage.rememberStop(route.tag, dirTag, stopTag);
                 }
+                command.getPredictions(route.tag, stopTag).done(function (predictions) {
+                    console.log(predictions);
+                });
             });
             
             $item.append($text);

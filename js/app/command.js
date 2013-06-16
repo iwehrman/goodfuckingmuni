@@ -5,38 +5,54 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     "use strict";
     
     var locationPromise = geolocation.getLocation();
-
-    function commandURL(commandName) {
-        var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
-            fullURL = baseURL + "&command=" + commandName;
-        
-        if (arguments.length > 1) {
-            var params  = Array.prototype.slice.call(arguments, 1),
-                query   = params.map(function (param) {
-                    var key = encodeURIComponent(param[0]),
-                        val = encodeURIComponent(param[1]);
-                    return key + "=" + val;
-                }).join("&");
-            fullURL += "&" + query;
+       
+    function defineCommand(commandName, args) {
+        function commandURL(commandName) {
+            var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
+                fullURL = baseURL + "&command=" + commandName;
+            
+            if (arguments.length > 1) {
+                var params  = Array.prototype.slice.call(arguments, 1),
+                    query   = params.map(function (param) {
+                        var key = encodeURIComponent(param[0]),
+                            val = encodeURIComponent(param[1]);
+                        return key + "=" + val;
+                    }).join("&");
+                fullURL += "&" + query;
+            }
+            return fullURL;
         }
-        return fullURL;
+        
+        function doCommand(commandName) {
+            var routeUrl        = commandURL.apply(null, arguments),
+                routeSettings   = {
+                    datatype: "xml"
+                };
+            
+            return $.ajax(routeUrl, routeSettings).fail(function (jqXHR, textStatus, errorThrown) {
+                console.error("Command " + commandName + " failed: " + textStatus);
+            });
+        }
+        
+        return function () {
+            var vals = Array.prototype.slice.apply(arguments),
+                params = vals.map(function (val, index) {
+                    return [args[index], val];
+                });
+            
+            params.unshift(commandName);
+            return doCommand.apply(null, params);
+        };
     }
     
-    function doCommand(commandName) {
-        var routeUrl        = commandURL.apply(null, arguments),
-            routeSettings   = {
-                datatype: "xml"
-            };
-        
-        return $.ajax(routeUrl, routeSettings).fail(function (jqXHR, textStatus, errorThrown) {
-            console.error("Command " + commandName + " failed: " + textStatus);
-        });
-    }
+    var cmdRouteList = defineCommand("routeList"),
+        cmdRouteConfig = defineCommand("routeConfig", ["r", "terse"]),
+        cmdPredictions = defineCommand("predictions", ["r", "s"]);
     
     function getRoutes() {
         var deferred = $.Deferred();
         
-        doCommand("routeList").done(function (data) {
+        cmdRouteList().done(function (data) {
             var routes  = [];
             
             $(data).find("route").each(function (i, r) {
@@ -55,7 +71,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     function getRoute(tag) {
         var deferred = $.Deferred();
         
-        doCommand("routeConfig",  ["r", tag], ["terse", true]).done(function (data) {
+        cmdRouteConfig(tag, true).done(function (data) {
             var $data       = $(data),
                 $route      = $data.find("route"),
                 tag         = $route.attr("tag"),
@@ -68,7 +84,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
             locationPromise.done(function (position, timestamp) {
                 $route.children("stop").each(function (i, s) {
                     var $stop   = $(s),
-                        id      = $stop.attr("stopId"),
+                        id      = parseInt($stop.attr("stopId"), 10),
                         tag     = $stop.attr("tag"),
                         title   = $stop.attr("title"),
                         lat     = parseFloat($stop.attr("lat")),
@@ -137,15 +153,24 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     function getPredictions(routeTag, stopTag) {
         var deferred = $.Deferred();
         
-        doCommand("predictions", ["r", routeTag], ["s", stopTag]).done(function (data) {
+        cmdPredictions(routeTag, stopTag).done(function (data) {
             var predictions  = [];
             
             $(data).find("prediction").each(function (i, p) {
                 var $prediction  = $(p),
-                    seconds = $prediction.attr("seconds"),
-                    minutes = $prediction.attr("minutes");
+                    epochTime = parseInt($prediction.attr("epochTime"), 10),
+                    seconds = parseInt($prediction.attr("seconds"), 10),
+                    minutes = parseInt($prediction.attr("minutes"), 10),
+                    isDeparture = $prediction.attr("isDeparture") === "true",
+                    affectedByLayover = $prediction.attr("affectedByLayover") === "true";
                     
-                predictions.push({seconds: seconds, minutes: minutes });
+                predictions.push({
+                    epochTime: epochTime,
+                    seconds: seconds,
+                    minutes: minutes,
+                    isDeparture: isDeparture,
+                    affectedByLayover: affectedByLayover
+                });
             });
             deferred.resolve(predictions);
         }).fail(deferred.reject.bind(deferred));
