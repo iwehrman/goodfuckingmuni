@@ -8,12 +8,39 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
         $stops = $body.find(".content-stops"),
         $directions = $body.find(".content-directions"),
         $routelist = $body.find(".content-routes"),
+        $predictions = $body.find(".content-predictions"),
         routesPromise;
+    
+    function showPredictions(routes, route, dirTag, stopTag, predictions) {
+        var stop = route.stops[stopTag],
+            direction = route.directions[dirTag],
+            $container = $("<div class='topcoat-list__container'></div>"),
+            $header = $("<h2 class='topcoat-list__header'>" + route.title +
+                        " &gt; " + direction.title + " &gt; " + stop.title + "</h2>"),
+            $list = $("<ul class='topcoat-list'></ul>");
         
-    function showStopsForDirection(route, dirTag) {
+        predictions.forEach(function (prediction, index) {
+            var $item = $("<li class='topcoat-list__item entry-prediction'>"),
+                $text = $("<span>").append(prediction.minutes + " minutes");
+            
+            if (index === 0) {
+                $text.addClass("closest");
+            }
+            
+            $item.append($text);
+            $list.append($item);
+        });
+        
+        $container.append($header).append($list);
+        $predictions.append($container);
+        $predictions.show();
+    }
+        
+    function showStops(routes, route, dirTag) {
         var direction = route.directions[dirTag],
             $container = $("<div class='topcoat-list__container'></div>"),
-            $header = $("<h2 class='topcoat-list__header'>" + direction.title + "</h2>"),
+            $header = $("<h2 class='topcoat-list__header'>" + route.title +
+                        " &gt; " + direction.title + "</h2>"),
             $list = $("<ul class='topcoat-list'></ul>"),
             storedStops = storage.getStoredStops(route.tag, dirTag);
         
@@ -48,7 +75,12 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
                     storedStops = storage.rememberStop(route.tag, dirTag, stopTag);
                 }
                 command.getPredictions(route.tag, stopTag).done(function (predictions) {
-                    console.log(predictions);
+                    var stateObj = { routes: routes, route: route, dirTag: dirTag, stopTag: stopTag };
+                    history.pushState(stateObj, null, "#r=" + route.tag + "&d=" + dirTag + "&s=" + stopTag);
+                    
+                    $stops.hide();
+                    $stops.empty();
+                    showPredictions(routes, route, dirTag, stopTag, predictions);
                 });
             });
             
@@ -63,9 +95,6 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
         $body.animate({
             scrollTop: $list.find(".closest").parent().offset().top - $body.scrollTop()
         });
-        
-        var stateObj = { route: route, direction: dirTag };
-        history.pushState(stateObj, undefined, "#route=" + route.tag + "&direction=" + dirTag);
     }
     
     function showDirections(routes, route) {
@@ -73,14 +102,14 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
             $header = $("<h2 class='topcoat-list__header'>" + route.title + "</h2>"),
             $list = $("<ul class='topcoat-list route-directions'></ul>"),
             direction,
-            tag;
+            dirTag;
         
-        for (tag in route.directions) {
-            if (route.directions.hasOwnProperty(tag)) {
-                direction = route.directions[tag];
+        for (dirTag in route.directions) {
+            if (route.directions.hasOwnProperty(dirTag)) {
+                direction = route.directions[dirTag];
                 
                 $list.append("<li class='topcoat-list__item entry-direction' data-tag='" +
-                         tag + "'>" + direction.title + "</li>");
+                         dirTag + "'>" + direction.title + "</li>");
             }
         }
         
@@ -88,19 +117,21 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
         $directions.append($container);
         $directions.show();
         
-        var stateObj = { routes: routes, route: route };
-        history.pushState(stateObj, "Route: " + route.title, "#route=" + route.tag);
-        
         $directions.find(".entry-direction").each(function (i, d) {
             var $direction = $(d),
-                tag = $direction.data("tag");
+                dirTag = $direction.data("tag");
             
             $direction.on("click", function () {
+                var stateObj = { routes: routes, route: route, dirTag: dirTag };
+                history.pushState(stateObj, null, "#r=" + route.tag + "&d=" + dirTag);
+                
                 $directions.hide();
                 $directions.empty();
-                showStopsForDirection(route, tag);
+                showStops(routes, route, dirTag);
             });
         });
+        
+        
     }
 
     function showRoutes(routes) {
@@ -116,7 +147,6 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
         $container.append($header).append($list);
         $routelist.append($container);
         $routelist.show();
-        history.pushState({ routes: routes }, "Routes", "/");
         
         $routelist.find(".entry-route").each(function (i, r) {
             var $route = $(r),
@@ -124,26 +154,36 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
             
             $route.on("click", function () {
                 command.getRoute(tag).done(function (route) {
+                    var stateObj = { routes: routes, route: route };
+                    history.pushState(stateObj, null, "#r=" + route.tag);
+                    
                     $routelist.hide();
                     $routelist.empty();
                     showDirections(routes, route);
                 });
             });
         });
+        
+        
     }
     
     window.onpopstate = function (event) {
         var state = event.state;
-        
-        if (state.route) {
-            $stops.hide();
-            $stops.empty();
-            history.pushState({ routes: state.routes }, "Routes", "/");
-            showDirections(state.routes, state.route);
-        } else if (state.routes) {
-            $directions.hide();
-            $directions.empty();
-            showRoutes(state.routes);
+
+        if (state) {
+            if (state.dirTag) {
+                $predictions.hide();
+                $predictions.empty();
+                showStops(state.routes, state.route, state.dirTag);
+            } else if (state.route) {
+                $stops.hide();
+                $stops.empty();
+                showDirections(state.routes, state.route);
+            } else if (state.routes) {
+                $directions.hide();
+                $directions.empty();
+                showRoutes(state.routes);
+            }
         }
     };
     
@@ -151,7 +191,12 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
 
     $(function () {
         //$('body').alpha().beta();
-        routesPromise.done(showRoutes);
+        
+        routesPromise.done(function (routes) {
+            var stateObj = { routes: routes };
+            history.pushState(stateObj, null, "");
+            showRoutes(routes);
+        });
     });
     
 });

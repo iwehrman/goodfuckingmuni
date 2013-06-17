@@ -158,6 +158,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
             
             $(data).find("prediction").each(function (i, p) {
                 var $prediction  = $(p),
+                    dirTag = $prediction.attr("dirTag"),
                     epochTime = parseInt($prediction.attr("epochTime"), 10),
                     seconds = parseInt($prediction.attr("seconds"), 10),
                     minutes = parseInt($prediction.attr("minutes"), 10),
@@ -165,6 +166,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
                     affectedByLayover = $prediction.attr("affectedByLayover") === "true";
                     
                 predictions.push({
+                    dirTag: dirTag,
                     epochTime: epochTime,
                     seconds: seconds,
                     minutes: minutes,
