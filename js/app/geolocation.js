@@ -49,7 +49,7 @@ define(["jquery"], function ($) {
         }, {
             enableHighAccuracy: true,
             //timeout: 1000 * 60 * 1,
-            maximumAge: 1000 * 60 * 5
+            maximumAge: 1000 * 60 * 10
         });
         
         return deferred.promise();
