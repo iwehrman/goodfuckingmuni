@@ -1,3 +1,5 @@
+.content-place,
+.content-routes,
 .content-directions,
 .content-stops,
 .content-predictions {
@@ -6,8 +8,4 @@
 
 .closest {
     font-weight: bold;
-}
-
-.stored {
-    font-style: italic;
 }

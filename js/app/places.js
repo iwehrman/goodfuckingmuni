@@ -1,15 +1,20 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "app/storage"], function ($, storage) {
+define(["jquery", "app/geolocation"], function ($, geolocation) {
     "use strict";
     
     var PLACES_KEY = "org.wehrman.goodfuckingmuni.places";
-    var allPlaces,
+    var allPlaces = [],
         placeCounter = 0;
     
     function placeKey(id) {
         return PLACES_KEY + "." + id;
+    }
+    
+    function savePlace(place) {
+        var key = placeKey(place.id);
+        localStorage.setItem(key, JSON.stringify(place));
     }
     
     function Place(id, title, lat, lon, stops) {
@@ -21,32 +26,17 @@ define(["jquery", "app/storage"], function ($, storage) {
     }
     
     Place.prototype.addStop = function (routeTag, stopTag, index) {
-        
+        if (index === undefined) {
+            index = 0;
+        }
+        this.stops.splice(index, 0, {routeTag: routeTag, stopTag: stopTag});
+        savePlace(this);
     };
     
     Place.prototype.removeStop = function (index) {
-        
+        this.stops.splice(index, 1);
+        savePlace(this);
     };
-    
-    Place.prototype.getStops = function (routeTag) {
-        
-    };
-    
-    Place.prototype.stringify = function () {
-        
-    };
-    
-    function getAllPlaces() {
-        return allPlaces.slice(0);
-    }
-    
-    function addPlace(title, position) {
-        
-    }
-    
-    function removePlace(id) {
-        
-    }
     
     function loadPlaces() {
         var placesJSON = localStorage.getItem(PLACES_KEY),
@@ -64,20 +54,71 @@ define(["jquery", "app/storage"], function ($, storage) {
                     stops = placeObj.stops,
                     place = new Place(id, title, lat, lon, stops);
                 
+                if (placeCounter <= id) {
+                    placeCounter = id + 1;
+                }
+                
                 allPlaces.push(place);
             }
         });
     }
     
     function savePlaces() {
-        localStorage.setItem(PLACES_KEY, allPlaces.map(function (place) {
+        var ids = allPlaces.map(function (place) {
             return place.id;
-        }));
+        });
+        
+        localStorage.setItem(PLACES_KEY, JSON.stringify(ids));
+    }
+    
+    function getPlace(id) {
+        var _place = null;
+        allPlaces.some(function (place) {
+            if (place.id === id) {
+                _place = place;
+            }
+        });
+        return _place;
+    }
+    
+    function getAllPlaces(lat, lon) {
+        return allPlaces.slice(0);
+    }
+    
+    function addPlace(title, position) {
+        var deferred = $.Deferred(),
+            geopromise,
+            place;
+        
+        if (position) {
+            geopromise = $.Deferred().resolve(position);
+        } else {
+            geopromise = geolocation.getLocation();
+        }
+        
+        geopromise.done(function (location) {
+            place = new Place(placeCounter++, title, location.lat, location.lon, []);
+            allPlaces.push(place);
+            savePlace(place);
+            savePlaces();
+            deferred.resolve(place);
+        }).fail(deferred.reject.bind(deferred));
+
+        return deferred.promise();
+    }
+    
+    function removePlace(place) {
+        var index = allPlaces.indexOf(place);
+        if (index > 0) {
+            allPlaces.splice(index, 1);
+            savePlaces();
+        }
     }
     
     loadPlaces();
     
     return {
+        getPlace: getPlace,
         getAllPlaces: getAllPlaces,
         addPlace: addPlace,
         removePlace: removePlace

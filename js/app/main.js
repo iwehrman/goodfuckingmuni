@@ -1,10 +1,11 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "app/storage", "app/command"], function ($, storage, command) {
+define(["jquery", "async", "app/command", "app/places"], function ($, async, command, places) {
     "use strict";
     
     var $body = $("body"),
+        $placelist = $body.find(".content-places"),
         $stops = $body.find(".content-stops"),
         $directions = $body.find(".content-directions"),
         $routelist = $body.find(".content-routes"),
@@ -146,14 +147,12 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
                 $list.append($item);
                 
                 $item.on("click", function () {
-                    command.getRoute(route.tag).done(function (route) {
-                        var stateObj = { routeTag: route.tag };
-                        history.pushState(stateObj, null, "#r=" + route.tag);
-                        
-                        $routelist.hide();
-                        $routelist.empty();
-                        showDirections(route.tag);
-                    });
+                    var stateObj = { routeTag: route.tag };
+                    history.pushState(stateObj, null, "#r=" + route.tag);
+                    
+                    $routelist.hide();
+                    $routelist.empty();
+                    showDirections(route.tag);
                 });
             });
             
@@ -161,6 +160,102 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
             $routelist.append($container);
             $routelist.show();
         });
+    }
+    
+    function showPlace(placeId) {
+        var place = places.getPlaces(placeId),
+            $container = $("<div class='topcoat-list__container'></div>"),
+            $header = $("<h2 class='topcoat-list__header'>" + place.title + "</h2>"),
+            $list = $("<ul class='topcoat-list'></ul>");
+
+        function handleStopClick(place) {
+            var stateObj = { place: place };
+            history.pushState(stateObj, null, "#p=" + place.id);
+            
+            $placelist.hide();
+            $placelist.empty();
+            showPlace(place.id);
+        }
+        
+        async.map(place.stops, function (stopObj, callback) {
+            var stopTag = stopObj.stopTag,
+                routeTat = stopObj.routeTag,
+                $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
+                         place.id + "'>"),
+                $text = $("<span>").append(place.title);
+            
+            $item.append($text);
+            $item.on("click", handleStopClick);
+            callback(null, $item);
+        }, function (err, items) {
+            items.forEach(function ($item) {
+                $list.append($item);
+            });
+        });
+        
+        var $item = $("<li class='topcoat-list__item entry-place'>"),
+            $text = $("<span>").append("Add new place");
+        
+        $item.append($text);
+        $list.append($item);
+        
+        $item.on("click", function () {
+            var name = window.prompt("Place name: ", "");
+            places.addPlace(name).done(handleStopClick);
+        });
+        
+        $container.append($header).append($list);
+        $placelist.append($container);
+        $placelist.show();
+    }
+    
+    function showPlaces() {
+        var placeList = places.getAllPlaces(),
+            $container = $("<div class='topcoat-list__container'></div>"),
+            $header = $("<h2 class='topcoat-list__header'>Places</h2>"),
+            $list = $("<ul class='topcoat-list'></ul>");
+
+        placeList.forEach(function (place) {
+            var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
+                         place.id + "'>"),
+                $text = $("<span>").append(place.title);
+            
+            $item.append($text);
+            $list.append($item);
+            
+            $item.on("click", function () {
+                var stateObj = { place: place };
+                history.pushState(stateObj, null, "#p=" + place.id);
+                
+                $placelist.hide();
+                $placelist.empty();
+                showPlace(place);
+            });
+        });
+        
+        var $item = $("<li class='topcoat-list__item entry-place'>"),
+            $text = $("<span>").append("Add new place");
+        
+        $item.append($text);
+        $list.append($item);
+        
+        $item.on("click", function () {
+            var name = window.prompt("Place name: ", "");
+            
+            places.addPlace(name).done(function (place) {
+                var stateObj = { place: place };
+                history.pushState(stateObj, null, "#p=" + place.id);
+                
+                $placelist.hide();
+                $placelist.empty();
+                showPlace(place);
+            });
+            
+        });
+        
+        $container.append($header).append($list);
+        $placelist.append($container);
+        $placelist.show();
     }
     
     window.onpopstate = function (event) {
@@ -185,7 +280,7 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
 
     $(function () {
         var hash = window.location.hash;
-                
+        
         if (hash) {
             var params = hash.substring(1).split("&").reduce(function (obj, eq) {
                 var terms = eq.split("=");
@@ -207,7 +302,7 @@ define(["jquery", "app/storage", "app/command"], function ($, storage, command) 
             }
         }
         
-        showRoutes();
+        showPlaces();
     });
     
 });
