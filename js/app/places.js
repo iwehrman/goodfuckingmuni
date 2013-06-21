@@ -25,11 +25,15 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         this.stops = stops;
     }
     
-    Place.prototype.addStop = function (routeTag, stopTag, index) {
+    Place.prototype.addStop = function (routeTag, dirTag, stopTag, index) {
         if (index === undefined) {
             index = 0;
         }
-        this.stops.splice(index, 0, {routeTag: routeTag, stopTag: stopTag});
+        this.stops.splice(index, 0, {
+            routeTag: routeTag,
+            dirTag: dirTag,
+            stopTag: stopTag
+        });
         savePlace(this);
     };
     

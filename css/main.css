@@ -1,7 +1,7 @@
-.content-place,
+.content-place-stops,
 .content-routes,
 .content-directions,
-.content-stops,
+.content-route-stops,
 .content-predictions {
     display: none;   
 }
