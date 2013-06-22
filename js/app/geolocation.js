@@ -4,6 +4,24 @@
 define(["jquery"], function ($) {
     "use strict";
     
+    function getLocation() {
+        var deferred = $.Deferred();
+        
+        navigator.geolocation.getCurrentPosition(function (position) {
+            position.coords.lat = position.coords.latitude;
+            position.coords.lon = position.coords.longitude;
+            deferred.resolve(position.coords, position.timestamp);
+        }, function (error) {
+            console.error("Unable to geolocate: " + error);
+            deferred.reject(error);
+        }, {
+            enableHighAccuracy: true,
+            //timeout: 1000 * 60 * 1,
+            maximumAge: 1000 * 60 * 10
+        });
+        
+        return deferred.promise();
+    }
 
     function distance(pos1, pos2) {
         function toRad(x) {
@@ -36,27 +54,20 @@ define(["jquery"], function ($) {
         };
     }
     
-    function getLocation() {
+    function sortByCurrentLocation(array) {
         var deferred = $.Deferred();
         
-        navigator.geolocation.getCurrentPosition(function (position) {
-            position.coords.lat = position.coords.latitude;
-            position.coords.lon = position.coords.longitude;
-            deferred.resolve(position.coords, position.timestamp);
-        }, function (error) {
-            console.error("Unable to geolocate: " + error);
-            deferred.reject(error);
-        }, {
-            enableHighAccuracy: true,
-            //timeout: 1000 * 60 * 1,
-            maximumAge: 1000 * 60 * 10
-        });
+        getLocation().done(function (coords) {
+            array.sort(positionComparator(coords));
+            deferred.resolve();
+        }).fail(deferred.reject.bind(deferred));
         
         return deferred.promise();
     }
     
     return {
         distance: distance,
-        getLocation: getLocation
+        getLocation: getLocation,
+        sortByCurrentLocation: sortByCurrentLocation
     };
 });

@@ -1,7 +1,7 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "async", "app/command", "app/places"], function ($, async, command, places) {
+define(["jquery", "async", "app/command", "app/places", "app/geolocation"], function ($, async, command, places, geo) {
     "use strict";
     
     var $body = $("body"),
@@ -182,23 +182,26 @@ define(["jquery", "async", "app/command", "app/places"], function ($, async, com
             $list = $("<ul class='topcoat-list'></ul>");
         
         async.map(place.stops, function (stopObj, callback) {
-            var stopTag = stopObj.stopTag,
-                dirTag = stopObj.dirTag,
-                routeTag = stopObj.routeTag,
-                $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
-                             stopTag + "' data-routeTag='" + routeTag + "'>");
+            command.getRoute(stopObj.routeTag).done(function (route) {
+                callback(null, {
+                    route: route,
+                    dirTag: stopObj.dirTag,
+                    stopTag: stopObj.stopTag
+                });
+            });
             
-            command.getRoute(routeTag).done(function (route) {
-                var stop = route.stops[stopTag],
+        }, function (err, routeObjs) {
+            routeObjs.forEach(function (routeObj) {
+                var route = routeObj.route,
+                    routeTag = route.tag,
+                    stopTag = routeObj.stopTag,
+                    dirTag = routeObj.dirTag,
+                    stop = route.stops[stopTag],
+                    $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
+                             stopTag + "' data-routeTag='" + routeTag + "'>"),
                     $text = $("<span>").append(route.title + ": " + stop.title);
                 
                 $item.append($text);
-//                $item.on("click", function () {});
-                callback(null, $item);
-            });
-            
-        }, function (err, items) {
-            items.forEach(function ($item) {
                 $list.append($item);
             });
             
@@ -237,47 +240,51 @@ define(["jquery", "async", "app/command", "app/places"], function ($, async, com
             $header = $("<h2 class='topcoat-list__header'>Places</h2>"),
             $list = $("<ul class='topcoat-list'></ul>");
 
-        placeList.forEach(function (place) {
-            var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
-                         place.id + "'>"),
-                $text = $("<span>").append(place.title);
+        geo.sortByCurrentLocation(placeList).done(function () {
+            placeList.forEach(function (place) {
+                var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
+                             place.id + "'>"),
+                    $text = $("<span>").append(place.title);
+                
+                $item.append($text);
+                $list.append($item);
+                
+                $item.on("click", function () {
+                    var stateObj = { place: place };
+                    history.pushState(stateObj, null, "#p=" + place.id);
+                    
+                    $places.hide();
+                    $places.empty();
+                    showPlace(place.id);
+                });
+            });
+            
+            var $item = $("<li class='topcoat-list__item'>"),
+                $text = $("<span>").append("Add new place");
             
             $item.append($text);
             $list.append($item);
             
             $item.on("click", function () {
-                var stateObj = { place: place };
-                history.pushState(stateObj, null, "#p=" + place.id);
+                var name = window.prompt("Place name: ", "");
                 
-                $places.hide();
-                $places.empty();
-                showPlace(place.id);
-            });
-        });
-        
-        var $item = $("<li class='topcoat-list__item'>"),
-            $text = $("<span>").append("Add new place");
-        
-        $item.append($text);
-        $list.append($item);
-        
-        $item.on("click", function () {
-            var name = window.prompt("Place name: ", "");
-            
-            places.addPlace(name).done(function (place) {
-                var stateObj = { place: place };
-                history.pushState(stateObj, null, "#p=" + place.id);
+                places.addPlace(name).done(function (place) {
+                    var stateObj = { place: place };
+                    history.pushState(stateObj, null, "#p=" + place.id);
+                    
+                    $places.hide();
+                    $places.empty();
+                    showPlace(place.id);
+                });
                 
-                $places.hide();
-                $places.empty();
-                showPlace(place.id);
             });
             
+            $container.append($header).append($list);
+            $places.append($container);
+            $places.show();
         });
         
-        $container.append($header).append($list);
-        $places.append($container);
-        $places.show();
+        
     }
     
     window.onpopstate = function (event) {
