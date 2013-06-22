@@ -6,7 +6,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
     
     var $body = $("body"),
         $places = $body.find(".content-places"),
-        $placeStops = $body.find(".content-place-stops"),
+        $placeStops = $body.find(".content-places"),
         $routeStops = $body.find(".content-route-stops"),
         $directions = $body.find(".content-directions"),
         $routes = $body.find(".content-routes"),
@@ -203,6 +203,20 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 
                 $item.append($text);
                 $list.append($item);
+                
+                $item.on("click", function () {
+                    var stateObj = {
+                        placeId: placeId,
+                        routeTag: routeTag,
+                        dirTag: dirTag,
+                        stopTag: stopTag
+                    };
+                    history.pushState(stateObj, null, "#p=" + placeId + "&#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                    
+                    $places.hide();
+                    $places.empty();
+                    showPredictions(routeTag, dirTag, stopTag);
+                });
             });
             
             var $item = $("<li class='topcoat-list__item'>"),
@@ -240,17 +254,18 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             $header = $("<h2 class='topcoat-list__header'>Places</h2>"),
             $list = $("<ul class='topcoat-list'></ul>");
 
-        geo.sortByCurrentLocation(placeList).done(function () {
+        geo.sortByCurrentLocation(placeList).done(function (position) {
             placeList.forEach(function (place) {
                 var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
                              place.id + "'>"),
-                    $text = $("<span>").append(place.title);
+                    meters = Math.round(10000 * geo.distance(position, place)) / 10,
+                    $text = $("<span>").append(place.title + " (" + meters + " m)");
                 
                 $item.append($text);
                 $list.append($item);
                 
                 $item.on("click", function () {
-                    var stateObj = { place: place };
+                    var stateObj = { placeId: place.id };
                     history.pushState(stateObj, null, "#p=" + place.id);
                     
                     $places.hide();
@@ -269,7 +284,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 var name = window.prompt("Place name: ", "");
                 
                 places.addPlace(name).done(function (place) {
-                    var stateObj = { place: place };
+                    var stateObj = { placeId: place.id };
                     history.pushState(stateObj, null, "#p=" + place.id);
                     
                     $places.hide();
@@ -291,7 +306,11 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
         var state = event.state;
 
         if (state) {
-            if (state.dirTag) {
+            if (state.placeId) {
+                $predictions.hide();
+                $predictions.empty();
+                showPlace(state.placeId);
+            } else if (state.dirTag) {
                 $predictions.hide();
                 $predictions.empty();
                 showStops(state.routeTag, state.dirTag);
@@ -301,9 +320,9 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 showDirections(state.routeTag);
             }
         } else {
-            $directions.hide();
-            $directions.empty();
-            showRoutes();
+            $placeStops.hide();
+            $placeStops.empty();
+            showPlaces();
         }
     };
 
