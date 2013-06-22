@@ -50,7 +50,7 @@ define(["jquery"], function ($) {
             var dist1 = distance(main, pos1),
                 dist2 = distance(main, pos2);
             
-            return dist2 - dist1;
+            return dist1 - dist2;
         };
     }
     
@@ -59,7 +59,7 @@ define(["jquery"], function ($) {
         
         getLocation().done(function (coords) {
             array.sort(positionComparator(coords));
-            deferred.resolve();
+            deferred.resolve(coords);
         }).fail(deferred.reject.bind(deferred));
         
         return deferred.promise();
