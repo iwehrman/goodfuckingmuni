@@ -45,8 +45,21 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         return function () {
             var vals = Array.prototype.slice.apply(arguments),
                 params = vals.map(function (val, index) {
+                    // zip params and arguments
                     return [args[index], val];
-                });
+                }).reduce(function (prev, next) {
+                    // expand array arguments
+                    var arg = next[0],
+                        valArray = next[1];
+                    
+                    if (!valArray instanceof Array) { // FIXME
+                        valArray = [valArray];
+                    }
+                    valArray.forEach(function (val) {
+                        prev.push([arg, val]);
+                    });
+                    return prev;
+                }, []);
             
             params.unshift(commandName);
             return doCommand.apply(null, params);
@@ -55,7 +68,8 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     
     var cmdRouteList = defineCommand("routeList"),
         cmdRouteConfig = defineCommand("routeConfig", ["r", "terse"]),
-        cmdPredictions = defineCommand("predictions", ["r", "s"]);
+        cmdPredictions = defineCommand("predictions", ["r", "s"]),
+        cmdPredictionsForMultiStops = defineCommand("predictionsForMultiStops", ["r", "s"]);
     
     function getRoutes() {
         var deferred = $.Deferred();
@@ -179,6 +193,38 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         return deferred.promise();
     }
     
+    function handlePredictionData(data) {
+        var predictions  = [];
+                
+        $(data).find("prediction").each(function (i, p) {
+            var $prediction  = $(p),
+                dirTag = $prediction.attr("dirTag"),
+                epochTime = parseInt($prediction.attr("epochTime"), 10),
+                seconds = parseInt($prediction.attr("seconds"), 10),
+                minutes = parseInt($prediction.attr("minutes"), 10),
+                isDeparture = $prediction.attr("isDeparture") === "true",
+                affectedByLayover = $prediction.attr("affectedByLayover") === "true";
+                
+            predictions.push({
+                dirTag: dirTag,
+                epochTime: epochTime,
+                seconds: seconds,
+                minutes: minutes,
+                isDeparture: isDeparture,
+                affectedByLayover: affectedByLayover
+            });
+        });
+        
+        return predictions;
+    }
+    
+    function cachePredictions(routeTag, stopTag, predictions) {
+        cachedPredictions[routeTag][stopTag] = predictions;
+        setTimeout(function () {
+            cachedPredictions[routeTag][stopTag] = null;
+        }, PREDICTION_TIMEOUT);
+    }
+    
     function getPredictions(routeTag, stopTag) {
         var deferred = $.Deferred();
         
@@ -190,32 +236,8 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
             deferred.resolve(cachedPredictions[routeTag][stopTag]);
         } else {
             cmdPredictions(routeTag, stopTag).done(function (data) {
-                var predictions  = [];
-                
-                $(data).find("prediction").each(function (i, p) {
-                    var $prediction  = $(p),
-                        dirTag = $prediction.attr("dirTag"),
-                        epochTime = parseInt($prediction.attr("epochTime"), 10),
-                        seconds = parseInt($prediction.attr("seconds"), 10),
-                        minutes = parseInt($prediction.attr("minutes"), 10),
-                        isDeparture = $prediction.attr("isDeparture") === "true",
-                        affectedByLayover = $prediction.attr("affectedByLayover") === "true";
-                        
-                    predictions.push({
-                        dirTag: dirTag,
-                        epochTime: epochTime,
-                        seconds: seconds,
-                        minutes: minutes,
-                        isDeparture: isDeparture,
-                        affectedByLayover: affectedByLayover
-                    });
-                });
-                
-                cachedPredictions[routeTag][stopTag] = predictions;
-                setTimeout(function () {
-                    cachedPredictions[routeTag][stopTag] = null;
-                }, PREDICTION_TIMEOUT);
-                    
+                var predictions = handlePredictionData(data);
+                cachePredictions(routeTag, stopTag, predictions);
                 deferred.resolve(predictions);
             }).fail(deferred.reject.bind(deferred));
         }
@@ -223,9 +245,53 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         return deferred.promise();
     }
     
+    function getPredictionsForMultiStops(stopObjs) {
+        var deferred = $.Deferred(),
+            predictionsForMultiStops = new Array(stopObjs.length),
+            waitingPredictions = {},
+            uncachedStopObjs = [];
+        
+        stopObjs.forEach(function (stopObj, index) {
+            var routeTag = stopObj.routeTag,
+                stopTag = stopObj.stopTag;
+            
+            if (!cachedPredictions[routeTag]) {
+                cachedPredictions[routeTag] = {};
+            }
+            
+            if (!cachedPredictions[routeTag][stopTag]) {
+                uncachedStopObjs.push(stopObj);
+                if (!waitingPredictions[routeTag]) {
+                    waitingPredictions[routeTag] = routeTag;
+                }
+                waitingPredictions[routeTag][stopObj] = index;
+            } else {
+                predictionsForMultiStops[index] = cachedPredictions[routeTag][stopObj];
+            }
+        });
+        
+        cmdPredictionsForMultiStops(uncachedStopObjs).done(function (data) {
+            $(data).find("predictions").each(function (i, d) {
+                var $data = $(d),
+                    predictions = handlePredictionData(d),
+                    routeTag = $data.attr("routeTag"),
+                    stopTag = $data.attr("stopTag"),
+                    index = waitingPredictions[routeTag][stopTag];
+                
+                cachePredictions(routeTag, stopTag, predictions);
+                predictionsForMultiStops[index] = predictions;
+            });
+            
+            deferred.resolve(predictionsForMultiStops);
+        });
+
+        return deferred.promise();
+    }
+    
     return {
         getRoutes: getRoutes,
         getRoute: getRoute,
-        getPredictions: getPredictions
+        getPredictions: getPredictions,
+        getPredictionsForMultiStops: getPredictionsForMultiStops
     };
 });
