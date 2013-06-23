@@ -177,6 +177,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
     
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
+            predictionsPromise = command.getPredictionsForMultiStops(place.stops),
             $container = $("<div class='topcoat-list__container'></div>"),
             $header = $("<h2 class='topcoat-list__header'>" + place.title + "</h2>"),
             $list = $("<ul class='topcoat-list'></ul>");
@@ -191,60 +192,69 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             });
             
         }, function (err, routeObjs) {
-            routeObjs.forEach(function (routeObj) {
-                var route = routeObj.route,
-                    routeTag = route.tag,
-                    stopTag = routeObj.stopTag,
-                    dirTag = routeObj.dirTag,
-                    stop = route.stops[stopTag],
-                    $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
-                             stopTag + "' data-routeTag='" + routeTag + "'>"),
-                    $text = $("<span>").append(route.title + ": " + stop.title);
+            predictionsPromise.done(function (predictionObjs) {
+                routeObjs.forEach(function (routeObj, index) {
+                    var predictions = predictionObjs[index],
+                        route = routeObj.route,
+                        routeTag = route.tag,
+                        stopTag = routeObj.stopTag,
+                        dirTag = routeObj.dirTag,
+                        stop = route.stops[stopTag],
+                        $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
+                                 stopTag + "' data-routeTag='" + routeTag + "'>"),
+                        $text = $("<span>").append(route.title + " - " + stop.title + ": "),
+                        predictionText = predictions.map(function (prediction) {
+                            return prediction.minutes + " m";
+                        }).join(", ");
+                    
+                    $text.append(predictionText);
+                    $item.append($text);
+                    $list.append($item);
+                    
+                    $item.on("click", function () {
+                        var stateObj = {
+                            placeId: placeId,
+                            routeTag: routeTag,
+                            dirTag: dirTag,
+                            stopTag: stopTag
+                        };
+                        history.pushState(stateObj, null, "#p=" + placeId + "&#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                        
+                        $places.hide();
+                        $places.empty();
+                        showPredictions(routeTag, dirTag, stopTag);
+                    });
+                });
+                
+                var $item = $("<li class='topcoat-list__item'>"),
+                    $text = $("<span>").append("Add new stop");
                 
                 $item.append($text);
                 $list.append($item);
                 
                 $item.on("click", function () {
-                    var stateObj = {
-                        placeId: placeId,
-                        routeTag: routeTag,
-                        dirTag: dirTag,
-                        stopTag: stopTag
-                    };
-                    history.pushState(stateObj, null, "#p=" + placeId + "&#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                    function routeHandler(routeTag) {
+                        function directionHandler(routeTag, dirTag) {
+                            function stopHandler(routeTag, dirTag, stopTag) {
+                                place.addStop(routeTag, dirTag, stopTag);
+                                showPlace(placeId);
+                            }
+                            showStops(routeTag, dirTag, true, stopHandler);
+                        }
+                        showDirections(routeTag, directionHandler);
+                    }
                     
                     $places.hide();
                     $places.empty();
-                    showPredictions(routeTag, dirTag, stopTag);
+                    showRoutes(routeHandler);
                 });
-            });
-            
-            var $item = $("<li class='topcoat-list__item'>"),
-                $text = $("<span>").append("Add new stop");
-            
-            $item.append($text);
-            $list.append($item);
-            
-            $item.on("click", function () {
-                function routeHandler(routeTag) {
-                    function directionHandler(routeTag, dirTag) {
-                        function stopHandler(routeTag, dirTag, stopTag) {
-                            place.addStop(routeTag, dirTag, stopTag);
-                            showPlace(placeId);
-                        }
-                        showStops(routeTag, dirTag, true, stopHandler);
-                    }
-                    showDirections(routeTag, directionHandler);
-                }
                 
-                $places.hide();
-                $places.empty();
-                showRoutes(routeHandler);
+                $container.append($header).append($list);
+                $places.append($container);
+                $places.show();
             });
             
-            $container.append($header).append($list);
-            $places.append($container);
-            $places.show();
+            
         });
     }
     
