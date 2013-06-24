@@ -50,11 +50,8 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
                 }).reduce(function (prev, next) {
                     // expand array arguments
                     var arg = next[0],
-                        valArray = next[1];
+                        valArray = [].concat(next[1]);
                     
-                    if (!valArray instanceof Array) { // FIXME
-                        valArray = [valArray];
-                    }
                     valArray.forEach(function (val) {
                         prev.push([arg, val]);
                     });
@@ -69,7 +66,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     var cmdRouteList = defineCommand("routeList"),
         cmdRouteConfig = defineCommand("routeConfig", ["r", "terse"]),
         cmdPredictions = defineCommand("predictions", ["r", "s"]),
-        cmdPredictionsForMultiStops = defineCommand("predictionsForMultiStops", ["r", "s"]);
+        cmdPredictionsForMultiStops = defineCommand("predictionsForMultiStops", ["stops"]);
     
     function getRoutes() {
         var deferred = $.Deferred();
@@ -262,15 +259,19 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
             if (!cachedPredictions[routeTag][stopTag]) {
                 uncachedStopObjs.push(stopObj);
                 if (!waitingPredictions[routeTag]) {
-                    waitingPredictions[routeTag] = routeTag;
+                    waitingPredictions[routeTag] = {};
                 }
-                waitingPredictions[routeTag][stopObj] = index;
+                waitingPredictions[routeTag][stopTag] = index;
             } else {
                 predictionsForMultiStops[index] = cachedPredictions[routeTag][stopObj];
             }
         });
         
-        cmdPredictionsForMultiStops(uncachedStopObjs).done(function (data) {
+        var stopParams = uncachedStopObjs.map(function (stopObj) {
+            return stopObj.routeTag + "|" + stopObj.stopTag;
+        });
+        
+        cmdPredictionsForMultiStops(stopParams).done(function (data) {
             $(data).find("predictions").each(function (i, d) {
                 var $data = $(d),
                     predictions = handlePredictionData(d),
