@@ -9,3 +9,19 @@
 .closest {
     font-weight: bold;
 }
+
+.entry-place-stop .entry-place-stop__route:after {
+    content: " - ";
+}
+
+.entry-place-stop .entry-place-stop__stop:after {
+    content: ": ";
+}
+
+.entry-place-stop .entry-place-stop__minutes:after {
+    content: "m, ";
+}
+
+.entry-place-stop .entry-place-stop__minutes:last-child:after {
+    content: "m";
+}
