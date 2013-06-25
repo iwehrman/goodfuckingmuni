@@ -337,15 +337,22 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
     };
 
     $(function () {
-        var hash = window.location.hash;
+        var hash = window.location.hash,
+            params;
         
         if (hash) {
-            var params = hash.substring(1).split("&").reduce(function (obj, eq) {
+            params = hash.substring(1).split("&").reduce(function (obj, eq) {
                 var terms = eq.split("=");
                 obj[terms[0]] = terms[1];
                 return obj;
             }, {});
+        } else {
+            params = {};
+        }
             
+        if (params.p) {
+            showPlace(parseInt(params.p, 10));
+        } else {
             if (params.r) {
                 if (params.d) {
                     if (params.s) {
@@ -356,11 +363,10 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 } else {
                     showDirections(params.r);
                 }
-                return;
+            } else {
+                showPlaces();
             }
         }
-        
-        showPlaces();
+
     });
-    
 });
