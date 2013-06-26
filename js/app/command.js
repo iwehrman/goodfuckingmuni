@@ -4,9 +4,9 @@
 define(["jquery", "app/geolocation"], function ($, geolocation) {
     "use strict";
 
-    var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24,
-        ROUTE_TIMEOUT = 1000 * 60,
-        PREDICTION_TIMEOUT = 1000 * 30;
+    var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 7, // 1 week
+        ROUTE_TIMEOUT = 1000 * 60 * 60 * 24, // 1 day
+        PREDICTION_TIMEOUT = 1000 * 60; // 1 minute
     
     var cachedRouteList = null,
         cachedRoutes = {},
