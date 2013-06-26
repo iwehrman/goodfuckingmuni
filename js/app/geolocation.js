@@ -45,6 +45,14 @@ define(["jquery"], function ($) {
         return d;
     }
     
+    function formatDistance(dist) {
+        if (dist < 1000) {
+            return dist.toFixed(0) + "m";
+        } else {
+            return (dist / 1000).toFixed(1) + "km";
+        }
+    }
+    
     function positionComparator(main) {
         return function (pos1, pos2) {
             var dist1 = distance(main, pos1),
@@ -67,6 +75,7 @@ define(["jquery"], function ($) {
     
     return {
         distance: distance,
+        formatDistance: formatDistance,
         getLocation: getLocation,
         sortByCurrentLocation: sortByCurrentLocation
     };

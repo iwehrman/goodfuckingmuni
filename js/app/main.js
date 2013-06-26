@@ -274,8 +274,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             placeList.forEach(function (place) {
                 var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
                              place.id + "'>"),
-                    meters = Math.round(10000 * geo.distance(position, place)) / 10,
-                    $text = $("<span>").append(place.title + " (" + meters + " m)");
+                    distance = geo.formatDistance(geo.distance(position, place)),
+                    $text = $("<span>").append(place.title + " (" + distance + ")");
                 
                 $item.append($text);
                 $list.append($item);
