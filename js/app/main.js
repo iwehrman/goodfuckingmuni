@@ -202,13 +202,17 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                         stop = route.stops[stopTag],
                         $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
                                  stopTag + "' data-routeTag='" + routeTag + "'>"),
-                        $routeTitle = $("<span>").append(route.title).addClass("entry-place-stop__route"),
-                        $stopTitle = $("<span>").append(stop.title).addClass("entry-place-stop__stop"),
+                        $routeTitle = $("<div>").append(route.title).addClass("entry-place-stop__route"),
+                        $stopTitle = $("<div>").append(stop.title).addClass("entry-place-stop__stop"),
+                        $title = $("<div>").append($stopTitle).append($routeTitle).addClass("entry-place-stop__stop"),
                         $times = predictions.map(function (prediction) {
                             return $("<span>").append(prediction.minutes).addClass("entry-place-stop__minutes");
                         }),
-                        $predictions = $("<span>").append($times).addClass("entry-place-stop__predictions"),
-                        $text = $("<div>").append($routeTitle).append($stopTitle).append($predictions);
+                        $predictions = $("<div>").append($times).addClass("entry-place-stop__predictions"),
+                        $text = $("<div>")
+                            .addClass("entry-place-stop__content")
+                            .append($title)
+                            .append($predictions);
 
                     $item.append($text);
                     $list.append($item);
