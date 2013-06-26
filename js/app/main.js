@@ -37,7 +37,11 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 $container.append($header).append($list);
                 $predictions.append($container);
                 $predictions.show();
+            }).fail(function (err) {
+                console.error("[showPredictions] failed to get predictions: " + err);
             });
+        }).fail(function (err) {
+            console.error("[showPredictions] failed to get route: " + err);
         });
     }
         
@@ -93,6 +97,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                     scrollTop: $list.find(".closest").parent().offset().top - $body.scrollTop()
                 });
             }
+        }).fail(function (err) {
+            console.error("[showStops] failed to get route: " + err);
         });
     }
     
@@ -138,6 +144,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             $container.append($header).append($list);
             $directions.append($container);
             $directions.show();
+        }).fail(function (err) {
+            console.error("[showDirections] failed to get route: " + err);
         });
     }
 
@@ -172,6 +180,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             $container.append($header).append($list);
             $routes.append($container);
             $routes.show();
+        }).fail(function (err) {
+            console.error("[showRoutes] failed to get routes: " + err);
         });
     }
     
@@ -189,9 +199,16 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                     dirTag: stopObj.dirTag,
                     stopTag: stopObj.stopTag
                 });
+            }).fail(function (err) {
+                callback(err);
             });
             
         }, function (err, routeObjs) {
+            if (err) {
+                console.error("[showPlace] failed to get routes: " + err);
+                return;
+            }
+            
             predictionsPromise.done(function (predictionObjs) {
                 routeObjs.forEach(function (routeObj, index) {
                     var predictions = predictionObjs[index],
@@ -258,9 +275,9 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 $container.append($header).append($list);
                 $places.append($container);
                 $places.show();
+            }).fail(function (err) {
+                console.error("[showPlace] failed to get predictions: " + err);
             });
-            
-            
         });
     }
     
@@ -306,6 +323,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                     $places.hide();
                     $places.empty();
                     showPlace(place.id);
+                }).fail(function (err) {
+                    console.error("[showPlaces] failed to add place: " + err);
                 });
                 
             });
@@ -313,9 +332,9 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             $container.append($header).append($list);
             $places.append($container);
             $places.show();
+        }).fail(function (err) {
+            console.error("[showPlaces] failed to geolocate: " + err);
         });
-        
-        
     }
     
     window.onpopstate = function (event) {
@@ -373,6 +392,5 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 showPlaces();
             }
         }
-
     });
 });

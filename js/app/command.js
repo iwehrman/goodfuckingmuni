@@ -92,8 +92,6 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
                 
                 deferred.resolve(routes);
             }).fail(deferred.reject.bind(deferred));
-            
-
         }
         return deferred.promise();
     }
