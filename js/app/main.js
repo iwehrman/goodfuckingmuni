@@ -1,7 +1,7 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "async", "app/command", "app/places", "app/geolocation"], function ($, async, command, places, geo) {
+define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/weather"], function ($, async, command, places, geo, weather) {
     "use strict";
     
     var $body = $("body"),
@@ -360,8 +360,17 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
             showPlaces();
         }
     };
-
-    $(function () {
+    
+    function loadDarkStylesheet() {
+        weather.isDaytime().done(function (daytime) {
+            if (!daytime) {
+                var $link = $("<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-dark.min.css'>");
+                $body.append($link);
+            }
+        });
+    }
+    
+    function getHashParams() {
         var hash = window.location.hash,
             params;
         
@@ -374,7 +383,12 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
         } else {
             params = {};
         }
-            
+        
+        return params;
+    }
+    
+    function loadFromHashParams() {
+        var params = getHashParams();
         if (params.p) {
             showPlace(parseInt(params.p, 10));
         } else {
@@ -392,5 +406,10 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                 showPlaces();
             }
         }
+    }
+
+    $(function () {
+        loadDarkStylesheet();
+        loadFromHashParams();
     });
 });
