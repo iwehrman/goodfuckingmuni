@@ -221,7 +221,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation"], func
                                  stopTag + "' data-routeTag='" + routeTag + "'>"),
                         $routeTitle = $("<div>").append(route.title).addClass("entry-place-stop__route"),
                         $stopTitle = $("<div>").append(stop.title).addClass("entry-place-stop__stop"),
-                        $title = $("<div>").append($stopTitle).append($routeTitle).addClass("entry-place-stop__stop"),
+                        $title = $("<div>").append($stopTitle).append($routeTitle).addClass("entry-place-stop__title"),
                         $times = predictions.map(function (prediction) {
                             return $("<span>").append(prediction.minutes).addClass("entry-place-stop__minutes");
                         }),

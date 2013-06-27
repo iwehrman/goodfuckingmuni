@@ -261,28 +261,32 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
                 }
                 waitingPredictions[routeTag][stopTag] = index;
             } else {
-                predictionsForMultiStops[index] = cachedPredictions[routeTag][stopObj];
+                predictionsForMultiStops[index] = cachedPredictions[routeTag][stopTag];
             }
         });
         
-        var stopParams = uncachedStopObjs.map(function (stopObj) {
-            return stopObj.routeTag + "|" + stopObj.stopTag;
-        });
-        
-        cmdPredictionsForMultiStops(stopParams).done(function (data) {
-            $(data).find("predictions").each(function (i, d) {
-                var $data = $(d),
-                    predictions = handlePredictionData(d),
-                    routeTag = $data.attr("routeTag"),
-                    stopTag = $data.attr("stopTag"),
-                    index = waitingPredictions[routeTag][stopTag];
-                
-                cachePredictions(routeTag, stopTag, predictions);
-                predictionsForMultiStops[index] = predictions;
+        if (uncachedStopObjs.length > 0) {
+            var stopParams = uncachedStopObjs.map(function (stopObj) {
+                return stopObj.routeTag + "|" + stopObj.stopTag;
             });
             
+            cmdPredictionsForMultiStops(stopParams).done(function (data) {
+                $(data).find("predictions").each(function (i, d) {
+                    var $data = $(d),
+                        predictions = handlePredictionData(d),
+                        routeTag = $data.attr("routeTag"),
+                        stopTag = $data.attr("stopTag"),
+                        index = waitingPredictions[routeTag][stopTag];
+                    
+                    cachePredictions(routeTag, stopTag, predictions);
+                    predictionsForMultiStops[index] = predictions;
+                });
+                
+                deferred.resolve(predictionsForMultiStops);
+            });
+        } else {
             deferred.resolve(predictionsForMultiStops);
-        });
+        }
 
         return deferred.promise();
     }
