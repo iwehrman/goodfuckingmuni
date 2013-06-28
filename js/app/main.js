@@ -292,9 +292,11 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                 var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
                              place.id + "'>"),
                     distance = geo.formatDistance(geo.distance(position, place)),
-                    $text = $("<span>").append(place.title + " (" + distance + ")");
+                    $title = $("<div>").append(place.title).addClass("entry-place__title"),
+                    $distance = $("<div>").append(geo.formatDistance(distance)).addClass("entry-place__distance"),
+                    $content = $("<div>").append($title).append($distance).addClass("entry-place__content");
                 
-                $item.append($text);
+                $item.append($content);
                 $list.append($item);
                 
                 $item.on("click", function () {

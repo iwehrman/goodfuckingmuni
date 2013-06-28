@@ -10,6 +10,23 @@
     font-weight: bold;
 }
 
+.entry-place {
+    font-size: 42px;
+    line-height: 52px;
+}
+
+.entry-place__content {
+    overflow-y: auto;
+}
+
+.entry-place__title {
+    float: left;
+}
+
+.entry-place__distance {
+    float: right;
+}
+
 .entry-place-stop {
     font-size: 16px;
     line-height: 20px;
