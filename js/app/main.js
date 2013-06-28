@@ -249,7 +249,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                     });
                 });
                 
-                var $item = $("<li class='topcoat-list__item'>"),
+                var $item = $("<li class='topcoat-list__item entry-place-stop'>"),
                     $text = $("<span>").append("Add new stop");
                 
                 $item.append($text);
@@ -309,7 +309,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                 });
             });
             
-            var $item = $("<li class='topcoat-list__item'>"),
+            var $item = $("<li class='topcoat-list__item entry-place'>"),
                 $text = $("<span>").append("Add new place");
             
             $item.append($text);

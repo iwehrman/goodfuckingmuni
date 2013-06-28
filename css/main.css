@@ -10,26 +10,30 @@
     font-weight: bold;
 }
 
-.entry-place {
-    font-size: 42px;
-    line-height: 52px;
-}
-
 .entry-place__content {
     overflow-y: auto;
 }
 
 .entry-place__title {
     float: left;
+    font-size: 42px;
+    line-height: 52px;
 }
 
 .entry-place__distance {
     float: right;
+    font-size: 42px;
+    line-height: 52px;
 }
 
+.entry-route,
+.entry-direction,
+.entry-stop,
+.entry-prediction,
+.entry-place,
 .entry-place-stop {
-    font-size: 16px;
-    line-height: 20px;
+    font-size: 20px;
+    line-height: 22px;
 }
 
 .entry-place-stop .entry-place-stop__content {
