@@ -241,7 +241,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                             dirTag: dirTag,
                             stopTag: stopTag
                         };
-                        history.pushState(stateObj, null, "#p=" + placeId + "&#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                        history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
                         
                         $places.hide();
                         $places.empty();
@@ -293,7 +293,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                              place.id + "'>"),
                     distance = geo.formatDistance(geo.distance(position, place)),
                     $title = $("<div>").append(place.title).addClass("entry-place__title"),
-                    $distance = $("<div>").append(geo.formatDistance(distance)).addClass("entry-place__distance"),
+                    $distance = $("<div>").append(distance).addClass("entry-place__distance"),
                     $content = $("<div>").append($title).append($distance).addClass("entry-place__content");
                 
                 $item.append($content);
@@ -343,15 +343,15 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
         var state = event.state;
 
         if (state) {
-            if (state.placeId) {
+            if (state.placeId !== null) {
                 $predictions.hide();
                 $predictions.empty();
                 showPlace(state.placeId);
-            } else if (state.dirTag) {
+            } else if (state.dirTag !== null) {
                 $predictions.hide();
                 $predictions.empty();
                 showStops(state.routeTag, state.dirTag);
-            } else if (state.routeTag) {
+            } else if (state.routeTag !== null) {
                 $routeStops.hide();
                 $routeStops.empty();
                 showDirections(state.routeTag);
