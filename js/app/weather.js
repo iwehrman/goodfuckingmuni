@@ -4,17 +4,28 @@
 define(["jquery", "app/geolocation"], function ($, geolocation) {
     "use strict";
     
+    var WEATHER_KEY = "org.wehrman.goodfuckingmuni.weather",
+        APPID = "ec87b4f14ec1d073e89fc326f16b27c7";
+    
     function getWeatherForCurrentPosition() {
-        
         var deferred = $.Deferred();
-        
-        function getWeatherData(lat, lon, callback) {
-            var url = "http://api.openweathermap.org/data/2.5/weather?lat=" + lat + "&lon=" + lon,
+
+        function getWeatherData(lat, lon) {
+            var baseUrl = "http://api.openweathermap.org.localhost:9999/data/2.5/weather",
+                url = baseUrl + "?APPID=" + APPID + "&lat=" + lat + "&lon=" + lon,
+                callback = ("callback" + lat + lon).replace(/\./g, "d").replace(/-/g, "m"),
                 settings = {
                     dataType: "jsonp",
-                    success: deferred.resolve.bind(deferred),
+                    cache: true,
+                    jsonpCallback: callback,
+                    //success: deferred.resolve.bind(deferred),
                     fail: deferred.reject.bind(deferred)
                 };
+            
+            window[callback] = function (data) {
+                deferred.resolve(data);
+                delete window[callback];
+            };
             
             return $.ajax(url, settings);
         }
@@ -30,26 +41,43 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
     function isDaytime() {
         var deferred = $.Deferred();
         
-        getWeatherForCurrentPosition().done(function (data) {
+        function handleWeatherData(data) {
             var now = Date.now(),
                 sunrise = data.sys.sunrise * 1000,
-                sunset = data.sys.sunset * 1000;
+                sunset = data.sys.sunset * 1000,
+                midnight = Date.parse();
+            
+            localStorage.setItem(WEATHER_KEY, data);
+            
+            setTimeout(function () {
+                localStorage.removeItem(WEATHER_KEY);
+            });
             
             if (sunrise <= now && now <= sunset) {
                 deferred.resolve(true);
             } else {
                 deferred.resolve(false);
             }
-        }).fail(function () {
-            var now = new Date(),
-                hours = now.getHours();
-            
-            if (6 <= hours && hours <= 20) {
-                deferred.resolve(true);
-            } else {
-                deferred.resolve(false);
-            }
-        });
+        }
+        
+        var weather = localStorage.getItem(WEATHER_KEY);
+        
+        if (weather) {
+            handleWeatherData(weather);
+        } else {
+            getWeatherForCurrentPosition().done(handleWeatherData).fail(function () {
+                var now = new Date(),
+                    hours = now.getHours();
+                
+                if (6 <= hours && hours <= 20) {
+                    deferred.resolve(true);
+                } else {
+                    deferred.resolve(false);
+                }
+            });
+        }
+        
+        
         
         return deferred.promise();
     }

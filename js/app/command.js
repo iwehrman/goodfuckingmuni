@@ -16,7 +16,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
        
     function defineCommand(commandName, args) {
         function commandURL(commandName) {
-            var baseURL = "http://webservices.nextbus.com/service/publicXMLFeed?a=sf-muni",
+            var baseURL = "http://webservices.nextbus.com.localhost:9999/service/publicXMLFeed?a=sf-muni",
                 fullURL = baseURL + "&command=" + commandName;
             
             if (arguments.length > 1) {

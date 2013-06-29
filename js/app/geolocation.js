@@ -4,8 +4,15 @@
 define(["jquery"], function ($) {
     "use strict";
     
+    var DEBUG = true;
+    
     function getLocation() {
         var deferred = $.Deferred();
+        
+        if (DEBUG) {
+            deferred.resolve({lat: 37.76187, lon: -122.422529});
+            return deferred.promise();
+        }
         
         navigator.geolocation.getCurrentPosition(function (position) {
             position.coords.lat = position.coords.latitude;
