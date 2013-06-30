@@ -205,7 +205,6 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
             }).fail(function (err) {
                 callback(err);
             });
-            
         }, function (err, routeObjs) {
             if (err) {
                 console.error("[showPlace] failed to get routes: " + err);
@@ -285,50 +284,109 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
             $container = $("<div class='topcoat-list__container'></div>"),
             $header = $("<h2 class='topcoat-list__header'>Places</h2>"),
             $list = $("<ul class='topcoat-list'></ul>");
+        
+        function handlePlaceClick(placeId) {
+            var stateObj = { placeId: placeId };
+            history.pushState(stateObj, null, "#p=" + placeId);
+            
+            $places.hide();
+            $places.empty();
+            showPlace(placeId);
+        }
+        
+        function getAddPlaceItem() {
+            var $item = $("<li class='topcoat-list__item entry-place' data-op='add'>"),
+                $text = $("<span>").append("Add place");
+            
+            function handleAddClick() {
+                var name = window.prompt("Place name: ", "");
+                
+                if (name) {
+                    places.addPlace(name).done(function (place) {
+                        var stateObj = { placeId: place.id };
+                        history.pushState(stateObj, null, "#p=" + place.id);
+                        
+                        $places.hide();
+                        $places.empty();
+                        showPlace(place.id);
+                    }).fail(function (err) {
+                        console.error("[showPlaces] failed to add place: " + err);
+                    });
+                }
+            }
+            
+            $item.append($text);
+            $item.on("click", handleAddClick);
+            $item.data("clickHandler", handleAddClick);
+            
+            return $item;
+        }
+
+        function getEditPlacesItem() {
+            var $item = $("<li class='topcoat-list__item entry-place' data-op='edit'>"),
+                $editText = $("<span>").append("Edit places"),
+                $doneText = $("<span>").append("Done editing");
+
+            function handleEditStop() {
+                $places.find(".entry-place__remove").hide();
+                $places.find(".entry-place__distance").show();
+                $places.find(".entry-place").each(function (index, item) {
+                    var $item = $(item),
+                        handler = $item.data("clickHandler");
+
+                    $item.on("click", handler);
+                });
+                
+                $item.contents($editText);
+            }
+            
+            function handleEditStart() {
+                $places.find(".entry-place__distance").hide();
+                $places.find(".entry-place__remove").show();
+                $places.find(".entry-place").each(function (index, item) {
+                    $(item).off("click");
+                });
+                
+                $item.contents($doneText);
+                $item.on("click", handleEditStop);
+            }
+            
+            $item.append($editText);
+            $item.on("click", handleEditStart);
+            $item.data("clickHandler", handleEditStart);
+            return $item;
+        }
 
         geo.sortByCurrentLocation(placeList).done(function (position) {
             placeList.forEach(function (place) {
-                var $item = $("<li class='topcoat-list__item entry-place' data-tag='" +
+                var handler = handlePlaceClick.bind(null, place.id),
+                    $item = $("<li class='topcoat-list__item entry-place' data-place='" +
                              place.id + "'>"),
                     distance = geo.formatDistance(geo.distance(position, place)),
                     $title = $("<div>").append(place.title).addClass("entry-place__title"),
                     $distance = $("<div>").append(distance).addClass("entry-place__distance"),
-                    $content = $("<div>").append($title).append($distance).addClass("entry-place__content");
+                    $remove = $("<div>").append("&times;").addClass("entry-place__remove"),
+                    $content = $("<div>").addClass("entry-place__content")
+                        .append($title)
+                        .append($distance)
+                        .append($remove);
+
+                $remove.on("click", function () {
+                    if (window.confirm("Remove place '" + place.title + "'?")) {
+                        places.removePlace(place);
+                        $item.remove();
+                    }
+                });
                 
                 $item.append($content);
+                $item.on("click", handler);
+                $item.data("clickHandler", handler);
+
                 $list.append($item);
-                
-                $item.on("click", function () {
-                    var stateObj = { placeId: place.id };
-                    history.pushState(stateObj, null, "#p=" + place.id);
-                    
-                    $places.hide();
-                    $places.empty();
-                    showPlace(place.id);
-                });
             });
-            
-            var $item = $("<li class='topcoat-list__item entry-place'>"),
-                $text = $("<span>").append("Add new place");
-            
-            $item.append($text);
-            $list.append($item);
-            
-            $item.on("click", function () {
-                var name = window.prompt("Place name: ", "");
-                
-                places.addPlace(name).done(function (place) {
-                    var stateObj = { placeId: place.id };
-                    history.pushState(stateObj, null, "#p=" + place.id);
-                    
-                    $places.hide();
-                    $places.empty();
-                    showPlace(place.id);
-                }).fail(function (err) {
-                    console.error("[showPlaces] failed to add place: " + err);
-                });
-                
-            });
+
+            $list.append(getEditPlacesItem());
+            $list.append(getAddPlaceItem());
             
             $container.append($header).append($list);
             $places.append($container);

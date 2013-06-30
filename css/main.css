@@ -20,10 +20,15 @@
     line-height: 52px;
 }
 
-.entry-place__distance {
+.entry-place__distance,
+.entry-place__remove {
     float: right;
     font-size: 42px;
     line-height: 52px;
+}
+
+.entry-place__remove {
+    display: none;
 }
 
 .entry-route,
