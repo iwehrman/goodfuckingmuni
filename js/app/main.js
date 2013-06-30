@@ -1,9 +1,16 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
-/*global define, $, console */
+/*global define, console */
 
-define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/weather"], function ($, async, command, places, geo, weather) {
+define(function (require, exports, module) {
     "use strict";
     
+    var $ = require("jquery"),
+        async = require("async"),
+        command = require("app/command"),
+        places = require("app/places"),
+        geo = require("app/geolocation"),
+        weather = require("app/weather");
+
     var $body = $("body"),
         $places = $body.find(".content-places"),
         $placeStops = $body.find(".content-places"),

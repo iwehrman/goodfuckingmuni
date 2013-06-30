@@ -1,8 +1,11 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "app/geolocation"], function ($, geolocation) {
+define(function (require, exports, module) {
     "use strict";
+    
+    var $ = require("jquery"),
+        geo = require("app/geolocation");
     
     var WEATHER_KEY = "org.wehrman.goodfuckingmuni.weather",
         APPID = "ec87b4f14ec1d073e89fc326f16b27c7";
@@ -30,7 +33,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
             return $.ajax(url, settings);
         }
         
-        geolocation.getLocation().done(function (coords) {
+        geo.getLocation().done(function (coords) {
             getWeatherData(coords.lat, coords.lon)
                 .fail(deferred.reject.bind(deferred));
         });

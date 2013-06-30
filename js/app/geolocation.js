@@ -1,8 +1,10 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery"], function ($) {
+define(function (require, exports, module) {
     "use strict";
+    
+    var $ = require("jquery");
     
     var DEBUG = true;
     

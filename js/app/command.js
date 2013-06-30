@@ -1,8 +1,11 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "app/geolocation"], function ($, geolocation) {
+define(function (require, exports, module) {
     "use strict";
+    
+    var $ = require("jquery"),
+        geo = require("app/geolocation");
 
     var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 7, // 1 week
         ROUTE_TIMEOUT = 1000 * 60 * 60 * 24, // 1 day
@@ -12,7 +15,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         cachedRoutes = {},
         cachedPredictions = {};
     
-    var locationPromise = geolocation.getLocation();
+    var locationPromise = geo.getLocation();
        
     function defineCommand(commandName, args) {
         function commandURL(commandName) {
@@ -121,7 +124,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
                             lat     = parseFloat($stop.attr("lat")),
                             lon     = parseFloat($stop.attr("lon")),
                             stopPos = {lat: lat, lon: lon},
-                            dist    = geolocation.distance(position, stopPos);
+                            dist    = geo.distance(position, stopPos);
                         
                         allStops[tag] = {
                             title:  title,

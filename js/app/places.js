@@ -1,8 +1,11 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
 /*global define, $, console */
 
-define(["jquery", "app/geolocation"], function ($, geolocation) {
+define(function (require, exports, module) {
     "use strict";
+    
+    var $ = require("jquery"),
+        geo = require("app/geolocation");
     
     var PLACES_KEY = "org.wehrman.goodfuckingmuni.places";
     var allPlaces = [],
@@ -97,7 +100,7 @@ define(["jquery", "app/geolocation"], function ($, geolocation) {
         if (position) {
             geopromise = $.Deferred().resolve(position);
         } else {
-            geopromise = geolocation.getLocation();
+            geopromise = geo.getLocation();
         }
         
         geopromise.done(function (location) {
