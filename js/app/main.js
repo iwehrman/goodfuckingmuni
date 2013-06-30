@@ -214,7 +214,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
             
             predictionsPromise.done(function (predictionObjs) {
                 routeObjs.forEach(function (routeObj, index) {
-                    var predictions = predictionObjs[index],
+                    var predictions = predictionObjs[index].slice(0, 4),
                         route = routeObj.route,
                         routeTag = route.tag,
                         stopTag = routeObj.stopTag,
