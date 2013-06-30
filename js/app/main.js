@@ -45,10 +45,8 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
         });
     }
         
-    function showStops(routeTag, dirTag, scroll, callback) {
-        if (!callback) {
-            callback = showPredictions;
-        }
+    function showStops(routeTag, dirTag, scroll) {
+        var deferred = $.Deferred();
         
         command.getRoute(routeTag).done(function (route) {
             var direction = route.directions[dirTag],
@@ -81,7 +79,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                     
                     $routeStops.hide();
                     $routeStops.empty();
-                    callback(routeTag, dirTag, stopTag);
+                    deferred.resolve(stopTag);
                 });
                 
                 $item.append($text);
@@ -98,14 +96,15 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                 });
             }
         }).fail(function (err) {
+            deferred.reject(err);
             console.error("[showStops] failed to get route: " + err);
         });
+        
+        return deferred.promise();
     }
     
-    function showDirections(routeTag, callback) {
-        if (!callback) {
-            callback = showStops;
-        }
+    function showDirections(routeTag) {
+        var deferred = $.Deferred();
         
         command.getRoute(routeTag).done(function (route) {
             var $container = $("<div class='topcoat-list__container'></div>"),
@@ -123,7 +122,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                     
                     $directions.hide();
                     $directions.empty();
-                    callback(routeTag, dirTag, true);
+                    deferred.resolve(dirTag);
                 };
             }
             
@@ -146,13 +145,14 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
             $directions.show();
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
+            deferred.reject(err);
         });
+        
+        return deferred.promise();
     }
 
-    function showRoutes(callback) {
-        if (!callback) {
-            callback = showDirections;
-        }
+    function showRoutes() {
+        var deferred = $.Deferred();
         
         command.getRoutes().done(function (routes) {
             var $container = $("<div class='topcoat-list__container'></div>"),
@@ -173,7 +173,7 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                     
                     $routes.hide();
                     $routes.empty();
-                    callback(route.tag);
+                    deferred.resolve(route.tag);
                 });
             });
             
@@ -182,7 +182,10 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
             $routes.show();
         }).fail(function (err) {
             console.error("[showRoutes] failed to get routes: " + err);
+            deferred.reject(err);
         });
+        
+        return deferred.promise();
     }
     
     function showPlace(placeId) {
@@ -256,20 +259,16 @@ define(["jquery", "async", "app/command", "app/places", "app/geolocation", "app/
                 $list.append($item);
                 
                 $item.on("click", function () {
-                    function routeHandler(routeTag) {
-                        function directionHandler(routeTag, dirTag) {
-                            function stopHandler(routeTag, dirTag, stopTag) {
-                                place.addStop(routeTag, dirTag, stopTag);
-                                showPlace(placeId);
-                            }
-                            showStops(routeTag, dirTag, true, stopHandler);
-                        }
-                        showDirections(routeTag, directionHandler);
-                    }
-                    
                     $places.hide();
                     $places.empty();
-                    showRoutes(routeHandler);
+                    showRoutes().done(function (routeTag) {
+                        showDirections(routeTag).done(function (dirTag) {
+                            showStops(routeTag, dirTag, true).done(function (stopTag) {
+                                place.addStop(routeTag, dirTag, stopTag);
+                                showPlace(placeId);
+                            });
+                        });
+                    });
                 });
                 
                 $container.append($header).append($list);
