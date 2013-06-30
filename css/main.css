@@ -46,7 +46,7 @@
     border-top: 1px solid blue;
 */
     float: left;
-    width: 50%;
+    width: 72%;
 }
 
 .entry-place-stop .entry-place-stop__route {
@@ -65,7 +65,7 @@
     border-top: 1px solid green;
 */
     float: right;
-    width: 50%;
+    width: 28%;
     text-align: right;
 }
 
