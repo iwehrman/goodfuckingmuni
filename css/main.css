@@ -10,6 +10,22 @@
     font-weight: bold;
 }
 
+.header-places {
+    overflow-y: auto;
+    height: 50px;
+}
+
+.header-places__title {
+    position: relative;
+    top: 8px;
+    font-size: 28px;
+    float: left;
+}
+
+.header-places__buttons {
+    float: right;
+}
+
 .entry-place__content {
     overflow-y: auto;
 }
@@ -51,7 +67,7 @@
     border-top: 1px solid blue;
 */
     float: left;
-    width: 72%;
+    width: 70%;
 }
 
 .entry-place-stop .entry-place-stop__route {
@@ -70,20 +86,23 @@
     border-top: 1px solid green;
 */
     float: right;
-    width: 28%;
+    width: 30%;
     text-align: right;
 }
 
 .entry-place-stop .entry-place-stop__minutes:after {
-    content: "m, ";
+    font-size: 16px;
+    content: " min, ";
 }
 
 .entry-place-stop .entry-place-stop__minutes:first-child:after {
-    content: "m";
+    font-size: 20px;
+    content: " min";
 }
 
 .entry-place-stop .entry-place-stop__minutes:last-child:after {
-    content: "m";
+    font-size: 16px;
+    content: " min";
 }
 
 .entry-place-stop .entry-place-stop__minutes:nth-child(1) {
