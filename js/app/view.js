@@ -204,6 +204,81 @@ define(function (require, exports, module) {
             $buttons = $("<div class='header-places__buttons'>"),
             $header = $("<h1 class='topcoat-list__header header-places'>").append($title).append($buttons);
         
+        function handleStopClick(routeTag, dirTag, stopTag) {
+            var stateObj = {
+                placeId: placeId,
+                routeTag: routeTag,
+                dirTag: dirTag,
+                stopTag: stopTag
+            };
+            history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+            
+            $places.hide();
+            $places.empty();
+            showPredictions(routeTag, dirTag, stopTag);
+        }
+        
+        function getAddStopItem() {
+            var $item = $("<li class='topcoat-list__item entry-place-stop'>"),
+                $text = $("<span>").append("Add new stop");
+            
+            function handleAddClick() {
+                $places.hide();
+                $places.empty();
+                showRoutes().done(function (routeTag) {
+                    showDirections(routeTag).done(function (dirTag) {
+                        showStops(routeTag, dirTag, true).done(function (stopTag) {
+                            place.addStop(routeTag, dirTag, stopTag);
+                            showPlace(placeId);
+                        });
+                    });
+                });
+            }
+            
+            $item.append($text);
+            $item.on("click", handleAddClick);
+            $item.data("clickHandler", handleAddClick);
+            
+            return $item;
+        }
+        
+        function getEditStopsItem() {
+            var $item = $("<span data-op='edit'>"),
+                $editText = $("<a class='topcoat-button'>").append("Edit"),
+                $doneText = $("<a class='topcoat-button'>").append("Done");
+            
+            function handleEditStart() {
+                function handleEditStop() {
+                    $places.find(".entry-place__remove").hide();
+                    $places.find(".entry-place__distance").show();
+                    $places.find(".entry-place").each(function (index, item) {
+                        var $item = $(item),
+                            handler = $item.data("clickHandler");
+    
+                        $item.on("click", handler);
+                    });
+                    
+                    $item.children().remove();
+                    $item.append($editText);
+                    $item.on("click", handleEditStart);
+                }
+                
+                $places.find(".entry-place__distance").hide();
+                $places.find(".entry-place__remove").show();
+                $places.find(".entry-place").each(function (index, item) {
+                    $(item).off("click");
+                });
+                
+                $item.children().remove();
+                $item.append($doneText);
+                $item.on("click", handleEditStop);
+            }
+            
+            $item.append($editText);
+            $item.on("click", handleEditStart);
+            return $item;
+        }
+        
         async.map(place.stops, function (stopObj, callback) {
             command.getRoute(stopObj.routeTag).done(function (route) {
                 callback(null, {
@@ -227,6 +302,7 @@ define(function (require, exports, module) {
                         routeTag = route.tag,
                         stopTag = routeObj.stopTag,
                         dirTag = routeObj.dirTag,
+                        handler = handleStopClick.bind(null, routeTag, dirTag, stopTag),
                         stop = route.stops[stopTag],
                         $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
                                  stopTag + "' data-routeTag='" + routeTag + "'>"),
@@ -237,47 +313,22 @@ define(function (require, exports, module) {
                             return $("<span>").append(prediction.minutes).addClass("entry-place-stop__minutes");
                         }),
                         $predictions = $("<div>").append($times).addClass("entry-place-stop__predictions"),
+                        $remove = $("<div>").addClass("entry-place__remove").append($("<a>").addClass("topcoat-icon-button").append("&times;")),
                         $text = $("<div>")
                             .addClass("entry-place-stop__content")
                             .append($title)
-                            .append($predictions);
+                            .append($predictions)
+                            .append($remove);
 
                     $item.append($text);
                     $list.append($item);
                     
-                    $item.on("click", function () {
-                        var stateObj = {
-                            placeId: placeId,
-                            routeTag: routeTag,
-                            dirTag: dirTag,
-                            stopTag: stopTag
-                        };
-                        history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
-                        
-                        $places.hide();
-                        $places.empty();
-                        showPredictions(routeTag, dirTag, stopTag);
-                    });
+                    $item.on("click", handler);
+                    $item.data("clickHandler", handler);
                 });
                 
-                var $item = $("<li class='topcoat-list__item entry-place-stop'>"),
-                    $text = $("<span>").append("Add new stop");
-                
-                $item.append($text);
-                $list.append($item);
-                
-                $item.on("click", function () {
-                    $places.hide();
-                    $places.empty();
-                    showRoutes().done(function (routeTag) {
-                        showDirections(routeTag).done(function (dirTag) {
-                            showStops(routeTag, dirTag, true).done(function (stopTag) {
-                                place.addStop(routeTag, dirTag, stopTag);
-                                showPlace(placeId);
-                            });
-                        });
-                    });
-                });
+                $list.append(getAddStopItem());
+                $buttons.append(getEditStopsItem());
                 
                 $container.append($header).append($list);
                 $places.append($container);
