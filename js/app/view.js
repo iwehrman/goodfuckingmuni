@@ -19,13 +19,7 @@ define(function (require, exports, module) {
         titleHtml = require("text!html/title.html"),
         removeHtml = require("text!html/remove.html");
     
-    var $body = $("body"),
-        $places = $body.find(".content-places"),
-        $placeStops = $body.find(".content-place-stops"),
-        $routeStops = $body.find(".content-route-stops"),
-        $directions = $body.find(".content-directions"),
-        $routes = $body.find(".content-routes"),
-        $predictions = $body.find(".content-predictions");
+    var $content = $("body").find(".content");
     
     function showPredictions(routeTag, dirTag, stopTag) {
         command.getRoute(routeTag).done(function (route) {
@@ -50,8 +44,7 @@ define(function (require, exports, module) {
                 });
                 
                 $container.append($header).append($list);
-                $predictions.append($container);
-                $predictions.show();
+                $content.append($container);
             }).fail(function (err) {
                 console.error("[showPredictions] failed to get predictions: " + err);
             });
@@ -92,8 +85,7 @@ define(function (require, exports, module) {
                     var stateObj = { routeTag: routeTag, dirTag: dirTag, stopTag: stopTag };
                     history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
                     
-                    $routeStops.hide();
-                    $routeStops.empty();
+                    $content.empty();
                     deferred.resolve(stopTag);
                 });
                 
@@ -102,12 +94,11 @@ define(function (require, exports, module) {
             });
             
             $container.append($header).append($list);
-            $routeStops.append($container);
-            $routeStops.show();
+            $content.append($container);
             
             if (scroll) {
-                $body.animate({
-                    scrollTop: $list.find(".closest").parent().offset().top - $body.scrollTop()
+                $content.animate({
+                    scrollTop: $list.find(".closest").parent().offset().top - $content.scrollTop()
                 });
             }
         }).fail(function (err) {
@@ -135,8 +126,7 @@ define(function (require, exports, module) {
                     var stateObj = { routeTag: routeTag, dirTag: dirTag };
                     history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag);
                     
-                    $directions.hide();
-                    $directions.empty();
+                    $content.empty();
                     deferred.resolve(dirTag);
                 };
             }
@@ -156,8 +146,7 @@ define(function (require, exports, module) {
             }
             
             $container.append($header).append($list);
-            $directions.append($container);
-            $directions.show();
+            $content.append($container);
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
             deferred.reject(err);
@@ -186,165 +175,19 @@ define(function (require, exports, module) {
                     var stateObj = { routeTag: route.tag };
                     history.pushState(stateObj, null, "#r=" + route.tag);
                     
-                    $routes.hide();
-                    $routes.empty();
+                    $content.empty();
                     deferred.resolve(route.tag);
                 });
             });
             
             $container.append($header).append($list);
-            $routes.append($container);
-            $routes.show();
+            $content.append($container);
         }).fail(function (err) {
             console.error("[showRoutes] failed to get routes: " + err);
             deferred.reject(err);
         });
         
         return deferred.promise();
-    }
-    
-    function __showPlace(placeId) {
-        var place = places.getPlace(placeId),
-            predictionsPromise = command.getPredictionsForMultiStops(place.stops),
-            $container = $("<div class='topcoat-list__container'></div>"),
-            $list = $("<ul class='topcoat-list'></ul>"),
-            $title = $("<div class='header-places__title'>").append("Places &rangle; " + place.title),
-            $buttons = $("<div class='header-places__buttons'>"),
-            $header = $("<h1 class='topcoat-list__header header-places'>").append($title).append($buttons);
-        
-        function handleStopClick(routeTag, dirTag, stopTag) {
-            var stateObj = {
-                placeId: placeId,
-                routeTag: routeTag,
-                dirTag: dirTag,
-                stopTag: stopTag
-            };
-            history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
-            
-            $places.hide();
-            $places.empty();
-            showPredictions(routeTag, dirTag, stopTag);
-        }
-        
-        function getAddStopItem() {
-            var $item = $("<li class='topcoat-list__item entry-place-stop'>"),
-                $text = $("<span>").append("Add new stop");
-            
-            function handleAddClick() {
-                $places.hide();
-                $places.empty();
-                showRoutes().done(function (routeTag) {
-                    showDirections(routeTag).done(function (dirTag) {
-                        showStops(routeTag, dirTag, true).done(function (stopTag) {
-                            place.addStop(routeTag, dirTag, stopTag);
-                            __showPlace(placeId);
-                        });
-                    });
-                });
-            }
-            
-            $item.append($text);
-            $item.on("click", handleAddClick);
-            $item.data("clickHandler", handleAddClick);
-            
-            return $item;
-        }
-        
-        function getEditStopsItem() {
-            var $item = $("<span data-op='edit'>"),
-                $editText = $("<a class='topcoat-button'>").append("Edit"),
-                $doneText = $("<a class='topcoat-button'>").append("Done");
-            
-            function handleEditStart() {
-                function handleEditStop() {
-                    $places.find(".entry__remove").hide();
-                    $places.find(".entry-place__distance").show();
-                    $places.find(".entry-place").each(function (index, item) {
-                        var $item = $(item),
-                            handler = $item.data("clickHandler");
-    
-                        $item.on("click", handler);
-                    });
-                    
-                    $item.children().remove();
-                    $item.append($editText);
-                    $item.on("click", handleEditStart);
-                }
-                
-                $places.find(".entry-place__distance").hide();
-                $places.find(".entry__remove").show();
-                $places.find(".entry-place").each(function (index, item) {
-                    $(item).off("click");
-                });
-                
-                $item.children().remove();
-                $item.append($doneText);
-                $item.on("click", handleEditStop);
-            }
-            
-            $item.append($editText);
-            $item.on("click", handleEditStart);
-            return $item;
-        }
-        
-        async.map(place.stops, function (stopObj, callback) {
-            command.getRoute(stopObj.routeTag).done(function (route) {
-                callback(null, {
-                    route: route,
-                    dirTag: stopObj.dirTag,
-                    stopTag: stopObj.stopTag
-                });
-            }).fail(function (err) {
-                callback(err);
-            });
-        }, function (err, routeObjs) {
-            if (err) {
-                console.error("[showPlace] failed to get routes: " + err);
-                return;
-            }
-            
-            predictionsPromise.done(function (predictionObjs) {
-                routeObjs.forEach(function (routeObj, index) {
-                    var predictions = predictionObjs[index].slice(0, 4),
-                        route = routeObj.route,
-                        routeTag = route.tag,
-                        stopTag = routeObj.stopTag,
-                        dirTag = routeObj.dirTag,
-                        handler = handleStopClick.bind(null, routeTag, dirTag, stopTag),
-                        stop = route.stops[stopTag],
-                        $item = $("<li class='topcoat-list__item entry-place-stop' data-stopTag='" +
-                                 stopTag + "' data-routeTag='" + routeTag + "'>"),
-                        $routeTitle = $("<div>").append(route.title).addClass("entry-place-stop__route"),
-                        $stopTitle = $("<div>").append(stop.title).addClass("entry-place-stop__stop"),
-                        $title = $("<div>").append($routeTitle).append($stopTitle).addClass("entry-place-stop__title"),
-                        $times = predictions.map(function (prediction) {
-                            return $("<span>").append(prediction.minutes).addClass("entry-place-stop__minutes");
-                        }),
-                        $predictions = $("<div>").append($times).addClass("entry-place-stop__predictions"),
-                        $remove = $("<div>").addClass("entry__remove").append($("<a>").addClass("topcoat-icon-button").append("&times;")),
-                        $text = $("<div>")
-                            .addClass("entry-place-stop__content")
-                            .append($title)
-                            .append($predictions)
-                            .append($remove);
-
-                    $item.append($text);
-                    $list.append($item);
-                    
-                    $item.on("click", handler);
-                    $item.data("clickHandler", handler);
-                });
-                
-                $list.append(getAddStopItem());
-                $buttons.append(getEditStopsItem());
-                
-                $container.append($header).append($list);
-                $places.append($container);
-                $places.show();
-            }).fail(function (err) {
-                console.error("[showPlace] failed to get predictions: " + err);
-            });
-        });
     }
     
     function showPlace(placeId) {
@@ -362,8 +205,7 @@ define(function (require, exports, module) {
             };
             history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
             
-            $placeStops.hide();
-            $placeStops.empty();
+            $content.empty();
             showPredictions(routeTag, dirTag, stopTag);
         }
         
@@ -375,8 +217,7 @@ define(function (require, exports, module) {
         }
         
         function handleAddClick() {
-            $placeStops.hide();
-            $placeStops.empty();
+            $content.empty();
             showRoutes().done(function (routeTag) {
                 showDirections(routeTag).done(function (dirTag) {
                     showStops(routeTag, dirTag, true).done(function (stopTag) {
@@ -496,8 +337,7 @@ define(function (require, exports, module) {
                 var $editButton = $($container.find(".header__right")[0]);
                 handleEditStop($container, $editButton);
                 
-                $placeStops.append($container);
-                $placeStops.show();
+                $content.append($container);
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -512,8 +352,7 @@ define(function (require, exports, module) {
             var stateObj = { placeId: place.id };
             history.pushState(stateObj, null, "#p=" + place.id);
             
-            $places.hide();
-            $places.empty();
+            $content.empty();
             showPlace(place.id);
         }
         
@@ -532,8 +371,7 @@ define(function (require, exports, module) {
                     var stateObj = { placeId: place.id };
                     history.pushState(stateObj, null, "#p=" + place.id);
                     
-                    $places.hide();
-                    $places.empty();
+                    $content.empty();
                     showPlace(place.id);
                 }).fail(function (err) {
                     console.error("[showPlaces] failed to add place: " + err);
@@ -621,11 +459,14 @@ define(function (require, exports, module) {
             var $editButton = $($container.find(".header__right")[0]);
             handleEditStop($container, $editButton);
             
-            $places.append($container);
-            $places.show();
+            $content.append($container);
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
         });
+    }
+    
+    function showList() {
+        
     }
     
     return {

@@ -13,33 +13,22 @@ define(function (require, exports, module) {
         view = require("app/view");
 
     var $body = $("body"),
-        $places = $body.find(".content-places"),
-        $placeStops = $body.find(".content-places"),
-        $routeStops = $body.find(".content-route-stops"),
-        $directions = $body.find(".content-directions"),
-        $routes = $body.find(".content-routes"),
-        $predictions = $body.find(".content-predictions");
+        $content = $body.find(".content");
     
     window.onpopstate = function (event) {
         var state = event.state;
-
+        
+        $content.empty();
+        
         if (state) {
             if (state.placeId !== null) {
-                $predictions.hide();
-                $predictions.empty();
                 view.showPlace(state.placeId);
             } else if (state.dirTag !== null) {
-                $predictions.hide();
-                $predictions.empty();
                 view.showStops(state.routeTag, state.dirTag);
             } else if (state.routeTag !== null) {
-                $routeStops.hide();
-                $routeStops.empty();
                 view.showDirections(state.routeTag);
             }
         } else {
-            $placeStops.hide();
-            $placeStops.empty();
             view.showPlaces();
         }
     };
