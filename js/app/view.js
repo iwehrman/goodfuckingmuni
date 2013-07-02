@@ -6,11 +6,14 @@ define(function (require, exports, module) {
     
     var $ = require("jquery"),
         async = require("async"),
+        mustache = require("mustache"),
         command = require("app/command"),
         places = require("app/places"),
         geo = require("app/geolocation"),
         weather = require("app/weather");
 
+    var $view = require("text!html/view.html");
+    
     var $body = $("body"),
         $places = $body.find(".content-places"),
         $placeStops = $body.find(".content-places"),

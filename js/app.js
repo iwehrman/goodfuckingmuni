@@ -1,3 +1,5 @@
+/*global requirejs */
+
 // Place third party dependencies in the lib folder
 //
 // Configure loading modules from the lib directory,
@@ -5,8 +7,9 @@
 requirejs.config({
     "baseUrl": "js/lib",
     "paths": {
-      "app": "../app",
-      "jquery": "//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min"
+        "app": "../app",
+        "html": "../../html",
+        "jquery": "//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min"
     }
 });
 

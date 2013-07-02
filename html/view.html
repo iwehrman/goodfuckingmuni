@@ -1,0 +1,22 @@
+<div class="content-places">
+    <div class="topcoat-list__container">
+        <h1 class="topcoat-list__header header">
+            <div class="header-left">{{left}}</div>
+            <div class="header-right">{{right}}</div>
+        </h1>
+        <ul class="topcoat-list">
+            {{#entries}}
+            <li class="topcoat-list__item entry" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
+                <div class="entry__content">
+                    <div class="entry__left">
+                        {{left}}
+                    </div>
+                    <div class="entry-right">
+                        {{right}}
+                    </div>
+                </div>
+            </li>
+            {{/entries}}
+        </ul>
+    </div>
+</div>
