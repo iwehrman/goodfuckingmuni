@@ -10,40 +10,42 @@
     font-weight: bold;
 }
 
-.header-places {
+.header {
     overflow-y: auto;
     height: 50px;
 }
 
-.header-places__title {
+.header__left {
     position: relative;
     top: 8px;
     font-size: 28px;
     float: left;
 }
 
-.header-places__buttons {
+.header__right {
     float: right;
 }
 
-.entry-place__content {
+.entry__content {
     overflow-y: auto;
+    font-size: 42px;
+    line-height: 52px;
 }
 
-.entry-place__title {
+.entry__left {
     float: left;
-    font-size: 42px;
-    line-height: 52px;
+    width: 70%;
 }
 
-.entry-place__distance,
-.entry-place__remove {
+.entry__right {
     float: right;
-    font-size: 42px;
-    line-height: 52px;
+    width: 30%;
+    text-align: right;
 }
 
-.entry-place__remove {
+.entry__remove {
+    font-size: 42px;
+    line-height: 52px;
     display: none;
 }
 
@@ -51,7 +53,6 @@
 .entry-direction,
 .entry-stop,
 .entry-prediction,
-.entry-place,
 .entry-place-stop {
     font-size: 20px;
     line-height: 22px;

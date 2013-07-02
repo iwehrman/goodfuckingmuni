@@ -12,7 +12,11 @@ define(function (require, exports, module) {
         geo = require("app/geolocation"),
         weather = require("app/weather");
 
-    var $view = require("text!html/view.html");
+    var containerHtml = require("text!html/view.html"),
+        distanceHtml = require("text!html/distance.html"),
+        editHtml = require("text!html/edit.html"),
+        titleHtml = require("text!html/title.html"),
+        removeHtml = require("text!html/remove.html");
     
     var $body = $("body"),
         $places = $body.find(".content-places"),
@@ -252,7 +256,7 @@ define(function (require, exports, module) {
             
             function handleEditStart() {
                 function handleEditStop() {
-                    $places.find(".entry-place__remove").hide();
+                    $places.find(".entry__remove").hide();
                     $places.find(".entry-place__distance").show();
                     $places.find(".entry-place").each(function (index, item) {
                         var $item = $(item),
@@ -267,7 +271,7 @@ define(function (require, exports, module) {
                 }
                 
                 $places.find(".entry-place__distance").hide();
-                $places.find(".entry-place__remove").show();
+                $places.find(".entry__remove").show();
                 $places.find(".entry-place").each(function (index, item) {
                     $(item).off("click");
                 });
@@ -316,7 +320,7 @@ define(function (require, exports, module) {
                             return $("<span>").append(prediction.minutes).addClass("entry-place-stop__minutes");
                         }),
                         $predictions = $("<div>").append($times).addClass("entry-place-stop__predictions"),
-                        $remove = $("<div>").addClass("entry-place__remove").append($("<a>").addClass("topcoat-icon-button").append("&times;")),
+                        $remove = $("<div>").addClass("entry__remove").append($("<a>").addClass("topcoat-icon-button").append("&times;")),
                         $text = $("<div>")
                             .addClass("entry-place-stop__content")
                             .append($title)
@@ -344,118 +348,120 @@ define(function (require, exports, module) {
     
     function showPlaces() {
         var placeList = places.getAllPlaces(),
-            $container = $("<div class='topcoat-list__container'></div>"),
-            $list = $("<ul class='topcoat-list'></ul>"),
-            $title = $("<div class='header-places__title'>").append("Places"),
-            $buttons = $("<div class='header-places__buttons'>"),
-            $header = $("<h1 class='topcoat-list__header header-places'>").append($title).append($buttons);
+            title = "Places";
         
-        function handlePlaceClick(placeId) {
-            var stateObj = { placeId: placeId };
-            history.pushState(stateObj, null, "#p=" + placeId);
+        function handlePlaceClick(place) {
+            var stateObj = { placeId: place.id };
+            history.pushState(stateObj, null, "#p=" + place.id);
             
             $places.hide();
             $places.empty();
-            showPlace(placeId);
+            showPlace(place.id);
         }
         
-        function getAddPlaceItem() {
-            var $item = $("<li class='topcoat-list__item entry-place' data-op='add'>"),
-                $text = $("<div class='entry-place__content'>").append($("<div class='entry-place__title'>").append("Add place..."));
-            
-            function handleAddClick() {
-                var name = window.prompt("Place name: ", "");
-                
-                if (name) {
-                    places.addPlace(name).done(function (place) {
-                        var stateObj = { placeId: place.id };
-                        history.pushState(stateObj, null, "#p=" + place.id);
-                        
-                        $places.hide();
-                        $places.empty();
-                        showPlace(place.id);
-                    }).fail(function (err) {
-                        console.error("[showPlaces] failed to add place: " + err);
-                    });
-                }
+        function handleRemoveClick(place, $item) {
+            if (window.confirm("Remove place '" + place.title + "'?")) {
+                places.removePlace(place);
+                $item.remove();
             }
+        }
+        
+        function handleAddClick() {
+            var name = window.prompt("Place name: ", "");
             
-            $item.append($text);
-            $item.on("click", handleAddClick);
-            $item.data("clickHandler", handleAddClick);
-            
-            return $item;
+            if (name) {
+                places.addPlace(name).done(function (place) {
+                    var stateObj = { placeId: place.id };
+                    history.pushState(stateObj, null, "#p=" + place.id);
+                    
+                    $places.hide();
+                    $places.empty();
+                    showPlace(place.id);
+                }).fail(function (err) {
+                    console.error("[showPlaces] failed to add place: " + err);
+                });
+            }
         }
 
-        function getEditPlacesItem() {
-            var $item = $("<span data-op='edit'>"),
-                $editText = $("<a class='topcoat-button'>").append("Edit"),
-                $doneText = $("<a class='topcoat-button'>").append("Done");
+        var handleEditStart,
+            handleEditStop;
+        
+        handleEditStop = function ($places, $item) {
+            var $editText = $(mustache.render(editHtml, {title: "Edit"}));
+
+            $places.find(".entry__remove").hide();
+            $places.find(".entry__distance").show();
+            $places.find(".entry").each(function (index, item) {
+                var $item = $(item),
+                    handler = $item.data("clickHandler");
+
+                $item.on("click", handler);
+            });
             
-            function handleEditStart() {
-                function handleEditStop() {
-                    $places.find(".entry-place__remove").hide();
-                    $places.find(".entry-place__distance").show();
-                    $places.find(".entry-place").each(function (index, item) {
-                        var $item = $(item),
-                            handler = $item.data("clickHandler");
-    
-                        $item.on("click", handler);
-                    });
-                    
-                    $item.children().remove();
-                    $item.append($editText);
-                    $item.on("click", handleEditStart);
-                }
-                
-                $places.find(".entry-place__distance").hide();
-                $places.find(".entry-place__remove").show();
-                $places.find(".entry-place").each(function (index, item) {
-                    $(item).off("click");
-                });
-                
-                $item.children().remove();
-                $item.append($doneText);
-                $item.on("click", handleEditStop);
-            }
-            
+            $item.children().remove();
             $item.append($editText);
-            $item.on("click", handleEditStart);
-            return $item;
-        }
+            $item.on("click", handleEditStart.bind(null, $places, $item));
+        };
+        
+        handleEditStart = function ($places, $item) {
+            var $doneText = $(mustache.render(editHtml, {title: "Done"}));
+            
+            $places.find(".entry__distance").hide();
+            $places.find(".entry__remove").show();
+            $places.find(".entry").each(function (index, item) {
+                $(item).off("click");
+            });
+            
+            $item.children().remove();
+            $item.append($doneText);
+            $item.on("click", handleEditStop.bind(null, $places, $item));
+        };
 
         geo.sortByCurrentLocation(placeList).done(function (position) {
-            placeList.forEach(function (place) {
-                var handler = handlePlaceClick.bind(null, place.id),
-                    $item = $("<li class='topcoat-list__item entry-place' data-place='" +
-                             place.id + "'>"),
-                    distance = geo.formatDistance(geo.distance(position, place)),
-                    $title = $("<div>").append(place.title).addClass("entry-place__title"),
-                    $distance = $("<div>").append(distance).addClass("entry-place__distance"),
-                    $remove = $("<div>").addClass("entry-place__remove").append($("<a>").addClass("topcoat-icon-button").append("&times;")),
-                    $content = $("<div>").addClass("entry-place__content")
-                        .append($title)
-                        .append($distance)
-                        .append($remove);
+            var entries = placeList.map(function (place) {
+                var tags = [{tag: "place", value: place.id}],
+                    distance = geo.formatDistance(geo.distance(position, place));
 
-                $remove.on("click", function () {
-                    if (window.confirm("Remove place '" + place.title + "'?")) {
-                        places.removePlace(place);
-                        $item.remove();
-                    }
-                });
-                
-                $item.append($content);
-                $item.on("click", handler);
-                $item.data("clickHandler", handler);
-
-                $list.append($item);
+                return {
+                    left: mustache.render(titleHtml, place),
+                    right: mustache.render(distanceHtml, {distance: distance}) + removeHtml,
+                    tags: tags
+                };
+            });
+            
+            entries.push({
+                left: mustache.render(titleHtml, {title: "Add place..."}),
+                right: "",
+                tags: [{tag: "op", value: "add"}]
             });
 
-            $buttons.append(getEditPlacesItem());
-            $list.append(getAddPlaceItem());
+            var strings = {
+                left: title,
+                entries: entries
+            },
+                $container = $(mustache.render(containerHtml, strings));
             
-            $container.append($header).append($list);
+            $container.find(".entry").each(function (index, entry) {
+                var $entry = $(entry),
+                    placeId = $entry.data("place"),
+                    op = $entry.data("op");
+                
+                if (placeId !== undefined) {
+                    var place = places.getPlace(parseInt(placeId, 10)),
+                        $remove = $entry.find(".entry__remove"),
+                        placeClickHandler = handlePlaceClick.bind(null, place),
+                        removeClickHandler = handleRemoveClick.bind(null, place, $entry);
+                    
+                    $entry.data("clickHandler", placeClickHandler);
+                    $remove.on("click", removeClickHandler);
+                } else if (op === "add") {
+                    $entry.on("click", handleAddClick);
+                }
+            });
+            
+            var $editButton = $($container.find(".header__right")[0]);
+            handleEditStop($container, $editButton);
+            
             $places.append($container);
             $places.show();
         }).fail(function (err) {
