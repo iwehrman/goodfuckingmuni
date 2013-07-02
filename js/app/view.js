@@ -15,12 +15,13 @@ define(function (require, exports, module) {
     var containerHtml = require("text!html/view.html"),
         distanceHtml = require("text!html/distance.html"),
         editHtml = require("text!html/edit.html"),
+        predictionsHtml = require("text!html/predictions.html"),
         titleHtml = require("text!html/title.html"),
         removeHtml = require("text!html/remove.html");
     
     var $body = $("body"),
         $places = $body.find(".content-places"),
-        $placeStops = $body.find(".content-places"),
+        $placeStops = $body.find(".content-place-stops"),
         $routeStops = $body.find(".content-route-stops"),
         $directions = $body.find(".content-directions"),
         $routes = $body.find(".content-routes"),
@@ -202,7 +203,7 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
-    function showPlace(placeId) {
+    function __showPlace(placeId) {
         var place = places.getPlace(placeId),
             predictionsPromise = command.getPredictionsForMultiStops(place.stops),
             $container = $("<div class='topcoat-list__container'></div>"),
@@ -236,7 +237,7 @@ define(function (require, exports, module) {
                     showDirections(routeTag).done(function (dirTag) {
                         showStops(routeTag, dirTag, true).done(function (stopTag) {
                             place.addStop(routeTag, dirTag, stopTag);
-                            showPlace(placeId);
+                            __showPlace(placeId);
                         });
                     });
                 });
@@ -346,11 +347,168 @@ define(function (require, exports, module) {
         });
     }
     
+    function showPlace(placeId) {
+        var place = places.getPlace(placeId),
+            predictionsPromise = command.getPredictionsForMultiStops(place.stops),
+            title = "Places &rangle; " + place.title,
+            routeObjMap = {};
+        
+        function handleEntryClick(routeTag, dirTag, stopTag) {
+            var stateObj = {
+                placeId: placeId,
+                routeTag: routeTag,
+                dirTag: dirTag,
+                stopTag: stopTag
+            };
+            history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+            
+            $placeStops.hide();
+            $placeStops.empty();
+            showPredictions(routeTag, dirTag, stopTag);
+        }
+        
+        function handleRemoveClick(index, stop, $item) {
+            if (window.confirm("Remove stop '" + stop.title + "'?")) {
+                place.removeStop(stop);
+                $item.remove();
+            }
+        }
+        
+        function handleAddClick() {
+            $placeStops.hide();
+            $placeStops.empty();
+            showRoutes().done(function (routeTag) {
+                showDirections(routeTag).done(function (dirTag) {
+                    showStops(routeTag, dirTag, true).done(function (stopTag) {
+                        place.addStop(routeTag, dirTag, stopTag);
+                        showPlace(placeId);
+                    });
+                });
+            });
+        }
+
+        var handleEditStart,
+            handleEditStop;
+        
+        handleEditStop = function ($places, $item) {
+            var $editText = $(mustache.render(editHtml, {title: "Edit"}));
+
+            $places.find(".entry__remove").hide();
+            $places.find(".entry__predictions").show();
+            $places.find(".entry").each(function (index, item) {
+                var $item = $(item),
+                    handler = $item.data("clickHandler");
+
+                $item.on("click", handler);
+            });
+            
+            $item.children().remove();
+            $item.append($editText);
+            $item.on("click", handleEditStart.bind(null, $places, $item));
+        };
+        
+        handleEditStart = function ($places, $item) {
+            var $doneText = $(mustache.render(editHtml, {title: "Done"}));
+            
+            $places.find(".entry__predictions").hide();
+            $places.find(".entry__remove").show();
+            $places.find(".entry").each(function (index, item) {
+                $(item).off("click");
+            });
+            
+            $item.children().remove();
+            $item.append($doneText);
+            $item.on("click", handleEditStop.bind(null, $places, $item));
+        };
+        
+        async.map(place.stops, function (stopObj, callback) {
+            command.getRoute(stopObj.routeTag).done(function (route) {
+                routeObjMap[route.tag] = route;
+                callback(null, {
+                    route: route,
+                    dirTag: stopObj.dirTag,
+                    stopTag: stopObj.stopTag
+                });
+            }).fail(function (err) {
+                callback(err);
+            });
+        }, function (err, routeObjs) {
+            if (err) {
+                console.error("[showPlace] failed to get routes: " + err);
+                return;
+            }
+            
+            predictionsPromise.done(function (predictionObjs) {
+                var entries = routeObjs.map(function (routeObj, index) {
+                    var route = routeObj.route,
+                        routeTag = route.tag,
+                        dirTag = routeObj.dirTag,
+                        stopTag = routeObj.stopTag,
+                        stop = route.stops[stopTag],
+                        title = mustache.render(titleHtml, {title: route.title, subtitle: stop.title}),
+                        predictionList = predictionObjs[index].slice(0, 4),
+                        predictions = mustache.render(predictionsHtml, { predictions: predictionList }),
+                        tags = [{tag: "route", value: routeTag},
+                                {tag: "dir", value: dirTag},
+                                {tag: "stop", value: stopTag}];
+                    
+                    return {
+                        left: title,
+                        right: predictions + removeHtml,
+                        tags: tags
+                    };
+                });
+                
+                entries.push({
+                    left: mustache.render(titleHtml, {title: "Add stop..."}),
+                    right: "",
+                    tags: [{tag: "op", value: "add"}]
+                });
+    
+                var strings = {
+                    left: title,
+                    entries: entries
+                },
+                    $container = $(mustache.render(containerHtml, strings));
+                
+                $container.find(".entry").each(function (index, entry) {
+                    var $entry = $(entry),
+                        routeTag = $entry.data("route"),
+                        dirTag = $entry.data("dir"),
+                        stopTag = $entry.data("stop"),
+                        op = $entry.data("op");
+                    
+                    if (routeTag !== undefined) {
+                        var route = routeObjMap[routeTag],
+                            stop = route.stops[stopTag],
+                            $remove = $entry.find(".entry__remove"),
+                            stopClickHandler = handleEntryClick.bind(null, routeTag, dirTag, stopTag),
+                            removeClickHandler = handleRemoveClick.bind(null, index, stop, $entry);
+                        
+                        $entry.data("clickHandler", stopClickHandler);
+                        $remove.on("click", removeClickHandler);
+                    } else if (op === "add") {
+                        $entry.data("clickHandler", handleAddClick);
+                        $entry.on("click", handleAddClick);
+                    }
+                });
+                
+                var $editButton = $($container.find(".header__right")[0]);
+                handleEditStop($container, $editButton);
+                
+                $placeStops.append($container);
+                $placeStops.show();
+            }).fail(function (err) {
+                console.error("[showPlace] failed to get predictions: " + err);
+            });
+        });
+    }
+    
     function showPlaces() {
         var placeList = places.getAllPlaces(),
             title = "Places";
         
-        function handlePlaceClick(place) {
+        function handleEntryClick(place) {
             var stateObj = { placeId: place.id };
             history.pushState(stateObj, null, "#p=" + place.id);
             
@@ -449,12 +607,13 @@ define(function (require, exports, module) {
                 if (placeId !== undefined) {
                     var place = places.getPlace(parseInt(placeId, 10)),
                         $remove = $entry.find(".entry__remove"),
-                        placeClickHandler = handlePlaceClick.bind(null, place),
+                        placeClickHandler = handleEntryClick.bind(null, place),
                         removeClickHandler = handleRemoveClick.bind(null, place, $entry);
                     
                     $entry.data("clickHandler", placeClickHandler);
                     $remove.on("click", removeClickHandler);
                 } else if (op === "add") {
+                    $entry.data("clickHandler", handleAddClick);
                     $entry.on("click", handleAddClick);
                 }
             });
