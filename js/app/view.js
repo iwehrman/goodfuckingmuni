@@ -343,8 +343,14 @@ define(function (require, exports, module) {
 //        });
 //    }
     
-    function showList(title, entries, getEntryClickHandler, getRemoveClickHandler, addClickHandler) {
+    function showList(title, entries, entryClickHandler, removeClickHandler, addClickHandler) {
         if (addClickHandler) {
+            
+            entries = entries.map(function (entry) {
+                entry.right += removeHtml;
+                return entry;
+            });
+            
             entries.push({
                 left: mustache.render(titleHtml, {title: "Add..."}),
                 right: "",
@@ -395,29 +401,31 @@ define(function (require, exports, module) {
         };
         
         $container.find(".entry").each(function (index, entry) {
-            var $entry = $(entry),
+            var data = entry.dataset,
+                $entry = $(entry),
                 op = $entry.data("op");
             
             if (op === "add") {
                 $entry.data("clickHandler", addClickHandler);
             } else {
-                var entryClickHandler = getEntryClickHandler(index, $entry);
-                
                 if (entryClickHandler) {
-                    $entry.data("clickHandler", entryClickHandler);
-                    if (getRemoveClickHandler) {
-                        var removeClickHandler = getRemoveClickHandler(index, $entry),
-                            $remove = $($entry.find(".entry__remove").children()[0]);
+                    $entry.data("clickHandler", entryClickHandler.bind(null, data));
+                    if (removeClickHandler) {
+                        var remove = $($entry.find(".entry__remove").children()[0]);
                         
-                        $remove.on("click", removeClickHandler);
+                        $(remove).on("click", function () {
+                            if (removeClickHandler(data)) {
+                                $entry.remove();
+                            }
+                        });
                     } else {
-                        $entry.on("click", entryClickHandler);
+                        $entry.on("click", entryClickHandler.bind(null, data));
                     }
                 }
             }
         });
         
-        if (getRemoveClickHandler) {
+        if (removeClickHandler) {
             var $editContainer = $($container.find(".header__right")[0]);
             handleEditStop($editContainer);
         }
@@ -431,24 +439,41 @@ define(function (require, exports, module) {
             title = "Places &rangle; " + place.title,
             routeObjMap = {};
         
-        function handleEntryClick(routeTag, dirTag, stopTag) {
-            var stateObj = {
-                placeId: placeId,
-                routeTag: routeTag,
-                dirTag: dirTag,
-                stopTag: stopTag
-            };
-            history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+        function entryClickHandler(data) {
+            var routeTag = data.route,
+                dirTag = data.dir,
+                stopTag = data.stop;
             
-            $content.empty();
-            showPredictions(routeTag, dirTag, stopTag);
+            if (routeTag !== undefined) {
+                var stateObj = {
+                    placeId: placeId,
+                    routeTag: routeTag,
+                    dirTag: dirTag,
+                    stopTag: stopTag
+                };
+                history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                
+                $content.empty();
+                showPredictions(routeTag, dirTag, stopTag);
+            }
+            return null;
         }
         
-        function handleRemoveClick(index, stop, $item) {
-            if (window.confirm("Remove stop '" + stop.title + "'?")) {
-                place.removeStop(index);
-                $item.remove();
+        function removeClickHandler(data) {
+            var routeTag = data.route,
+                dirTag = data.dir,
+                stopTag = data.stop;
+            
+            if (routeTag !== undefined) {
+                var route = routeObjMap[routeTag],
+                    stop = route.stops[stopTag];
+                
+                if (window.confirm("Remove stop '" + stop.title + "'?")) {
+                    place.removeStop(stop);
+                    return true;
+                }
             }
+            return false;
         }
         
         function handleAddClick() {
@@ -480,33 +505,6 @@ define(function (require, exports, module) {
                 return;
             }
             
-            function getEntryClickHandler(index, $entry) {
-                var routeTag = $entry.data("route"),
-                    dirTag = $entry.data("dir"),
-                    stopTag = $entry.data("stop");
-                
-                if (routeTag !== undefined) {
-                    
-                    
-                    return handleEntryClick.bind(null, routeTag, dirTag, stopTag);
-                }
-                return null;
-            }
-
-            function getRemoveClickHandler(index, $entry) {
-                var routeTag = $entry.data("route"),
-                    dirTag = $entry.data("dir"),
-                    stopTag = $entry.data("stop");
-                
-                if (routeTag !== undefined) {
-                    var route = routeObjMap[routeTag],
-                        stop = route.stops[stopTag];
-                    
-                    return handleRemoveClick.bind(null, index, stop, $entry);
-                }
-                return null;
-            }
-            
             predictionsPromise.done(function (predictionObjs) {
                 var entries = routeObjs.map(function (routeObj, index) {
                     var route = routeObj.route,
@@ -523,12 +521,12 @@ define(function (require, exports, module) {
                     
                     return {
                         left: title,
-                        right: predictions + removeHtml,
+                        right: predictions,
                         tags: tags
                     };
                 });
                 
-                showList(title, entries, getEntryClickHandler, getRemoveClickHandler, handleAddClick);
+                showList(title, entries, entryClickHandler, removeClickHandler, handleAddClick);
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -536,19 +534,32 @@ define(function (require, exports, module) {
     }
     
     function showPlaces() {
-        function handleEntryClick(place) {
-            var stateObj = { placeId: place.id };
-            history.pushState(stateObj, null, "#p=" + place.id);
+        function entryClickHandler(data) {
+            var placeId = data.place;
             
-            $content.empty();
-            showPlace(place.id);
+            if (placeId !== undefined) {
+                var place = places.getPlace(parseInt(placeId, 10));
+                
+                var stateObj = { placeId: place.id };
+                history.pushState(stateObj, null, "#p=" + place.id);
+                
+                $content.empty();
+                showPlace(place.id);
+            }
         }
         
-        function handleRemoveClick(place, $item) {
-            if (window.confirm("Remove place '" + place.title + "'?")) {
-                places.removePlace(place);
-                $item.remove();
+        function removeClickHandler(data) {
+            var placeId = data.place;
+            
+            if (placeId !== undefined) {
+                var place = places.getPlace(parseInt(placeId, 10));
+                
+                if (window.confirm("Remove place '" + place.title + "'?")) {
+                    places.removePlace(place);
+                    return true;
+                }
             }
+            return false;
         }
         
         function handleAddClick() {
@@ -568,42 +579,19 @@ define(function (require, exports, module) {
         }
         
         var placeList = places.getAllPlaces();
-        
         geo.sortByCurrentLocation(placeList).done(function (position) {
-            function getEntryClickHandler(index, $entry) {
-                var placeId = $entry.data("place");
-                
-                if (placeId !== undefined) {
-                    var place = places.getPlace(parseInt(placeId, 10));
-                    
-                    return handleEntryClick.bind(null, place);
-                }
-                return null;
-            }
-            
-            function getRemoveClickHandler(index, $entry) {
-                var placeId = $entry.data("place");
-                
-                if (placeId !== undefined) {
-                    var place = places.getPlace(parseInt(placeId, 10));
-                    
-                    return handleRemoveClick.bind(null, place, $entry);
-                }
-                return null;
-            }
-            
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
                     distance = geo.formatDistance(geo.distance(position, place));
 
                 return {
                     left: mustache.render(titleHtml, place),
-                    right: mustache.render(numbersHtml, {distance: distance}) + removeHtml,
+                    right: mustache.render(numbersHtml, {distance: distance}),
                     tags: tags
                 };
             });
             
-            showList("Places", entries, getEntryClickHandler, getRemoveClickHandler, handleAddClick);
+            showList("Places", entries, entryClickHandler, removeClickHandler, handleAddClick);
             
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);

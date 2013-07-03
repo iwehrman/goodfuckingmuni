@@ -40,9 +40,12 @@ define(function (require, exports, module) {
         savePlace(this);
     };
     
-    Place.prototype.removeStop = function (index) {
-        this.stops.splice(index, 1);
-        savePlace(this);
+    Place.prototype.removeStop = function (stop) {
+        var index = this.stops.indexOf(stop);
+        if (index > 0) {
+            this.stops.splice(index, 1);
+            savePlace(this);
+        }
     };
     
     function loadPlaces() {
