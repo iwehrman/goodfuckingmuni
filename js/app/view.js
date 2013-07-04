@@ -153,199 +153,9 @@ define(function (require, exports, module) {
         
         return deferred.promise();
     }
-
-    function showRoutes() {
-        var deferred = $.Deferred();
-        
-        command.getRoutes().done(function (routes) {
-            var $container = $("<div class='topcoat-list__container'></div>"),
-                $header = $("<h2 class='topcoat-list__header'>Routes</h2>"),
-                $list = $("<ul class='topcoat-list'></ul>");
-    
-            routes.forEach(function (route) {
-                var $item = $("<li class='topcoat-list__item entry-route' data-tag='" +
-                             route.tag + "'>"),
-                    $text = $("<span>").append(route.title);
-                
-                $item.append($text);
-                $list.append($item);
-                
-                $item.on("click", function () {
-                    var stateObj = { routeTag: route.tag };
-                    history.pushState(stateObj, null, "#r=" + route.tag);
-                    
-                    $content.empty();
-                    deferred.resolve(route.tag);
-                });
-            });
-            
-            $container.append($header).append($list);
-            $content.append($container);
-        }).fail(function (err) {
-            console.error("[showRoutes] failed to get routes: " + err);
-            deferred.reject(err);
-        });
-        
-        return deferred.promise();
-    }
-    
-//    function __showPlace(placeId) {
-//        var place = places.getPlace(placeId),
-//            predictionsPromise = command.getPredictionsForMultiStops(place.stops),
-//            title = "Places &rangle; " + place.title,
-//            routeObjMap = {};
-//        
-//        function handleEntryClick(routeTag, dirTag, stopTag) {
-//            var stateObj = {
-//                placeId: placeId,
-//                routeTag: routeTag,
-//                dirTag: dirTag,
-//                stopTag: stopTag
-//            };
-//            history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
-//            
-//            $content.empty();
-//            showPredictions(routeTag, dirTag, stopTag);
-//        }
-//        
-//        function handleRemoveClick(index, stop, $item) {
-//            if (window.confirm("Remove stop '" + stop.title + "'?")) {
-//                place.removeStop(stop);
-//                $item.remove();
-//            }
-//        }
-//        
-//        function handleAddClick() {
-//            $content.empty();
-//            showRoutes().done(function (routeTag) {
-//                showDirections(routeTag).done(function (dirTag) {
-//                    showStops(routeTag, dirTag, true).done(function (stopTag) {
-//                        place.addStop(routeTag, dirTag, stopTag);
-//                        showPlace(placeId);
-//                    });
-//                });
-//            });
-//        }
-//
-//        var handleEditStart,
-//            handleEditStop;
-//        
-//        handleEditStop = function ($places, $item) {
-//            var $editText = $(mustache.render(editHtml, {title: "Edit"}));
-//
-//            $places.find(".entry__remove").hide();
-//            $places.find(".entry__numbers").show();
-//            $places.find(".entry").each(function (index, item) {
-//                var $item = $(item),
-//                    handler = $item.data("clickHandler");
-//
-//                $item.on("click", handler);
-//            });
-//            
-//            $item.children().remove();
-//            $item.append($editText);
-//            $item.on("click", handleEditStart.bind(null, $places, $item));
-//        };
-//        
-//        handleEditStart = function ($places, $item) {
-//            var $doneText = $(mustache.render(editHtml, {title: "Done"}));
-//            
-//            $places.find(".entry__numbers").hide();
-//            $places.find(".entry__remove").show();
-//            $places.find(".entry").each(function (index, item) {
-//                $(item).off("click");
-//            });
-//            
-//            $item.children().remove();
-//            $item.append($doneText);
-//            $item.on("click", handleEditStop.bind(null, $places, $item));
-//        };
-//        
-//        async.map(place.stops, function (stopObj, callback) {
-//            command.getRoute(stopObj.routeTag).done(function (route) {
-//                routeObjMap[route.tag] = route;
-//                callback(null, {
-//                    route: route,
-//                    dirTag: stopObj.dirTag,
-//                    stopTag: stopObj.stopTag
-//                });
-//            }).fail(function (err) {
-//                callback(err);
-//            });
-//        }, function (err, routeObjs) {
-//            if (err) {
-//                console.error("[showPlace] failed to get routes: " + err);
-//                return;
-//            }
-//            
-//            predictionsPromise.done(function (predictionObjs) {
-//                var entries = routeObjs.map(function (routeObj, index) {
-//                    var route = routeObj.route,
-//                        routeTag = route.tag,
-//                        dirTag = routeObj.dirTag,
-//                        stopTag = routeObj.stopTag,
-//                        stop = route.stops[stopTag],
-//                        title = mustache.render(titleHtml, {title: route.title, subtitle: stop.title}),
-//                        predictionList = predictionObjs[index].slice(0, 4),
-//                        predictions = mustache.render(numbersHtml, { predictions: predictionList }),
-//                        tags = [{tag: "route", value: routeTag},
-//                                {tag: "dir", value: dirTag},
-//                                {tag: "stop", value: stopTag}];
-//                    
-//                    return {
-//                        left: title,
-//                        right: predictions + removeHtml,
-//                        tags: tags
-//                    };
-//                });
-//                
-//                entries.push({
-//                    left: mustache.render(titleHtml, {title: "Add stop..."}),
-//                    right: "",
-//                    tags: [{tag: "op", value: "add"}]
-//                });
-//    
-//                var strings = {
-//                    left: title,
-//                    entries: entries
-//                },
-//                    $container = $(mustache.render(containerHtml, strings));
-//                
-//                $container.find(".entry").each(function (index, entry) {
-//                    var $entry = $(entry),
-//                        routeTag = $entry.data("route"),
-//                        dirTag = $entry.data("dir"),
-//                        stopTag = $entry.data("stop"),
-//                        op = $entry.data("op");
-//                    
-//                    if (routeTag !== undefined) {
-//                        var route = routeObjMap[routeTag],
-//                            stop = route.stops[stopTag],
-//                            $remove = $entry.find(".entry__remove"),
-//                            stopClickHandler = handleEntryClick.bind(null, routeTag, dirTag, stopTag),
-//                            removeClickHandler = handleRemoveClick.bind(null, index, stop, $entry);
-//                        
-//                        $entry.data("clickHandler", stopClickHandler);
-//                        $remove.on("click", removeClickHandler);
-//                    } else if (op === "add") {
-//                        $entry.data("clickHandler", handleAddClick);
-//                        $entry.on("click", handleAddClick);
-//                    }
-//                });
-//                
-//                var $editButton = $($container.find(".header__right")[0]);
-//                handleEditStop($container, $editButton);
-//                
-//                $content.append($container);
-//            }).fail(function (err) {
-//                console.error("[showPlace] failed to get predictions: " + err);
-//            });
-//        });
-//    }
     
     function showList(title, entries, entryClickHandler, removeClickHandler, addClickHandler) {
         if (addClickHandler) {
-            
             entries = entries.map(function (entry) {
                 entry.right += removeHtml;
                 return entry;
@@ -433,6 +243,36 @@ define(function (require, exports, module) {
         $content.append($container);
     }
     
+    function showRoutes() {
+        var deferred = $.Deferred();
+
+        function entryClickHandler(data) {
+            var routeTag = data.route,
+                stateObj = { routeTag: routeTag };
+            history.pushState(stateObj, null, "#r=" + routeTag);
+            
+            $content.empty();
+            deferred.resolve(routeTag);
+        }
+        
+        command.getRoutes().done(function (routes) {
+            var entries = routes.map(function (route) {
+                return {
+                    left: route.title,
+                    right: "",
+                    tags: [{tag: "route", value: route.tag}]
+                };
+            });
+        
+            showList("Routes", entries, entryClickHandler);
+        }).fail(function (err) {
+            console.error("[showRoutes] failed to get routes: " + err);
+            deferred.reject(err);
+        });
+        
+        return deferred.promise();
+    }
+    
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
             predictionsPromise = command.getPredictionsForMultiStops(place.stops),
@@ -461,7 +301,6 @@ define(function (require, exports, module) {
         
         function removeClickHandler(data) {
             var routeTag = data.route,
-                dirTag = data.dir,
                 stopTag = data.stop;
             
             if (routeTag !== undefined) {
