@@ -9,8 +9,7 @@ define(function (require, exports, module) {
         mustache = require("mustache"),
         command = require("app/command"),
         places = require("app/places"),
-        geo = require("app/geolocation"),
-        weather = require("app/weather");
+        geo = require("app/geolocation");
 
     var containerHtml = require("text!html/container.html"),
         editHtml = require("text!html/edit.html"),
@@ -20,50 +19,23 @@ define(function (require, exports, module) {
     
     var $body = $("body"),
         $content = $body.find(".content");
-    
-    function showPredictions(routeTag, dirTag, stopTag) {
-        command.getRoute(routeTag).done(function (route) {
-            command.getPredictions(routeTag, stopTag).done(function (predictions) {
-                var stop = route.stops[stopTag],
-                    direction = route.directions[dirTag],
-                    $container = $("<div class='topcoat-list__container'></div>"),
-                    $header = $("<h2 class='topcoat-list__header'>" + route.title +
-                                " &gt; " + direction.title + " &gt; " + stop.title + "</h2>"),
-                    $list = $("<ul class='topcoat-list'></ul>");
-                
-                predictions.forEach(function (prediction, index) {
-                    var $item = $("<li class='topcoat-list__item entry-prediction'>"),
-                        $text = $("<span>").append(prediction.minutes + " minutes");
-                    
-                    if (index === 0) {
-                        $text.addClass("closest");
-                    }
-                    
-                    $item.append($text);
-                    $list.append($item);
-                });
-                
-                $container.append($header).append($list);
-                $content.append($container);
-            }).fail(function (err) {
-                console.error("[showPredictions] failed to get predictions: " + err);
+
+    function showList(title, entries, options) {
+        options = options || {};
+        
+        if (options.addClickHandler) {
+            var addTitle = options.addTitle || "Add...";
+            entries.push({
+                left: mustache.render(titleHtml, {title: addTitle}),
+                right: "",
+                tags: [{tag: "op", value: "add"}]
             });
-        }).fail(function (err) {
-            console.error("[showPredictions] failed to get route: " + err);
-        });
-    }
-    
-    function showList(title, entries, entryClickHandler, removeClickHandler, addClickHandler) {
-        if (addClickHandler) {
+        }
+
+        if (options.removeClickHandler) {
             entries = entries.map(function (entry) {
                 entry.right += removeHtml;
                 return entry;
-            });
-            
-            entries.push({
-                left: mustache.render(titleHtml, {title: "Add..."}),
-                right: "",
-                tags: [{tag: "op", value: "add"}]
             });
         }
         
@@ -115,31 +87,53 @@ define(function (require, exports, module) {
                 op = $entry.data("op");
             
             if (op === "add") {
-                $entry.data("clickHandler", addClickHandler);
+                $entry.data("clickHandler", options.addClickHandler);
             } else {
-                if (entryClickHandler) {
-                    $entry.data("clickHandler", entryClickHandler.bind(null, data));
-                    if (removeClickHandler) {
+                if (options.entryClickHandler) {
+                    $entry.data("clickHandler", options.entryClickHandler.bind(null, data));
+                    if (options.removeClickHandler) {
                         var remove = $($entry.find(".entry__remove").children()[0]);
                         
                         $(remove).on("click", function () {
-                            if (removeClickHandler(data)) {
+                            if (options.removeClickHandler(data)) {
                                 $entry.remove();
                             }
                         });
                     } else {
-                        $entry.on("click", entryClickHandler.bind(null, data));
+                        $entry.on("click", options.entryClickHandler.bind(null, data));
                     }
                 }
             }
         });
         
-        if (removeClickHandler) {
+        if (options.removeClickHandler) {
             var $editContainer = $($container.find(".header__right")[0]);
             handleEditStop($editContainer);
         }
         
         $content.append($container);
+    }
+    
+    function showPredictions(routeTag, dirTag, stopTag) {
+        command.getRoute(routeTag).done(function (route) {
+            command.getPredictions(routeTag, stopTag).done(function (predictions) {
+                var stop = route.stops[stopTag],
+                    title = "Predictions &rangle; " + stop.title;
+                
+                var entries = predictions.map(function (prediction, index) {
+                    return {
+                        left: prediction.minutes + " minutes",
+                        right: ""
+                    };
+                });
+                
+                showList(title, entries);
+            }).fail(function (err) {
+                console.error("[showPredictions] failed to get predictions: " + err);
+            });
+        }).fail(function (err) {
+            console.error("[showPredictions] failed to get route: " + err);
+        });
     }
     
     function showStops(routeTag, dirTag, scroll) {
@@ -182,7 +176,7 @@ define(function (require, exports, module) {
                 };
             });
             
-            showList(title, entries, entryClickHandler);
+            showList(title, entries, { entryClickHandler: entryClickHandler });
             
             if (scroll) {
                 $body.animate({
@@ -224,7 +218,7 @@ define(function (require, exports, module) {
                 }
             }
 
-            showList(route.title, entries, entryClickHandler);
+            showList(route.title, entries, { entryClickHandler: entryClickHandler });
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
             deferred.reject(err);
@@ -254,7 +248,7 @@ define(function (require, exports, module) {
                 };
             });
         
-            showList("Routes", entries, entryClickHandler);
+            showList("Routes", entries, { entryClickHandler: entryClickHandler });
         }).fail(function (err) {
             console.error("[showRoutes] failed to get routes: " + err);
             deferred.reject(err);
@@ -305,7 +299,7 @@ define(function (require, exports, module) {
             return false;
         }
         
-        function handleAddClick() {
+        function addClickHandler() {
             $content.empty();
             showRoutes().done(function (routeTag) {
                 showDirections(routeTag).done(function (dirTag) {
@@ -355,7 +349,13 @@ define(function (require, exports, module) {
                     };
                 });
                 
-                showList(title, entries, entryClickHandler, removeClickHandler, handleAddClick);
+                var options = {
+                    entryClickHandler: entryClickHandler,
+                    removeClickHandler: removeClickHandler,
+                    addClickHandler: addClickHandler,
+                    addTitle: "Add stop..."
+                };
+                showList(title, entries, options);
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -391,7 +391,7 @@ define(function (require, exports, module) {
             return false;
         }
         
-        function handleAddClick() {
+        function addClickHandler() {
             var name = window.prompt("Place name: ", "");
             
             if (name) {
@@ -420,7 +420,13 @@ define(function (require, exports, module) {
                 };
             });
             
-            showList("Places", entries, entryClickHandler, removeClickHandler, handleAddClick);
+            var options = {
+                entryClickHandler: entryClickHandler,
+                removeClickHandler: removeClickHandler,
+                addClickHandler: addClickHandler,
+                addTitle: "Add place..."
+            };
+            showList("Places", entries, options);
             
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
