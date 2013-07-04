@@ -18,7 +18,8 @@ define(function (require, exports, module) {
         titleHtml = require("text!html/title.html"),
         removeHtml = require("text!html/remove.html");
     
-    var $content = $("body").find(".content");
+    var $body = $("body"),
+        $content = $body.find(".content");
     
     function showPredictions(routeTag, dirTag, stopTag) {
         command.getRoute(routeTag).done(function (route) {
@@ -50,108 +51,6 @@ define(function (require, exports, module) {
         }).fail(function (err) {
             console.error("[showPredictions] failed to get route: " + err);
         });
-    }
-        
-    function showStops(routeTag, dirTag, scroll) {
-        var deferred = $.Deferred();
-        
-        command.getRoute(routeTag).done(function (route) {
-            var direction = route.directions[dirTag],
-                $container = $("<div class='topcoat-list__container'></div>"),
-                $header = $("<h2 class='topcoat-list__header'>" + route.title +
-                            " &gt; " + direction.title + "</h2>"),
-                $list = $("<ul class='topcoat-list'></ul>");
-            
-            function normalizeDist(direction, stop) {
-                var range = direction.maxDist - direction.minDist,
-                    fromMin = stop.dist - direction.minDist;
-                
-                return 1 - (fromMin / range);
-            }
-            
-            direction.stops.forEach(function (stopTag) {
-                var stop = route.stops[stopTag],
-                    norm = normalizeDist(direction, stop),
-                    $item = $("<li class='topcoat-list__item entry-stop' data-tag='" +
-                              stopTag + "'>"),
-                    $text = $("<span>").append(stop.title);
-                
-                if (norm === 1) {
-                    $text.addClass("closest");
-                }
-                
-                $item.on("click", function () {
-                    var stateObj = { routeTag: routeTag, dirTag: dirTag, stopTag: stopTag };
-                    history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
-                    
-                    $content.empty();
-                    deferred.resolve(stopTag);
-                });
-                
-                $item.append($text);
-                $list.append($item);
-            });
-            
-            $container.append($header).append($list);
-            $content.append($container);
-            
-            if (scroll) {
-                $content.animate({
-                    scrollTop: $list.find(".closest").parent().offset().top - $content.scrollTop()
-                });
-            }
-        }).fail(function (err) {
-            deferred.reject(err);
-            console.error("[showStops] failed to get route: " + err);
-        });
-        
-        return deferred.promise();
-    }
-    
-    function showDirections(routeTag) {
-        var deferred = $.Deferred();
-        
-        command.getRoute(routeTag).done(function (route) {
-            var $container = $("<div class='topcoat-list__container'></div>"),
-                $header = $("<h2 class='topcoat-list__header'>" + route.title + "</h2>"),
-                $list = $("<ul class='topcoat-list route-directions'></ul>"),
-                direction,
-                dirTag,
-                $item,
-                $text;
-            
-            function clickHandler(dirTag) {
-                return function () {
-                    var stateObj = { routeTag: routeTag, dirTag: dirTag };
-                    history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag);
-                    
-                    $content.empty();
-                    deferred.resolve(dirTag);
-                };
-            }
-            
-            for (dirTag in route.directions) {
-                if (route.directions.hasOwnProperty(dirTag)) {
-                    direction = route.directions[dirTag];
-                    $item = $("<li class='topcoat-list__item entry-direction' data-tag='" +
-                             dirTag + "'>");
-                    $text = $("<span>").append(direction.title);
-                
-                    $item.append($text);
-                    $list.append($item);
-                    
-                    $item.on("click", clickHandler(dirTag));
-                }
-            }
-            
-            $container.append($header).append($list);
-            $content.append($container);
-        }).fail(function (err) {
-            console.error("[showDirections] failed to get route: " + err);
-            deferred.reject(err);
-        });
-        
-        return deferred.promise();
     }
     
     function showList(title, entries, entryClickHandler, removeClickHandler, addClickHandler) {
@@ -241,6 +140,97 @@ define(function (require, exports, module) {
         }
         
         $content.append($container);
+    }
+    
+    function showStops(routeTag, dirTag, scroll) {
+        var deferred = $.Deferred();
+        
+        function entryClickHandler(data) {
+            var routeTag = data.route,
+                dirTag = data.dir,
+                stopTag = data.stop,
+                stateObj = { routeTag: routeTag, dirTag: dirTag, stopTag: stopTag };
+            
+            history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+            
+            $content.empty();
+            deferred.resolve(stopTag);
+        }
+        
+        command.getRoute(routeTag).done(function (route) {
+            function normalizeDist(direction, stop) {
+                var range = direction.maxDist - direction.minDist,
+                    fromMin = stop.dist - direction.minDist;
+                
+                return 1 - (fromMin / range);
+            }
+
+            var direction = route.directions[dirTag],
+                title = route.title + " &rangle; " + direction.title;
+            
+            var entries = direction.stops.map(function (stopTag) {
+                var stop = route.stops[stopTag],
+                    norm = normalizeDist(direction, stop);
+
+                return {
+                    left: stop.title,
+                    right: "",
+                    highlight: (norm === 1),
+                    tags: [{tag: "route", value: routeTag},
+                           {tag: "dir", value: dirTag},
+                           {tag: "stop", value: stopTag}]
+                };
+            });
+            
+            showList(title, entries, entryClickHandler);
+            
+            if (scroll) {
+                $body.animate({
+                    scrollTop: $content.find(".highlight").parents(".entry").offset().top - $content.scrollTop()
+                });
+            }
+        }).fail(function (err) {
+            deferred.reject(err);
+            console.error("[showStops] failed to get route: " + err);
+        });
+        
+        return deferred.promise();
+    }
+    
+    function showDirections(routeTag) {
+        var deferred = $.Deferred();
+        
+        command.getRoute(routeTag).done(function (route) {
+            function entryClickHandler(data) {
+                var dirTag = data.dir;
+                var stateObj = { routeTag: routeTag, dirTag: dirTag };
+                history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag);
+                
+                $content.empty();
+                deferred.resolve(dirTag);
+            }
+
+            var entries = [],
+                dirTag,
+                direction;
+            for (dirTag in route.directions) {
+                if (route.directions.hasOwnProperty(dirTag)) {
+                    direction = route.directions[dirTag];
+                    entries.push({
+                        tags: [{tag: "dir", value: dirTag}],
+                        left: direction.title,
+                        right: ""
+                    });
+                }
+            }
+
+            showList(route.title, entries, entryClickHandler);
+        }).fail(function (err) {
+            console.error("[showDirections] failed to get route: " + err);
+            deferred.reject(err);
+        });
+        
+        return deferred.promise();
     }
     
     function showRoutes() {

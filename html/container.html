@@ -7,7 +7,7 @@
         {{#entries}}
         <li class="topcoat-list__item entry" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
             <div class="entry__content">
-                <div class="entry__left">
+                <div class="entry__left{{#highlight}} highlight{{/highlight}}">
                     {{{left}}}
                 </div>
                 <div class="entry__right">
