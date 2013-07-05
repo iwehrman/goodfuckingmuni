@@ -14,7 +14,7 @@ define(function (require, exports, module) {
         var deferred = $.Deferred();
 
         function getWeatherData(lat, lon) {
-            var baseUrl = "http://api.openweathermap.org.localhost:9999/data/2.5/weather",
+            var baseUrl = "http://api.openweathermap.org/data/2.5/weather",
                 url = baseUrl + "?APPID=" + APPID + "&lat=" + lat + "&lon=" + lon,
                 callback = ("callback" + lat + lon).replace(/\./g, "d").replace(/-/g, "m"),
                 settings = {
