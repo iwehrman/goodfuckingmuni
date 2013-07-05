@@ -22,6 +22,13 @@ define(function (require, exports, module) {
 
     function showList(title, entries, options) {
         options = options || {};
+ 
+        if (options.removeClickHandler) {
+            entries = entries.map(function (entry) {
+                entry.right += removeHtml;
+                return entry;
+            });
+        }
         
         if (options.addClickHandler) {
             var addTitle = options.addTitle || "Add...";
@@ -31,19 +38,11 @@ define(function (require, exports, module) {
                 tags: [{tag: "op", value: "add"}]
             });
         }
-
-        if (options.removeClickHandler) {
-            entries = entries.map(function (entry) {
-                entry.right += removeHtml;
-                return entry;
-            });
-        }
         
-        var strings = {
+        var $container = $(mustache.render(containerHtml, {
             left: title,
             entries: entries
-        },
-            $container = $(mustache.render(containerHtml, strings));
+        }));
         
         var handleEditStop,
             handleEditStart;
@@ -111,6 +110,7 @@ define(function (require, exports, module) {
             handleEditStop($editContainer);
         }
         
+        $content.empty();
         $content.append($container);
     }
     
@@ -147,7 +147,6 @@ define(function (require, exports, module) {
             
             history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
             
-            $content.empty();
             deferred.resolve(stopTag);
         }
         
@@ -196,12 +195,7 @@ define(function (require, exports, module) {
         
         command.getRoute(routeTag).done(function (route) {
             function entryClickHandler(data) {
-                var dirTag = data.dir;
-                var stateObj = { routeTag: routeTag, dirTag: dirTag };
-                history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag);
-                
-                $content.empty();
-                deferred.resolve(dirTag);
+                deferred.resolve(data.dir);
             }
 
             var entries = [],
@@ -231,12 +225,7 @@ define(function (require, exports, module) {
         var deferred = $.Deferred();
 
         function entryClickHandler(data) {
-            var routeTag = data.route,
-                stateObj = { routeTag: routeTag };
-            history.pushState(stateObj, null, "#r=" + routeTag);
-            
-            $content.empty();
-            deferred.resolve(routeTag);
+            deferred.resolve(data.route);
         }
         
         command.getRoutes().done(function (routes) {
@@ -275,9 +264,8 @@ define(function (require, exports, module) {
                     dirTag: dirTag,
                     stopTag: stopTag
                 };
-                history.pushState(stateObj, null, "#p=" + placeId + "&r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
+                history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
                 
-                $content.empty();
                 showPredictions(routeTag, dirTag, stopTag);
             }
             return null;
@@ -300,7 +288,6 @@ define(function (require, exports, module) {
         }
         
         function addClickHandler() {
-            $content.empty();
             showRoutes().done(function (routeTag) {
                 showDirections(routeTag).done(function (dirTag) {
                     showStops(routeTag, dirTag, true).done(function (stopTag) {
@@ -372,7 +359,6 @@ define(function (require, exports, module) {
                 var stateObj = { placeId: place.id };
                 history.pushState(stateObj, null, "#p=" + place.id);
                 
-                $content.empty();
                 showPlace(place.id);
             }
         }
@@ -399,7 +385,6 @@ define(function (require, exports, module) {
                     var stateObj = { placeId: place.id };
                     history.pushState(stateObj, null, "#p=" + place.id);
                     
-                    $content.empty();
                     showPlace(place.id);
                 }).fail(function (err) {
                     console.error("[showPlaces] failed to add place: " + err);

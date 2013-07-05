@@ -5,21 +5,14 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        async = require("async"),
-        command = require("app/command"),
-        places = require("app/places"),
-        geo = require("app/geolocation"),
         weather = require("app/weather"),
         view = require("app/view");
 
-    var $body = $("body"),
-        $content = $body.find(".content");
+    var $body = $("body");
     
     window.onpopstate = function (event) {
         var state = event.state;
-        
-        $content.empty();
-        
+
         if (state) {
             if (state.placeId !== null) {
                 view.showPlace(state.placeId);
