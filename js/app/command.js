@@ -192,7 +192,11 @@ define(function (require, exports, module) {
     }
     
     function handlePredictionData(data) {
-        var predictions  = [];
+        function minuteComparator(a, b) {
+            return a.minutes > b.minutes;
+        }
+        
+        var predictions = [];
                 
         $(data).find("prediction").each(function (i, p) {
             var $prediction  = $(p),
@@ -213,7 +217,7 @@ define(function (require, exports, module) {
             });
         });
         
-        return predictions;
+        return predictions.sort(minuteComparator);
     }
     
     function cachePredictions(routeTag, stopTag, predictions) {
