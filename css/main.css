@@ -27,7 +27,7 @@
 }
 
 .entry__content {
-    overflow-y: auto;
+    overflow-y: hidden;
     font-size: 42px;
     line-height: 52px;
 }
