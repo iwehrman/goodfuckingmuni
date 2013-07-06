@@ -1,11 +1,3 @@
-.content-place-stops,
-.content-routes,
-.content-directions,
-.content-route-stops,
-.content-predictions {
-    display: none;   
-}
-
 .highlight {
     font-weight: bold;
 }
@@ -50,6 +42,7 @@
 
 .entry__title {
     float: none;
+    line-height: 52px;
 }
 
 .entry__subtitle {
@@ -58,41 +51,17 @@
     line-height: 22px;
 }
 
-.entry-route,
-.entry-direction,
-.entry-stop,
-.entry-prediction {
-    font-size: 20px;
-    line-height: 22px;
-}
-
-.entry__numbers {
-    float: right;
-}
-
-.entry__minutes {
-    float: left;
-    font-size: 20px;
-    line-height: 22px;
-    height: 22px;
-}
-
 .entry__minutes:after {
     font-size: 16px;
     content: " min,";
-    padding-right: 0.5em;
 }
 
 .entry__minutes:first-child {
-    float: none;
-    font-size: 42px;
-    line-height: 52px;
     height: 52px;
 }
 
-.entry__minutes:first-child:after {
-    font-size: 20px;
-    content: " min";
+.entry__right .entry__title .entry__minutes:after {
+    font-size: 22px;
 }
 
 .entry__minutes:last-child:after {

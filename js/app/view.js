@@ -11,12 +11,17 @@ define(function (require, exports, module) {
         places = require("app/places"),
         geo = require("app/geolocation");
 
-    var containerHtml = require("text!html/container.html"),
-        editHtml = require("text!html/edit.html"),
-        numbersHtml = require("text!html/numbers.html"),
-        titleHtml = require("text!html/title.html"),
+    var _containerHtml = require("text!html/container.html"),
+        _editHtml = require("text!html/edit.html"),
+        _predictionsHtml = require("text!html/predictions.html"),
+        _titleHtml = require("text!html/title.html"),
         removeHtml = require("text!html/remove.html");
-    
+
+    var containerTemplate = mustache.compile(_containerHtml),
+        editTemplate = mustache.compile(_editHtml),
+        predictionsTemplate = mustache.compile(_predictionsHtml),
+        titleTemplate = mustache.compile(_titleHtml);
+
     var $body = $("body"),
         $content = $body.find(".content");
 
@@ -33,13 +38,13 @@ define(function (require, exports, module) {
         if (options.addClickHandler) {
             var addTitle = options.addTitle || "Add...";
             entries.push({
-                left: mustache.render(titleHtml, {title: addTitle}),
+                left: titleTemplate({title: addTitle}),
                 right: "",
                 tags: [{tag: "op", value: "add"}]
             });
         }
         
-        var $container = $(mustache.render(containerHtml, {
+        var $container = $(containerTemplate({
             left: title,
             entries: entries
         }));
@@ -48,7 +53,7 @@ define(function (require, exports, module) {
             handleEditStart;
         
         handleEditStop = function ($editContainer) {
-            var $editButton = $(mustache.render(editHtml, {title: "Edit"}));
+            var $editButton = $(editTemplate({title: "Edit"}));
 
             $container.find(".entry__remove").hide();
             $container.find(".entry__numbers").show();
@@ -66,7 +71,7 @@ define(function (require, exports, module) {
         };
         
         handleEditStart = function ($editContainer) {
-            var $doneButton = $(mustache.render(editHtml, {title: "Done"}));
+            var $doneButton = $(editTemplate({title: "Done"}));
             
             $container.find(".entry__numbers").hide();
             $container.find(".entry__remove").show();
@@ -118,7 +123,7 @@ define(function (require, exports, module) {
         command.getRoute(routeTag).done(function (route) {
             command.getPredictions(routeTag, stopTag).done(function (predictions) {
                 var stop = route.stops[stopTag],
-                    title = "Predictions &rangle; " + stop.title;
+                    title = "Predictions: " + stop.title;
                 
                 var entries = predictions.map(function (prediction, index) {
                     return {
@@ -159,7 +164,7 @@ define(function (require, exports, module) {
             }
 
             var direction = route.directions[dirTag],
-                title = route.title + " &rangle; " + direction.title;
+                title = route.title + ": " + direction.title;
             
             var entries = direction.stops.map(function (stopTag) {
                 var stop = route.stops[stopTag],
@@ -249,7 +254,7 @@ define(function (require, exports, module) {
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
             predictionsPromise = command.getPredictionsForMultiStops(place.stops),
-            title = "Places &rangle; " + place.title,
+            title = "Places: " + place.title,
             routeObjMap = {};
         
         function entryClickHandler(data) {
@@ -322,16 +327,21 @@ define(function (require, exports, module) {
                         dirTag = routeObj.dirTag,
                         stopTag = routeObj.stopTag,
                         stop = route.stops[stopTag],
-                        title = mustache.render(titleHtml, {title: route.title, subtitle: stop.title}),
-                        predictionList = predictionObjs[index].slice(0, 4),
-                        predictions = mustache.render(numbersHtml, { predictions: predictionList }),
+                        title = titleTemplate({title: route.title, subtitle: stop.title}),
+                        predictions = predictionObjs[index],
+                        firstPrediction = predictions.length ? predictions[0] : [],
+                        firstPredictionString = predictionsTemplate({ predictions: firstPrediction }),
+                        lastPredictionIndex = Math.min(3, predictions.length),
+                        laterPredictions = predictionObjs[index].slice(1, lastPredictionIndex),
+                        laterPredictionsString = predictionsTemplate({ predictions: laterPredictions }),
+                        predictionsString = titleTemplate({ title: firstPredictionString, subtitle: laterPredictionsString }),
                         tags = [{tag: "route", value: routeTag},
                                 {tag: "dir", value: dirTag},
                                 {tag: "stop", value: stopTag}];
                     
                     return {
                         left: title,
-                        right: predictions,
+                        right: predictionsString,
                         tags: tags
                     };
                 });
@@ -399,8 +409,8 @@ define(function (require, exports, module) {
                     distance = geo.formatDistance(geo.distance(position, place));
 
                 return {
-                    left: mustache.render(titleHtml, place),
-                    right: mustache.render(numbersHtml, {distance: distance}),
+                    left: titleTemplate(place),
+                    right: titleTemplate({title: distance}),
                     tags: tags
                 };
             });
