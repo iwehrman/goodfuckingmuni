@@ -21,7 +21,7 @@
     overflow-y: auto;
     font-size: 42px;
     line-height: 52px;
-    padding: 1px;
+    padding: 2px 0 2px 0;
 }
 
 .entry__left {
