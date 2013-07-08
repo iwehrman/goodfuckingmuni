@@ -6,8 +6,17 @@ define(function (require, exports, module) {
     
     var $ = require("jquery"),
         astronomy = require("app/astronomy"),
+        controller = require("app/controller"),
         view = require("app/view");
 
+    $(view).on("navigate", function (event) {
+        if (arguments.length > 1) {
+            var params = Array.prototype.slice.call(arguments, 1);
+
+            controller.loadPage.apply(null, params);
+        }
+    });
+    
     window.onpopstate = function (event) {
         var state = event.state;
 

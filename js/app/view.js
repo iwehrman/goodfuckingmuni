@@ -414,6 +414,7 @@ define(function (require, exports, module) {
                 var stateObj = { placeId: place.id };
                 history.pushState(stateObj, null, "#p=" + place.id);
                 
+                $(exports).triggerHandler("navigate", ["place", place.id]);
                 showPlace(place.id);
             }
         }
@@ -486,12 +487,10 @@ define(function (require, exports, module) {
         });
     }
     
-    return {
-        showPlaces: showPlaces,
-        showPlace: showPlace,
-        showRoutes: showRoutes,
-        showDirections: showDirections,
-        showStops: showStops,
-        showPredictions: showPredictions
-    };
+    exports.showPlaces = showPlaces;
+    exports.showPlace = showPlace;
+    exports.showRoutes = showRoutes;
+    exports.showDirections = showDirections;
+    exports.showStops = showStops;
+    exports.showPredictions = showPredictions;
 });
