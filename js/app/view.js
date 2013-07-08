@@ -12,12 +12,14 @@ define(function (require, exports, module) {
         geo = require("app/geolocation");
 
     var _containerHtml = require("text!html/container.html"),
+        _distanceHtml = require("text!html/distance.html"),
         _editHtml = require("text!html/edit.html"),
         _predictionsHtml = require("text!html/predictions.html"),
         _titleHtml = require("text!html/title.html"),
         removeHtml = require("text!html/remove.html");
 
     var containerTemplate = mustache.compile(_containerHtml),
+        distanceTemplate = mustache.compile(_distanceHtml),
         editTemplate = mustache.compile(_editHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
         titleTemplate = mustache.compile(_titleHtml);
@@ -56,7 +58,8 @@ define(function (require, exports, module) {
             var $editButton = $(editTemplate({title: "Edit"}));
 
             $container.find(".entry__remove").hide();
-            $container.find(".entry__numbers").show();
+            $container.find(".entry__right .entry__title").show();
+            $container.find(".entry__right .entry__subtitle").show();
             $container.find(".entry").each(function (index, item) {
                 var $item = $(item),
                     handler = $item.data("clickHandler");
@@ -73,7 +76,8 @@ define(function (require, exports, module) {
         handleEditStart = function ($editContainer) {
             var $doneButton = $(editTemplate({title: "Done"}));
             
-            $container.find(".entry__numbers").hide();
+            $container.find(".entry__right .entry__title").hide();
+            $container.find(".entry__right .entry__subtitle").hide();
             $container.find(".entry__remove").show();
             $container.find(".entry").each(function (index, item) {
                 $(item).off("click");
@@ -145,14 +149,7 @@ define(function (require, exports, module) {
         var deferred = $.Deferred();
         
         function entryClickHandler(data) {
-            var routeTag = data.route,
-                dirTag = data.dir,
-                stopTag = data.stop,
-                stateObj = { routeTag: routeTag, dirTag: dirTag, stopTag: stopTag };
-            
-            history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
-            
-            deferred.resolve(stopTag);
+            deferred.resolve(data.stop);
         }
         
         command.getRoute(routeTag).done(function (route) {
@@ -254,7 +251,7 @@ define(function (require, exports, module) {
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
             predictionsPromise = command.getPredictionsForMultiStops(place.stops),
-            title = "Places: " + place.title,
+            title = place.title,
             routeObjMap = {};
         
         function entryClickHandler(data) {
@@ -285,7 +282,7 @@ define(function (require, exports, module) {
                     stop = route.stops[stopTag];
                 
                 if (window.confirm("Remove stop '" + stop.title + "'?")) {
-                    place.removeStop(stop);
+                    place.removeStop(stopTag);
                     return true;
                 }
             }
@@ -406,7 +403,8 @@ define(function (require, exports, module) {
         geo.sortByCurrentLocation(placeList).done(function (position) {
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
-                    distance = geo.formatDistance(geo.distance(position, place));
+                    miles = geo.metersToMiles(geo.distance(position, place)),
+                    distance = distanceTemplate({miles: miles});
 
                 return {
                     left: titleTemplate(place),

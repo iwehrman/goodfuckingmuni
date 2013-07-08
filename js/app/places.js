@@ -40,10 +40,17 @@ define(function (require, exports, module) {
         savePlace(this);
     };
     
-    Place.prototype.removeStop = function (stop) {
-        var index = this.stops.indexOf(stop);
-        if (index > 0) {
-            this.stops.splice(index, 1);
+    Place.prototype.removeStop = function (stopTag) {
+        var stopIndex = -1;
+        this.stops.some(function (stop, index) {
+            if (stop.stopTag === stopTag) {
+                stopIndex = index;
+                return true;
+            }
+        });
+
+        if (stopIndex > -1) {
+            this.stops.splice(stopIndex, 1);
             savePlace(this);
         }
     };

@@ -47,11 +47,14 @@ define(function (require, exports, module) {
         return d;
     }
     
-    function formatDistance(dist) {
-        if (dist < 1000) {
-            return dist.toFixed(0) + "m";
+    function metersToMiles(meters) {
+        var miles = meters / 1609.344,
+            fixed = miles.toFixed(1);
+        
+        if (fixed.indexOf(".0") > 0) {
+            return miles.toFixed(0);
         } else {
-            return (dist / 1000).toFixed(1) + "km";
+            return fixed;
         }
     }
     
@@ -77,7 +80,7 @@ define(function (require, exports, module) {
     
     return {
         distance: distance,
-        formatDistance: formatDistance,
+        metersToMiles: metersToMiles,
         getLocation: getLocation,
         sortByCurrentLocation: sortByCurrentLocation
     };

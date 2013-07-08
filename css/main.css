@@ -4,12 +4,11 @@
 
 .header {
     overflow-y: auto;
+    font-size: 38px ! important;
 }
 
 .header__left {
     position: relative;
-    font-size: 42px;
-    line-height: 52px;
     float: left;
 }
 
@@ -48,6 +47,11 @@
     float: none;
     font-size: 20px;
     line-height: 22px;
+}
+
+.entry__miles:after {
+    font-size: 22px;
+    content: " mi";
 }
 
 .entry__minutes:after {
