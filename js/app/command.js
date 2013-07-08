@@ -169,6 +169,7 @@ define(function (require, exports, module) {
                         });
                         
                         directions[tag] = {
+                            tag: tag,
                             title:  title,
                             name:   name,
                             stops:  stops,
@@ -176,6 +177,7 @@ define(function (require, exports, module) {
                             minDist: minDist
                         };
                     });
+                                        
                     var route = {
                         tag:            tag,
                         title:          title,
@@ -200,10 +202,6 @@ define(function (require, exports, module) {
     }
     
     function handlePredictionData(data) {
-        function minuteComparator(a, b) {
-            return a.minutes > b.minutes;
-        }
-        
         var predictions = [];
                 
         $(data).find("prediction").each(function (i, p) {
@@ -225,7 +223,9 @@ define(function (require, exports, module) {
             });
         });
         
-        return predictions.sort(minuteComparator);
+        return predictions.sort(function (a, b) {
+            return a.minutes > b.minutes;
+        });
     }
     
     function cachePredictions(routeTag, stopTag, predictions) {

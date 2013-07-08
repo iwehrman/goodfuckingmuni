@@ -212,20 +212,27 @@ define(function (require, exports, module) {
                 deferred.resolve(data.dir);
             }
 
-            var entries = [],
-                dirTag,
-                direction;
+            var directions = [],
+                dirTag;
+
             for (dirTag in route.directions) {
                 if (route.directions.hasOwnProperty(dirTag)) {
-                    direction = route.directions[dirTag];
-                    entries.push({
-                        tags: [{tag: "dir", value: dirTag}],
-                        left: direction.title,
-                        right: ""
-                    });
+                    directions.push(route.directions[dirTag]);
                 }
             }
-
+            
+            directions.sort(function (a, b) {
+                return a.title > b.title;
+            });
+            
+            var entries = directions.map(function (direction) {
+                return {
+                    tags: [{tag: "dir", value: direction.tag}],
+                    left: direction.title,
+                    right: ""
+                };
+            });
+            
             showList(route.title, entries, { entryClickHandler: entryClickHandler });
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
@@ -330,6 +337,29 @@ define(function (require, exports, module) {
             }
             
             predictionsPromise.done(function (predictionObjs) {
+                
+                function predictionComparator(a, b) {
+                    if (a.predictions.length === 0) {
+                        if (b.predictions.length === 0) {
+                            return 0;
+                        } else {
+                            return 1;
+                        }
+                    } else {
+                        if (b.predictions.length === 0) {
+                            return -1;
+                        } else {
+                            return a.predictions[0].seconds - b.predictions[0].seconds;
+                        }
+                    }
+                }
+                
+                routeObjs.forEach(function (routeObj, index) {
+                    routeObj.predictions = predictionObjs[index];
+                });
+                
+                routeObjs.sort(predictionComparator);
+                
                 var entries = routeObjs.map(function (routeObj, index) {
                     var route = routeObj.route,
                         routeTag = route.tag,
@@ -337,7 +367,7 @@ define(function (require, exports, module) {
                         stopTag = routeObj.stopTag,
                         stop = route.stops[stopTag],
                         title = titleTemplate({title: route.title, subtitle: stop.title}),
-                        predictions = predictionObjs[index],
+                        predictions = routeObj.predictions,
                         firstPrediction = predictions.length ? predictions[0] : [],
                         firstPredictionString = predictionsTemplate({ predictions: firstPrediction }),
                         lastPredictionIndex = Math.min(3, predictions.length),
