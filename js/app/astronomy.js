@@ -8,13 +8,13 @@ define(function (require, exports, module) {
     var _astronomyText = require("text!data/astronomy.json"),
         astronomyData = JSON.parse(_astronomyText);
     
-    var UTC_OFFSET_IN_MS = 1000 * 3600 * -8;
-    
-
+    var UTC_OFFSET = 8 * 60; // in minutes
     
     function isDaytime() {
 
-        var today = new Date(Date.now() + UTC_OFFSET_IN_MS),
+        var local = new Date(),
+            diff = (UTC_OFFSET - local.getTimezoneOffset()),
+            today = new Date(local.getTime() - (diff * 60 * 1000)),
             month = today.getMonth(),
             date = today.getDate(),
             hours = today.getHours(),
