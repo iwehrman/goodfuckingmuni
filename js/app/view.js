@@ -406,6 +406,12 @@ define(function (require, exports, module) {
                     miles = geo.metersToMiles(geo.distance(position, place)),
                     distance = distanceTemplate({miles: miles});
 
+                // warm up cache
+                command.getPredictionsForMultiStops(place.stops);
+                place.stops.forEach(function (stopObj) {
+                    command.getRoute(stopObj.routeTag);
+                });
+                
                 return {
                     left: titleTemplate(place),
                     right: titleTemplate({title: distance}),

@@ -13,7 +13,8 @@ define(function (require, exports, module) {
     
     var cachedRouteList = null,
         cachedRoutes = {},
-        cachedPredictions = {};
+        cachedPredictions = {},
+        cachedPromises = {};
     
     var locationPromise = geo.getLocation();
        
@@ -36,13 +37,20 @@ define(function (require, exports, module) {
         
         function doCommand(commandName) {
             var routeUrl        = commandURL.apply(null, arguments),
-                routeSettings   = {
-                    datatype: "xml"
-                };
+                promise         = cachedPromises[routeUrl];
             
-            return $.ajax(routeUrl, routeSettings).fail(function (jqXHR, textStatus, errorThrown) {
-                console.error("Command " + commandName + " failed: " + textStatus);
-            });
+            if (!promise) {
+                var settings = { datatype: "xml" };
+                promise = $.ajax(routeUrl, settings)
+                    .always(function () {
+                        delete cachedPromises[routeUrl];
+                    })
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        console.error("Command " + commandName + " failed: " + textStatus);
+                    });
+            }
+            
+            return promise;
         }
         
         return function () {
