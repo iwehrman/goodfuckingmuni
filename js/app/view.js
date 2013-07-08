@@ -26,9 +26,16 @@ define(function (require, exports, module) {
 
     var $body = $("body"),
         $content = $body.find(".content");
+    
+    var refreshTimer = null;
 
     function showList(title, entries, options) {
         options = options || {};
+        
+        if (refreshTimer) {
+            window.clearTimeout(refreshTimer);
+            refreshTimer = null;
+        }
  
         if (options.removeClickHandler) {
             entries = entries.map(function (entry) {
@@ -137,6 +144,11 @@ define(function (require, exports, module) {
                 });
                 
                 showList(title, entries);
+                
+                refreshTimer = window.setTimeout(function () {
+                    showPredictions(routeTag, dirTag, stopTag);
+                }, 60000);
+
             }).fail(function (err) {
                 console.error("[showPredictions] failed to get predictions: " + err);
             });
@@ -349,7 +361,13 @@ define(function (require, exports, module) {
                     addClickHandler: addClickHandler,
                     addTitle: "Add stop..."
                 };
+                
                 showList(title, entries, options);
+                
+                refreshTimer = window.setTimeout(function () {
+                    showPlace(placeId);
+                }, 60000);
+                
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -400,6 +418,12 @@ define(function (require, exports, module) {
         }
         
         var placeList = places.getAllPlaces();
+        
+//        if (placeList.length === 1) {
+//            entryClickHandler({place: placeList[0].id});
+//            return;
+//        }
+        
         geo.sortByCurrentLocation(placeList).done(function (position) {
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
