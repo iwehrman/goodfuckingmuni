@@ -5,11 +5,9 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        weather = require("app/weather"),
+        astronomy = require("app/astronomy"),
         view = require("app/view");
 
-    var $body = $("body");
-    
     window.onpopstate = function (event) {
         var state = event.state;
 
@@ -26,13 +24,14 @@ define(function (require, exports, module) {
         }
     };
     
-    function loadDarkStylesheet() {
-        weather.isDaytime().done(function (daytime) {
-            if (!daytime) {
-                var $link = $("<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-dark.min.css'>");
-                $body.append($link);
-            }
-        });
+    function loadStylesheet() {
+        var link;
+        if (astronomy.isDaytime()) {
+            link = "<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-light.min.css'>";
+        } else {
+            link = "<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-dark.min.css'>";
+        }
+        $("head").append(link);
     }
     
     function getHashParams() {
@@ -73,8 +72,9 @@ define(function (require, exports, module) {
         }
     }
 
+    loadStylesheet();
+    
     $(function () {
-        loadDarkStylesheet();
         loadFromHashParams();
     });
 });
