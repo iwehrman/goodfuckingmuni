@@ -7,6 +7,8 @@ define(function (require, exports, module) {
     var $ = require("jquery"),
         astronomy = require("app/astronomy"),
         view = require("app/view");
+    
+    require("jquery.touchSwipe");
 
     window.onpopstate = function (event) {
         var state = event.state;
@@ -76,5 +78,15 @@ define(function (require, exports, module) {
     
     $(function () {
         loadFromHashParams();
+        
+        $("html").swipe({
+            //Generic swipe handler for all directions
+            swipe: function (event, direction, distance, duration, fingerCount) {
+                if (direction === "right") {
+                    window.history.back();
+                }
+            }
+        });
+            
     });
 });
