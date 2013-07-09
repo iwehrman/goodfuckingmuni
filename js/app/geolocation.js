@@ -47,8 +47,9 @@ define(function (require, exports, module) {
         return d;
     }
     
-    function metersToMiles(meters) {
-        var miles = meters / 1609.344,
+    function kilometersToMiles(km) {
+        var meters = km * 1000,
+            miles = meters / 1609.344,
             fixed = miles.toFixed(1);
         
         if (fixed.indexOf(".0") > 0) {
@@ -80,7 +81,7 @@ define(function (require, exports, module) {
     
     return {
         distance: distance,
-        metersToMiles: metersToMiles,
+        kilometersToMiles: kilometersToMiles,
         getLocation: getLocation,
         sortByCurrentLocation: sortByCurrentLocation
     };

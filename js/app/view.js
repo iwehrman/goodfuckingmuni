@@ -457,7 +457,7 @@ define(function (require, exports, module) {
         geo.sortByCurrentLocation(placeList).done(function (position) {
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
-                    miles = geo.metersToMiles(geo.distance(position, place)),
+                    miles = geo.kilometersToMiles(geo.distance(position, place)),
                     distance = distanceTemplate({miles: miles});
 
                 // warm up cache
