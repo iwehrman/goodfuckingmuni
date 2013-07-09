@@ -84,6 +84,8 @@ define(function (require, exports, module) {
             swipe: function (event, direction, distance, duration, fingerCount) {
                 if (direction === "right") {
                     window.history.back();
+                } else {
+                    return false;
                 }
             }
         });
