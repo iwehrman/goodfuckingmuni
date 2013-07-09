@@ -17,6 +17,9 @@ define(function (require, exports, module) {
         case "place":
             view.showPlace.apply(null, params);
             break;
+        case "predictions":
+            view.showPredictions.apply(null, params);
+            break;
         default:
             break;
         }

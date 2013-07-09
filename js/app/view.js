@@ -287,7 +287,7 @@ define(function (require, exports, module) {
                 };
                 history.pushState(stateObj, null, "#r=" + routeTag + "&d=" + dirTag + "&s=" + stopTag);
                 
-                showPredictions(routeTag, dirTag, stopTag);
+                $(exports).triggerHandler("navigate", ["predictions", routeTag, dirTag, stopTag]);
             }
             return null;
         }
@@ -313,7 +313,7 @@ define(function (require, exports, module) {
                 showDirections(routeTag).done(function (dirTag) {
                     showStops(routeTag, dirTag, true).done(function (stopTag) {
                         place.addStop(routeTag, dirTag, stopTag);
-                        showPlace(placeId);
+                        $(exports).triggerHandler("navigate", ["place", placeId]);
                     });
                 });
             });
@@ -415,7 +415,6 @@ define(function (require, exports, module) {
                 history.pushState(stateObj, null, "#p=" + place.id);
                 
                 $(exports).triggerHandler("navigate", ["place", place.id]);
-                showPlace(place.id);
             }
         }
         
@@ -441,7 +440,7 @@ define(function (require, exports, module) {
                     var stateObj = { placeId: place.id };
                     history.pushState(stateObj, null, "#p=" + place.id);
                     
-                    showPlace(place.id);
+                    $(exports).triggerHandler("navigate", ["place", place.id]);
                 }).fail(function (err) {
                     console.error("[showPlaces] failed to add place: " + err);
                 });
@@ -449,12 +448,6 @@ define(function (require, exports, module) {
         }
         
         var placeList = places.getAllPlaces();
-        
-//        if (placeList.length === 1) {
-//            entryClickHandler({place: placeList[0].id});
-//            return;
-//        }
-        
         geo.sortByCurrentLocation(placeList).done(function (position) {
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
