@@ -8,7 +8,8 @@ define(function (require, exports, module) {
         astronomy = require("app/astronomy"),
         view = require("app/view");
     
-    require("jquery.touchSwipe");
+    require("jquery.event.move");
+    require("jquery.event.swipe");
 
     window.onpopstate = function (event) {
         var state = event.state;
@@ -79,16 +80,8 @@ define(function (require, exports, module) {
     $(function () {
         loadFromHashParams();
         
-        $("html").swipe({
-            //Generic swipe handler for all directions
-            swipe: function (event, direction, distance, duration, fingerCount) {
-                if (direction === "right") {
-                    window.history.back();
-                } else {
-                    return false;
-                }
-            }
+        $("html").on("swiperight", function (e) {
+            window.history.back();
         });
-            
     });
 });
