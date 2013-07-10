@@ -24,12 +24,12 @@ define(function (require, exports, module) {
         var state = event.state;
 
         if (state) {
-            if (state.placeId !== null) {
-                view.showPlace(state.placeId);
-            } else if (state.dirTag !== null) {
-                view.showStops(state.routeTag, state.dirTag);
-            } else if (state.routeTag !== null) {
-                view.showDirections(state.routeTag);
+            if (state.place !== null) {
+                view.showPlace(state.place);
+            } else if (state.dir !== null) {
+                view.showStops(state.routeTag, state.dir);
+            } else if (state.route !== null) {
+                view.showDirections(state.route);
             }
         } else {
             view.showPlaces();

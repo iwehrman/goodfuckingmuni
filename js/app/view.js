@@ -157,11 +157,9 @@ define(function (require, exports, module) {
         });
     }
     
-    function showStops(routeTag, dirTag, scroll) {
-        var deferred = $.Deferred();
-        
+    function showStops(placeId, routeTag, dirTag, scroll) {
         function entryClickHandler(data) {
-            deferred.resolve(data.stop);
+            $(exports).triggerHandler("navigate", ["addStop", placeId, routeTag, dirTag, data.stop]);
         }
         
         command.getRoute(routeTag).done(function (route) {
@@ -197,21 +195,16 @@ define(function (require, exports, module) {
                 });
             }
         }).fail(function (err) {
-            deferred.reject(err);
             console.error("[showStops] failed to get route: " + err);
         });
-        
-        return deferred.promise();
     }
     
-    function showDirections(routeTag) {
-        var deferred = $.Deferred();
+    function showDirections(placeId, routeTag) {
+        function entryClickHandler(data) {
+            $(exports).triggerHandler("navigate", ["stops", placeId, routeTag, data.dir]);
+        }
         
         command.getRoute(routeTag).done(function (route) {
-            function entryClickHandler(data) {
-                deferred.resolve(data.dir);
-            }
-
             var directions = [],
                 dirTag;
 
@@ -236,17 +229,12 @@ define(function (require, exports, module) {
             showList(route.title, entries, { entryClickHandler: entryClickHandler });
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
-            deferred.reject(err);
         });
-        
-        return deferred.promise();
     }
     
-    function showRoutes() {
-        var deferred = $.Deferred();
-
+    function showRoutes(placeId) {
         function entryClickHandler(data) {
-            deferred.resolve(data.route);
+            $(exports).triggerHandler("navigate", ["directions", placeId, data.route]);
         }
         
         command.getRoutes().done(function (routes) {
@@ -261,10 +249,7 @@ define(function (require, exports, module) {
             showList("Routes", entries, { entryClickHandler: entryClickHandler });
         }).fail(function (err) {
             console.error("[showRoutes] failed to get routes: " + err);
-            deferred.reject(err);
         });
-        
-        return deferred.promise();
     }
     
     function showPlace(placeId) {
@@ -309,14 +294,7 @@ define(function (require, exports, module) {
         }
         
         function addClickHandler() {
-            showRoutes().done(function (routeTag) {
-                showDirections(routeTag).done(function (dirTag) {
-                    showStops(routeTag, dirTag, true).done(function (stopTag) {
-                        place.addStop(routeTag, dirTag, stopTag);
-                        $(exports).triggerHandler("navigate", ["place", placeId]);
-                    });
-                });
-            });
+            $(exports).triggerHandler("navigate", ["routes", placeId]);
         }
         
         async.map(place.stops, function (stopObj, callback) {
@@ -406,16 +384,7 @@ define(function (require, exports, module) {
     
     function showPlaces() {
         function entryClickHandler(data) {
-            var placeId = data.place;
-            
-            if (placeId !== undefined) {
-                var place = places.getPlace(parseInt(placeId, 10));
-                
-                var stateObj = { placeId: place.id };
-                history.pushState(stateObj, null, "#p=" + place.id);
-                
-                $(exports).triggerHandler("navigate", ["place", place.id]);
-            }
+            $(exports).triggerHandler("navigate", ["place", data.place]);
         }
         
         function removeClickHandler(data) {
@@ -437,9 +406,6 @@ define(function (require, exports, module) {
             
             if (name) {
                 places.addPlace(name).done(function (place) {
-                    var stateObj = { placeId: place.id };
-                    history.pushState(stateObj, null, "#p=" + place.id);
-                    
                     $(exports).triggerHandler("navigate", ["place", place.id]);
                 }).fail(function (err) {
                     console.error("[showPlaces] failed to add place: " + err);
