@@ -8,6 +8,9 @@ define(function (require, exports, module) {
         astronomy = require("app/astronomy"),
         controller = require("app/controller"),
         view = require("app/view");
+    
+    require("jquery.event.move");
+    require("jquery.event.swipe");
 
     $(view).on("navigate", function (event) {
         if (arguments.length > 1) {
@@ -85,5 +88,11 @@ define(function (require, exports, module) {
     
     $(function () {
         loadFromHashParams();
+        
+        $("html").on("swiperight", function (e) {
+            if (history.state) {
+                window.history.back();
+            }
+        });
     });
 });
