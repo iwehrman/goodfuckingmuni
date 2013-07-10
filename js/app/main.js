@@ -81,7 +81,9 @@ define(function (require, exports, module) {
         loadFromHashParams();
         
         $("html").on("swiperight", function (e) {
-            window.history.back();
+            if (history.state) {
+                window.history.back();
+            }
         });
     });
 });
