@@ -355,12 +355,15 @@ define(function (require, exports, module) {
                 }
                 
                 routeObjs.forEach(function (routeObj, index) {
-                    routeObj.predictions = predictionObjs[index];
+                    var routeTag = routeObj.route.tag,
+                        stopTag = routeObj.stopTag;
+                    
+                    routeObj.predictions = predictionObjs[routeTag][stopTag];
                 });
                 
                 routeObjs.sort(predictionComparator);
                 
-                var entries = routeObjs.map(function (routeObj, index) {
+                var entries = routeObjs.map(function (routeObj) {
                     var route = routeObj.route,
                         routeTag = route.tag,
                         dirTag = routeObj.dirTag,
@@ -371,7 +374,7 @@ define(function (require, exports, module) {
                         firstPrediction = predictions.length ? predictions[0] : [],
                         firstPredictionString = predictionsTemplate({ predictions: firstPrediction }),
                         lastPredictionIndex = Math.min(3, predictions.length),
-                        laterPredictions = predictionObjs[index].slice(1, lastPredictionIndex),
+                        laterPredictions = predictions.slice(1, lastPredictionIndex),
                         laterPredictionsString = predictionsTemplate({ predictions: laterPredictions }),
                         predictionsString = titleTemplate({ title: firstPredictionString, subtitle: laterPredictionsString }),
                         tags = [{tag: "route", value: routeTag},

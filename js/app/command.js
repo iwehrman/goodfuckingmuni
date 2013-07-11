@@ -224,14 +224,14 @@ define(function (require, exports, module) {
         });
         
         return predictions.sort(function (a, b) {
-            return a.minutes > b.minutes;
+            return a.minutes - b.minutes;
         });
     }
     
     function cachePredictions(routeTag, stopTag, predictions) {
         cachedPredictions[routeTag][stopTag] = predictions;
         setTimeout(function () {
-            cachedPredictions[routeTag][stopTag] = null;
+            delete cachedPredictions[routeTag][stopTag];
         }, PREDICTION_TIMEOUT);
     }
     
@@ -257,11 +257,10 @@ define(function (require, exports, module) {
     
     function getPredictionsForMultiStops(stopObjs) {
         var deferred = $.Deferred(),
-            predictionsForMultiStops = new Array(stopObjs.length),
-            waitingPredictions = {},
+            predictionsForMultiStops = {},
             uncachedStopObjs = [];
         
-        stopObjs.forEach(function (stopObj, index) {
+        stopObjs.forEach(function (stopObj) {
             var routeTag = stopObj.routeTag,
                 stopTag = stopObj.stopTag;
             
@@ -271,12 +270,11 @@ define(function (require, exports, module) {
             
             if (!cachedPredictions[routeTag][stopTag]) {
                 uncachedStopObjs.push(stopObj);
-                if (!waitingPredictions[routeTag]) {
-                    waitingPredictions[routeTag] = {};
-                }
-                waitingPredictions[routeTag][stopTag] = index;
             } else {
-                predictionsForMultiStops[index] = cachedPredictions[routeTag][stopTag];
+                if (!predictionsForMultiStops[routeTag]) {
+                    predictionsForMultiStops[routeTag] = {};
+                }
+                predictionsForMultiStops[routeTag][stopTag] = cachedPredictions[routeTag][stopTag];
             }
         });
         
@@ -290,11 +288,13 @@ define(function (require, exports, module) {
                     var $data = $(d),
                         predictions = handlePredictionData(d),
                         routeTag = $data.attr("routeTag"),
-                        stopTag = $data.attr("stopTag"),
-                        index = waitingPredictions[routeTag][stopTag];
+                        stopTag = $data.attr("stopTag");
                     
                     cachePredictions(routeTag, stopTag, predictions);
-                    predictionsForMultiStops[index] = predictions;
+                    if (!predictionsForMultiStops[routeTag]) {
+                        predictionsForMultiStops[routeTag] = {};
+                    }
+                    predictionsForMultiStops[routeTag][stopTag] = predictions;
                 });
                 
                 deferred.resolve(predictionsForMultiStops);
