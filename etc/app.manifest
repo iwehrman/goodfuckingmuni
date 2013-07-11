@@ -1,0 +1,17 @@
+CACHE MANIFEST
+# Cache manifest version 0.0.1
+
+/css/main.css
+/css/topcoat-mobile-dark.min.js
+/css/topcoat-mobile-light.min.js
+/js/lib/require.js
+/js/app-built.js
+/img/bg_dark.png
+/font/SourceSansPro-Regular.otf
+/font/SourceSansPro-Light.otf
+/font/SourceSansPro-SemiBold.otf
+
+NETWORK:
+# All URLs that start with the following lines
+# are whitelisted.
+http://webservices.nextbus.com/
