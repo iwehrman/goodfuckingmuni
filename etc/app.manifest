@@ -2,8 +2,8 @@ CACHE MANIFEST
 # Cache manifest version 0.0.1
 
 /css/main.css
-/css/topcoat-mobile-dark.min.js
-/css/topcoat-mobile-light.min.js
+/css/topcoat-mobile-dark.min.css
+/css/topcoat-mobile-light.min.css
 /js/lib/require.js
 /js/app-built.js
 /img/bg_dark.png
