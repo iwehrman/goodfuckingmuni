@@ -84,6 +84,13 @@ define(function (require, exports, module) {
             if (history.state) {
                 window.history.back();
             }
+        }).on('movestart', function(e) {
+            // If the movestart is heading off in an upwards or downwards
+            // direction, prevent it so that the browser scrolls normally.
+            if ((e.distX > e.distY && e.distX < -e.distY) ||
+                (e.distX < e.distY && e.distX > -e.distY)) {
+                e.preventDefault();
+            }
         });
     });
 });
