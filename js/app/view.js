@@ -405,15 +405,7 @@ define(function (require, exports, module) {
         }
         
         function addClickHandler() {
-            var name = window.prompt("Place name: ", "");
-            
-            if (name) {
-                places.addPlace(name).done(function (place) {
-                    $(exports).triggerHandler("navigate", ["place", place.id]);
-                }).fail(function (err) {
-                    console.error("[showPlaces] failed to add place: " + err);
-                });
-            }
+            $(exports).triggerHandler("navigate", ["addPlace"]);
         }
         
         var placeList = places.getAllPlaces();

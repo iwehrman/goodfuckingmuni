@@ -4,8 +4,31 @@
 define(function (require, exports, module) {
     "use strict";
     
-    var view = require("app/view");
+    var view = require("app/view"),
+        places = require("app/places");
         
+    function addPlace() {
+        var deferred = $.Deferred(),
+            name = window.prompt("Place name: ", "");
+        
+        if (name) {
+            places.addPlace(name).done(function (place) {
+                deferred.resolve(place);
+            }).fail(function (err) {
+                deferred.reject(err);
+            });
+        } else {
+            deferred.reject();
+        }
+        
+        return deferred.promise();
+    }
+    
+    function addStop(placeId, routeTag, dirTag, stopTag) {
+        var place = places.getPlace(placeId);
+        place.addStop(routeTag, dirTag, stopTag);
+    }
+    
     function loadPage(page) {
         var args = Array.prototype.slice.call(arguments, 0),
             params = args.length > 1 ? args.slice(1) : [],
@@ -16,10 +39,11 @@ define(function (require, exports, module) {
             view.showPlaces.apply(null, params);
             break;
         case "addPlace":
-            params[0] = parseInt(params[0], 10);
-            stateObj.place = params[0];
-            history.pushState(stateObj, null, "#p=" + params[0]);
-            view.addPlace.apply(null, params);
+            addPlace().done(function (place) {
+                stateObj.place = place.id;
+                history.pushState(stateObj, null, "#p=" + place.id);
+                view.showPlace(place.id);
+            });
             break;
         case "place":
             params[0] = parseInt(params[0], 10);
@@ -50,10 +74,10 @@ define(function (require, exports, module) {
             break;
         case "addStop":
             params[0] = parseInt(params[0], 10);
-            view.addStop.apply(null, params);
+            addStop.apply(null, params);
             stateObj.place = params[0];
             history.pushState(stateObj, null, "#p=" + params[0]);
-            view.showPlaces(params);
+            view.showPlace(params[0]);
             break;
         case "predictions":
             view.showPredictions.apply(null, params);
