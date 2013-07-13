@@ -24,6 +24,17 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
+    function removePlace(placeId) {
+        var place = places.getPlace(placeId);
+        
+        if (window.confirm("Remove place '" + place.title + "'?")) {
+            places.removePlace(place);
+            return true;
+        }
+
+        return false;
+    }
+    
     function addStop(placeId, routeTag, dirTag, stopTag) {
         var place = places.getPlace(placeId);
         place.addStop(routeTag, dirTag, stopTag);
@@ -36,7 +47,7 @@ define(function (require, exports, module) {
         
         switch (page) {
         case "places":
-            view.showPlaces.apply(null, params);
+            view.showPlaces();
             break;
         case "addPlace":
             addPlace().done(function (place) {
@@ -44,6 +55,13 @@ define(function (require, exports, module) {
                 history.pushState(stateObj, null, "#p=" + place.id);
                 view.showPlace(place.id);
             });
+            break;
+        case "removePlace":
+            params[0] = parseInt(params[0], 10);
+            if (removePlace(params[0])) {
+                history.pushState(stateObj, null, "");
+                view.showPlaces();
+            }
             break;
         case "place":
             params[0] = parseInt(params[0], 10);

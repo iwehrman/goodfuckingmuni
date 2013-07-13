@@ -391,17 +391,7 @@ define(function (require, exports, module) {
         }
         
         function removeClickHandler(data) {
-            var placeId = data.place;
-            
-            if (placeId !== undefined) {
-                var place = places.getPlace(parseInt(placeId, 10));
-                
-                if (window.confirm("Remove place '" + place.title + "'?")) {
-                    places.removePlace(place);
-                    return true;
-                }
-            }
-            return false;
+            $(exports).triggerHandler("navigate", ["removePlace", data.place]);
         }
         
         function addClickHandler() {
