@@ -26,18 +26,17 @@ define(function (require, exports, module) {
     
     function removePlace(placeId) {
         var place = places.getPlace(placeId);
-        
-        if (window.confirm("Remove place '" + place.title + "'?")) {
-            places.removePlace(place);
-            return true;
-        }
-
-        return false;
+        places.removePlace(place);
     }
     
     function addStop(placeId, routeTag, dirTag, stopTag) {
         var place = places.getPlace(placeId);
         place.addStop(routeTag, dirTag, stopTag);
+    }
+    
+    function removeStop(placeId, stopTag) {
+        var place = places.getPlace(placeId);
+        place.removeStop(stopTag);
     }
     
     function loadPage(page) {
@@ -58,10 +57,7 @@ define(function (require, exports, module) {
             break;
         case "removePlace":
             params[0] = parseInt(params[0], 10);
-            if (removePlace(params[0])) {
-                history.pushState(stateObj, null, "");
-                view.showPlaces();
-            }
+            removePlace(params[0]);
             break;
         case "place":
             params[0] = parseInt(params[0], 10);
@@ -96,6 +92,10 @@ define(function (require, exports, module) {
             stateObj.place = params[0];
             history.pushState(stateObj, null, "#p=" + params[0]);
             view.showPlace(params[0]);
+            break;
+        case "removeStop":
+            params[0] = parseInt(params[0], 10);
+            removePlace.apply(null, params);
             break;
         case "predictions":
             view.showPredictions.apply(null, params);

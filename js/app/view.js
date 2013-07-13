@@ -286,7 +286,7 @@ define(function (require, exports, module) {
                     stop = route.stops[stopTag];
                 
                 if (window.confirm("Remove stop '" + stop.title + "'?")) {
-                    place.removeStop(stopTag);
+                    $(exports).triggerHandler("navigate", ["removeStop", placeId, stopTag]);
                     return true;
                 }
             }
@@ -391,7 +391,14 @@ define(function (require, exports, module) {
         }
         
         function removeClickHandler(data) {
-            $(exports).triggerHandler("navigate", ["removePlace", data.place]);
+            var place = places.getPlace(parseInt(data.place, 10));
+        
+            if (window.confirm("Remove place '" + place.title + "'?")) {
+                $(exports).triggerHandler("navigate", ["removePlace", data.place]);
+                return true;
+            }
+    
+            return false;
         }
         
         function addClickHandler() {
