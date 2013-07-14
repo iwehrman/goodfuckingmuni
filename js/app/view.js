@@ -13,14 +13,13 @@ define(function (require, exports, module) {
 
     var _containerHtml = require("text!html/container.html"),
         _distanceHtml = require("text!html/distance.html"),
-        _editHtml = require("text!html/edit.html"),
+        _buttonHtml = require("text!html/button.html"),
         _predictionsHtml = require("text!html/predictions.html"),
-        _titleHtml = require("text!html/title.html"),
-        removeHtml = require("text!html/remove.html");
+        _titleHtml = require("text!html/title.html");
 
     var containerTemplate = mustache.compile(_containerHtml),
         distanceTemplate = mustache.compile(_distanceHtml),
-        editTemplate = mustache.compile(_editHtml),
+        buttonTemplate = mustache.compile(_buttonHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
         titleTemplate = mustache.compile(_titleHtml);
 
@@ -38,92 +37,64 @@ define(function (require, exports, module) {
         }
  
         if (options.removeClickHandler) {
-            entries = entries.map(function (entry) {
-                entry.right += removeHtml;
-                return entry;
+            entries.forEach(function (entry) {
+                entry.right += buttonTemplate({"class": "entry__remove", title: "&times;"});
             });
         }
+        
+        var addButton = options.addClickHandler ? buttonTemplate({"class": "entry__add", title: "+"}) : "",
+            $container = $(containerTemplate({
+                left: title,
+                right: addButton,
+                entries: entries
+            }));
         
         if (options.addClickHandler) {
-            var addTitle = options.addTitle || "Add...";
-            entries.push({
-                left: titleTemplate({title: addTitle}),
-                right: "",
-                tags: [{tag: "op", value: "add"}]
+            var $addButton = $container.find(".entry__add");
+            $addButton.on("click", options.addClickHandler);
+        }
+        
+        var $entries = $container.find(".entry");
+        
+        if (options.entryClickHandler) {
+            $entries.each(function (index, entry) {
+                var data = entry.dataset,
+                    $entry = $(entry);
+                
+                $entry.on("click", options.entryClickHandler.bind(null, data));
             });
         }
         
-        var $container = $(containerTemplate({
-            left: title,
-            entries: entries
-        }));
-        
-        var handleEditStop,
-            handleEditStart;
-        
-        handleEditStop = function ($editContainer) {
-            var $editButton = $(editTemplate({title: "Edit"}));
-
-            $container.find(".entry__remove").hide();
-            $container.find(".entry__right .entry__title").show();
-            $container.find(".entry__right .entry__subtitle").show();
-            $container.find(".entry").each(function (index, item) {
-                var $item = $(item),
-                    handler = $item.data("clickHandler");
-
-                $item.on("click", handler);
-            });
-            
-            $editContainer.children().remove();
-            $editContainer.append($editButton);
-            $editContainer.off("click");
-            $editContainer.on("click", handleEditStart.bind(null, $editContainer));
-        };
-        
-        handleEditStart = function ($editContainer) {
-            var $doneButton = $(editTemplate({title: "Done"}));
-            
-            $container.find(".entry__right .entry__title").hide();
-            $container.find(".entry__right .entry__subtitle").hide();
-            $container.find(".entry__remove").show();
-            $container.find(".entry").each(function (index, item) {
-                $(item).off("click");
-            });
-            
-            $editContainer.children().remove();
-            $editContainer.append($doneButton);
-            $editContainer.off("click");
-            $editContainer.on("click", handleEditStop.bind(null, $editContainer));
-        };
-        
-        $container.find(".entry").each(function (index, entry) {
-            var data = entry.dataset,
-                $entry = $(entry),
-                op = $entry.data("op");
-            
-            if (op === "add") {
-                $entry.data("clickHandler", options.addClickHandler);
-            } else {
-                if (options.entryClickHandler) {
-                    $entry.data("clickHandler", options.entryClickHandler.bind(null, data));
-                    if (options.removeClickHandler) {
-                        var remove = $($entry.find(".entry__remove").children()[0]);
-                        
-                        $(remove).on("click", function () {
-                            if (options.removeClickHandler(data)) {
-                                $entry.remove();
-                            }
-                        });
-                    } else {
-                        $entry.on("click", options.entryClickHandler.bind(null, data));
-                    }
-                }
-            }
-        });
-        
         if (options.removeClickHandler) {
-            var $editContainer = $($container.find(".header__right")[0]);
-            handleEditStop($editContainer);
+            $entries.each(function (index, entry) {
+                var data = entry.dataset,
+                    $entry = $(entry),
+                    $remove = $entry.find(".entry__remove"),
+                    removeButton = $remove.children()[0];
+                
+                $entry.on("swipeleft", function (event) {
+                    var $title = $entry.find(".entry__right .entry__title"),
+                        $subtitle = $entry.find(".entry__right .entry__subtitle");
+                    
+                    $title.hide();
+                    $subtitle.hide();
+                    $remove.show();
+                    event.stopPropagation();
+
+                    // capture-phase event listener to cancel entry clicks during removal                    
+                    document.addEventListener("click", function listener(event) {
+                        if (event.target === removeButton && options.removeClickHandler(data)) {
+                            $entry.remove();
+                        } else {
+                            $remove.hide();
+                            $title.show();
+                            $subtitle.show();
+                        }
+                        document.removeEventListener("click", listener, true);
+                        event.stopPropagation();
+                    }, true);
+                });
+            });
         }
         
         $content.empty();
