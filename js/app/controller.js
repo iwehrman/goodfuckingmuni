@@ -80,6 +80,7 @@ define(function (require, exports, module) {
             break;
         case "stops":
             params[0] = parseInt(params[0], 10);
+            params.push(true);
             stateObj.place = params[0];
             stateObj.route = params[1];
             stateObj.dir = params[2];
