@@ -11,6 +11,8 @@ define(function (require, exports, module) {
         places = require("app/places"),
         geo = require("app/geolocation");
 
+    var REFRESH_INTERVAL = 5000;
+    
     var _containerHtml = require("text!html/container.html"),
         _distanceHtml = require("text!html/distance.html"),
         _buttonHtml = require("text!html/button.html"),
@@ -32,7 +34,7 @@ define(function (require, exports, module) {
         options = options || {};
         
         if (refreshTimer) {
-            window.clearTimeout(refreshTimer);
+            window.clearInterval(refreshTimer);
             refreshTimer = null;
         }
  
@@ -109,16 +111,31 @@ define(function (require, exports, module) {
                 
                 var entries = predictions.map(function (prediction, index) {
                     return {
-                        left: prediction.minutes + " minutes",
+                        left: predictionsTemplate({predictions: prediction}),
                         right: ""
                     };
                 });
                 
                 showList(title, entries);
                 
-                refreshTimer = window.setTimeout(function () {
-                    showPredictions(routeTag, dirTag, stopTag);
-                }, 60000);
+                function refreshPredictions() {
+                    command.getPredictions(routeTag, stopTag).done(function (predictions) {
+                        $content.find(".entry").each(function (index, entry) {
+                            var $entry = $(entry);
+                            
+                            $entry.find(".entry__minutes").each(function (_index, minutes) {
+                                if (index < entries.length) {
+                                    $(minutes).text(predictions[index].minutes);
+                                    return true;
+                                } else {
+                                    return false;
+                                }
+                            });
+                        });
+                    });
+                }
+                
+                refreshTimer = window.setInterval(refreshPredictions, REFRESH_INTERVAL);
 
             }).fail(function (err) {
                 console.error("[showPredictions] failed to get predictions: " + err);
@@ -346,9 +363,28 @@ define(function (require, exports, module) {
                 
                 showList(title, entries, options);
                 
-                refreshTimer = window.setTimeout(function () {
-                    showPlace(placeId);
-                }, 60000);
+                function refreshPredictions() {
+                    return command.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
+                        $content.find(".entry").each(function (index, entry) {
+                            var $entry = $(entry),
+                                data = entry.dataset,
+                                routeTag = data.route,
+                                stopTag = data.stop,
+                                predictions = predictionObjs[routeTag][stopTag];
+                            
+                            $entry.find(".entry__minutes").each(function (index, minutes) {
+                                if (index < 3) {
+                                    $(minutes).text(predictions[index].minutes);
+                                    return true;
+                                } else {
+                                    return false;
+                                }
+                            });
+                        });
+                    });
+                }
+                
+                refreshTimer = window.setInterval(refreshPredictions, REFRESH_INTERVAL);
                 
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
@@ -357,6 +393,8 @@ define(function (require, exports, module) {
     }
     
     function showPlaces() {
+        var placeList = places.getAllPlaces();
+        
         function entryClickHandler(data) {
             $(exports).triggerHandler("navigate", ["place", data.place]);
         }
@@ -376,18 +414,22 @@ define(function (require, exports, module) {
             $(exports).triggerHandler("navigate", ["addPlace"]);
         }
         
-        var placeList = places.getAllPlaces();
+        function preloadPredictions() {
+            placeList.forEach(function (place) {
+                command.getPredictionsForMultiStops(place.stops);
+                place.stops.forEach(function (stopObj) {
+                    command.getRoute(stopObj.routeTag);
+                });
+            });
+        }
+        
         geo.sortByCurrentLocation(placeList).done(function (position) {
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
                     miles = geo.kilometersToMiles(geo.distance(position, place)),
                     distance = distanceTemplate({miles: miles});
 
-                // warm up cache
-                command.getPredictionsForMultiStops(place.stops);
-                place.stops.forEach(function (stopObj) {
-                    command.getRoute(stopObj.routeTag);
-                });
+
                 
                 return {
                     left: titleTemplate(place),
@@ -402,8 +444,12 @@ define(function (require, exports, module) {
                 addClickHandler: addClickHandler,
                 addTitle: "Add place..."
             };
+            
             showList("Places", entries, options);
             
+            // warm up cache
+            preloadPredictions();
+            refreshTimer = window.setInterval(preloadPredictions, REFRESH_INTERVAL);
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
         });
