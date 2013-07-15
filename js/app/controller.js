@@ -96,7 +96,7 @@ define(function (require, exports, module) {
             break;
         case "removeStop":
             params[0] = parseInt(params[0], 10);
-            removePlace.apply(null, params);
+            removeStop.apply(null, params);
             break;
         case "predictions":
             view.showPredictions.apply(null, params);
