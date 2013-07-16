@@ -7,7 +7,8 @@ define(function (require, exports, module) {
     var $ = require("jquery"),
         async = require("async"),
         mustache = require("mustache"),
-        command = require("app/command"),
+        routes = require("app/routes"),
+        predictions = require("app/predictions"),
         places = require("app/places"),
         geo = require("app/geolocation");
 
@@ -104,8 +105,8 @@ define(function (require, exports, module) {
     }
     
     function showPredictions(routeTag, dirTag, stopTag) {
-        command.getRoute(routeTag).done(function (route) {
-            command.getPredictions(routeTag, stopTag).done(function (predictions) {
+        routes.getRoute(routeTag).done(function (route) {
+            predictions.getPredictions(routeTag, stopTag).done(function (predictions) {
                 var stop = route.stops[stopTag],
                     title = "Predictions: " + stop.title;
                 
@@ -119,7 +120,7 @@ define(function (require, exports, module) {
                 showList(title, entries);
                 
                 function refreshPredictions() {
-                    command.getPredictions(routeTag, stopTag).done(function (predictions) {
+                    routes.getPredictions(routeTag, stopTag).done(function (predictions) {
                         $content.find(".entry").each(function (index, entry) {
                             var $entry = $(entry);
                             
@@ -150,7 +151,7 @@ define(function (require, exports, module) {
             $(exports).triggerHandler("navigate", ["addStop", placeId, routeTag, dirTag, data.stop]);
         }
         
-        command.getRoute(routeTag).done(function (route) {
+        routes.getRoute(routeTag).done(function (route) {
             function normalizeDist(direction, stop) {
                 var range = direction.maxDist - direction.minDist,
                     fromMin = stop.dist - direction.minDist;
@@ -192,7 +193,7 @@ define(function (require, exports, module) {
             $(exports).triggerHandler("navigate", ["stops", placeId, routeTag, data.dir]);
         }
         
-        command.getRoute(routeTag).done(function (route) {
+        routes.getRoute(routeTag).done(function (route) {
             var directions = [],
                 dirTag;
 
@@ -225,7 +226,7 @@ define(function (require, exports, module) {
             $(exports).triggerHandler("navigate", ["directions", placeId, data.route]);
         }
         
-        command.getRoutes().done(function (routes) {
+        routes.getRoutes().done(function (routes) {
             var entries = routes.map(function (route) {
                 return {
                     left: route.title,
@@ -242,7 +243,7 @@ define(function (require, exports, module) {
     
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
-            predictionsPromise = command.getPredictionsForMultiStops(place.stops),
+            predictionsPromise = predictions.getPredictionsForMultiStops(place.stops),
             title = place.title,
             routeObjMap = {};
         
@@ -286,7 +287,7 @@ define(function (require, exports, module) {
         }
         
         async.map(place.stops, function (stopObj, callback) {
-            command.getRoute(stopObj.routeTag).done(function (route) {
+            routes.getRoute(stopObj.routeTag).done(function (route) {
                 routeObjMap[route.tag] = route;
                 callback(null, {
                     route: route,
@@ -364,7 +365,7 @@ define(function (require, exports, module) {
                 showList(title, entries, options);
                 
                 function refreshPredictions() {
-                    return command.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
+                    return predictions.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
                         $content.find(".entry").each(function (index, entry) {
                             var $entry = $(entry),
                                 data = entry.dataset,
@@ -416,9 +417,9 @@ define(function (require, exports, module) {
         
         function preloadPredictions() {
             placeList.forEach(function (place) {
-                command.getPredictionsForMultiStops(place.stops);
+                predictions.getPredictionsForMultiStops(place.stops);
                 place.stops.forEach(function (stopObj) {
-                    command.getRoute(stopObj.routeTag);
+                    routes.getRoute(stopObj.routeTag);
                 });
             });
         }
@@ -428,8 +429,6 @@ define(function (require, exports, module) {
                 var tags = [{tag: "place", value: place.id}],
                     miles = geo.kilometersToMiles(geo.distance(position, place)),
                     distance = distanceTemplate({miles: miles});
-
-
                 
                 return {
                     left: titleTemplate(place),
