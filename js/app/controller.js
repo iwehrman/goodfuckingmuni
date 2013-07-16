@@ -106,7 +106,71 @@ define(function (require, exports, module) {
         }
     }
     
+    function getHashParams() {
+        var hash = window.location.hash,
+            params;
+        
+        if (hash) {
+            params = hash.substring(1).split("&").reduce(function (obj, eq) {
+                var terms = eq.split("=");
+                obj[terms[0]] = terms[1];
+                return obj;
+            }, {});
+        } else {
+            params = {};
+        }
+        
+        return params;
+    }
+    
+    function loadFromHashParams() {
+        var params = getHashParams();
+        if (params.p) {
+            view.showPlace(parseInt(params.p, 10));
+        } else {
+            if (params.r) {
+                if (params.d) {
+                    if (params.s) {
+                        view.showPredictions(params.r, params.d, params.s);
+                    } else {
+                        view.showStops(params.r, params.d, true);
+                    }
+                } else {
+                    view.showDirections(params.r);
+                }
+            } else {
+                view.showPlaces();
+            }
+        }
+    }
+        
+    window.onpopstate = function (event) {
+        var state = event.state;
+
+        if (state) {
+            if (state.place !== null) {
+                view.showPlace(state.place);
+                return;
+            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
+                view.showPredictions(state.route, state.dir, state.stop);
+                return;
+            }
+        }
+        view.showPlaces();
+    };
+    
+//    window.onhashchange = function (event) {
+//        var hash = location.hash,
+//            oldURL = event.oldURL,
+//            newURL = event.newURL;
+//        
+//        console.log(hash);
+//        console.log(oldURL);
+//        console.log(newURL);
+//    };
+    
     return {
-        loadPage: loadPage
+        loadPage: loadPage,
+        loadFromHashParams: loadFromHashParams
     };
 });

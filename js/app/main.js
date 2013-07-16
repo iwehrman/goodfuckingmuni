@@ -20,22 +20,6 @@ define(function (require, exports, module) {
         }
     });
     
-    window.onpopstate = function (event) {
-        var state = event.state;
-
-        if (state) {
-            if (state.place !== null) {
-                view.showPlace(state.place);
-            } else if (state.dir !== null) {
-                view.showStops(state.routeTag, state.dir);
-            } else if (state.route !== null) {
-                view.showDirections(state.route);
-            }
-        } else {
-            view.showPlaces();
-        }
-    };
-    
     function loadStylesheet() {
         var link;
         if (astronomy.isDaytime()) {
@@ -45,55 +29,17 @@ define(function (require, exports, module) {
         }
         $("head").append(link);
     }
-    
-    function getHashParams() {
-        var hash = window.location.hash,
-            params;
-        
-        if (hash) {
-            params = hash.substring(1).split("&").reduce(function (obj, eq) {
-                var terms = eq.split("=");
-                obj[terms[0]] = terms[1];
-                return obj;
-            }, {});
-        } else {
-            params = {};
-        }
-        
-        return params;
-    }
-    
-    function loadFromHashParams() {
-        var params = getHashParams();
-        if (params.p) {
-            view.showPlace(parseInt(params.p, 10));
-        } else {
-            if (params.r) {
-                if (params.d) {
-                    if (params.s) {
-                        view.showPredictions(params.r, params.d, params.s);
-                    } else {
-                        view.showStops(params.r, params.d, true);
-                    }
-                } else {
-                    view.showDirections(params.r);
-                }
-            } else {
-                view.showPlaces();
-            }
-        }
-    }
 
     loadStylesheet();
     
     $(function () {
-        loadFromHashParams();
+        controller.loadFromHashParams();
         
         $("html").on("swiperight", function (e) {
             if (history.state) {
                 window.history.back();
             }
-        }).on('movestart', function (e) {
+        }).on("movestart", function (e) {
             // If the movestart is heading off in an upwards or downwards
             // direction, prevent it so that the browser scrolls normally.
             if ((e.distX > e.distY && e.distX < -e.distY) ||
