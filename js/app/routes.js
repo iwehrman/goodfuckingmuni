@@ -8,8 +8,11 @@ define(function (require, exports, module) {
         geo = require("app/geolocation"),
         command = require("app/command");
 
-    var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 7, // 1 week
+    var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 365, // 1 year
         ROUTE_TIMEOUT = 1000 * 60 * 60 * 24; // 1 day
+    
+    var ROUTE_LIST_KEY = "org.wehrman.muni.routelist",
+        ROUTE_KEY = "org.wehrman.muni.route";
     
     var cachedRouteList = null,
         cachedRoutes = {};
@@ -18,6 +21,34 @@ define(function (require, exports, module) {
     
     var cmdRouteList = command.defineCommand("routeList"),
         cmdRouteConfig = command.defineCommand("routeConfig", ["r", "terse"]);
+    
+    function saveRouteList(routes) {
+        var routeObj = { dateCreated: Date.now(), routelist: routes};
+        localStorage.setItem(ROUTE_LIST_KEY, JSON.stringify(routeObj));
+        cachedRouteList = routes;
+        setTimeout(function () {
+            cachedRouteList = null;
+        }, ROUTE_LIST_TIMEOUT);
+        console.log("Saving route list", routes);
+    }
+    
+    function loadRouteList() {
+        var routesJSON = localStorage.getItem(ROUTE_LIST_KEY);
+        if (routesJSON) {
+            var routesObj = JSON.parse(routesJSON),
+                dateCreated = parseInt(routesObj.dateCreated, 10),
+                age = Date.now() - dateCreated;
+
+            if (age < ROUTE_LIST_TIMEOUT) {
+                cachedRouteList = routesObj.routelist;
+                setTimeout(function () {
+                    cachedRouteList = null;
+                    localStorage.removeItem(ROUTE_LIST_KEY);
+                }, ROUTE_LIST_TIMEOUT - age);
+                console.log("Loaded route list", routesObj);
+            }
+        }
+    }
     
     function getRoutes() {
         var deferred = $.Deferred();
@@ -36,11 +67,7 @@ define(function (require, exports, module) {
                     routes.push({tag: tag, title: title});
                 });
                 
-                cachedRouteList = routes;
-                setTimeout(function () {
-                    cachedRouteList = null;
-                }, ROUTE_LIST_TIMEOUT);
-                
+                saveRouteList(routes);
                 deferred.resolve(routes);
             }).fail(deferred.reject.bind(deferred));
         }
@@ -140,6 +167,8 @@ define(function (require, exports, module) {
 
         return deferred.promise();
     }
+    
+    loadRouteList();
     
     exports.getRoutes = getRoutes;
     exports.getRoute = getRoute;
