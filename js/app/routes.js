@@ -29,7 +29,6 @@ define(function (require, exports, module) {
         setTimeout(function () {
             cachedRouteList = null;
         }, ROUTE_LIST_TIMEOUT);
-        console.log("Saving route list", routes);
     }
     
     function loadRouteList() {
@@ -45,7 +44,6 @@ define(function (require, exports, module) {
                     cachedRouteList = null;
                     localStorage.removeItem(ROUTE_LIST_KEY);
                 }, ROUTE_LIST_TIMEOUT - age);
-                console.log("Loaded route list", routesObj);
             }
         }
     }
