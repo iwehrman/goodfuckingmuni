@@ -8,7 +8,7 @@ define(function (require, exports, module) {
         async = require("async"),
         mustache = require("mustache"),
         routes = require("app/routes"),
-        predictions = require("app/predictions"),
+        preds = require("app/predictions"),
         places = require("app/places"),
         geo = require("app/geolocation");
 
@@ -106,7 +106,7 @@ define(function (require, exports, module) {
     
     function showPredictions(routeTag, dirTag, stopTag) {
         routes.getRoute(routeTag).done(function (route) {
-            predictions.getPredictions(routeTag, stopTag).done(function (predictions) {
+            preds.getPredictions(routeTag, stopTag).done(function (predictions) {
                 var stop = route.stops[stopTag],
                     title = "Predictions: " + stop.title;
                 
@@ -120,7 +120,7 @@ define(function (require, exports, module) {
                 showList(title, entries);
                 
                 function refreshPredictions() {
-                    routes.getPredictions(routeTag, stopTag).done(function (predictions) {
+                    preds.getPredictions(routeTag, stopTag).done(function (predictions) {
                         $content.find(".entry").each(function (index, entry) {
                             var $entry = $(entry);
                             
@@ -243,7 +243,7 @@ define(function (require, exports, module) {
     
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
-            predictionsPromise = predictions.getPredictionsForMultiStops(place.stops),
+            predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
             title = place.title,
             routeObjMap = {};
         
@@ -365,7 +365,7 @@ define(function (require, exports, module) {
                 showList(title, entries, options);
                 
                 function refreshPredictions() {
-                    return predictions.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
+                    return preds.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
                         $content.find(".entry").each(function (index, entry) {
                             var $entry = $(entry),
                                 data = entry.dataset,
@@ -417,7 +417,7 @@ define(function (require, exports, module) {
         
         function preloadPredictions() {
             placeList.forEach(function (place) {
-                predictions.getPredictionsForMultiStops(place.stops);
+                preds.getPredictionsForMultiStops(place.stops);
                 place.stops.forEach(function (stopObj) {
                     routes.getRoute(stopObj.routeTag);
                 });
