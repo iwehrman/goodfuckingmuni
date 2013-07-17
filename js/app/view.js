@@ -150,39 +150,53 @@ define(function (require, exports, module) {
         function entryClickHandler(data) {
             $(exports).triggerHandler("navigate", ["addStop", placeId, routeTag, dirTag, data.stop]);
         }
-        
+
+        var locationPromise = geo.getLocation();
         routes.getRoute(routeTag).done(function (route) {
-            function normalizeDist(direction, stop) {
-                var range = direction.maxDist - direction.minDist,
-                    fromMin = stop.dist - direction.minDist;
+            locationPromise.done(function (position) {
+                var direction = route.directions[dirTag],
+                    title = route.title + ": " + direction.title,
+                    minDist = Number.POSITIVE_INFINITY,
+                    maxDist = Number.NEGATIVE_INFINITY,
+                    distances = direction.stops.map(function (stopTag) {
+                        var stop = route.stops[stopTag],
+                            dist = geo.distance(position, stop);
+                            
+                        if (dist > maxDist) {
+                            maxDist = dist;
+                        }
+                        
+                        if (dist < minDist) {
+                            minDist = dist;
+                        }
+                        return dist;
+                    });
                 
-                return 1 - (fromMin / range);
-            }
+                var entries = direction.stops.map(function (stopTag, index) {
+                    var stop = route.stops[stopTag],
+                        range = maxDist - minDist,
+                        fromMin = distances[index] - minDist,
+                        norm = 1 - (fromMin / range);
 
-            var direction = route.directions[dirTag],
-                title = route.title + ": " + direction.title;
-            
-            var entries = direction.stops.map(function (stopTag) {
-                var stop = route.stops[stopTag],
-                    norm = normalizeDist(direction, stop);
-
-                return {
-                    left: stop.title,
-                    right: "",
-                    highlight: (norm === 1),
-                    tags: [{tag: "route", value: routeTag},
-                           {tag: "dir", value: dirTag},
-                           {tag: "stop", value: stopTag}]
-                };
-            });
-            
-            showList(title, entries, { entryClickHandler: entryClickHandler });
-            
-            if (scroll) {
-                $body.animate({
-                    scrollTop: $content.find(".highlight").parents(".entry").offset().top - $content.scrollTop()
+                    return {
+                        left: stop.title,
+                        right: "",
+                        highlight: (norm === 1),
+                        tags: [{tag: "route", value: routeTag},
+                               {tag: "dir", value: dirTag},
+                               {tag: "stop", value: stopTag}]
+                    };
                 });
-            }
+                
+                showList(title, entries, { entryClickHandler: entryClickHandler });
+                
+                if (scroll) {
+                    var $entry = $content.find(".highlight").parents(".entry");
+                    $body.animate({
+                        scrollTop: $entry.offset().top - $content.scrollTop()
+                    });
+                }
+            });
         }).fail(function (err) {
             console.error("[showStops] failed to get route: " + err);
         });
@@ -417,6 +431,7 @@ define(function (require, exports, module) {
         
         function preloadPredictions() {
             placeList.forEach(function (place) {
+                // FIXME: Could reduce this to one predictions request
                 preds.getPredictionsForMultiStops(place.stops);
                 place.stops.forEach(function (stopObj) {
                     routes.getRoute(stopObj.routeTag);
