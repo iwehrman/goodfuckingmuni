@@ -44,23 +44,68 @@ define(function (require, exports, module) {
                     cachedRouteList = null;
                     localStorage.removeItem(ROUTE_LIST_KEY);
                 }, ROUTE_LIST_TIMEOUT - age);
+            } else {
+                localStorage.removeItem(ROUTE_LIST_KEY);
             }
         }
+    }
+    
+    function updateCachedRoutes() {
+        var routeTagList = [],
+            routeTag;
+        
+        for (routeTag in cachedRoutes) {
+            if (cachedRoutes.hasOwnProperty(routeTag)) {
+                routeTagList.push(routeTag);
+            }
+        }
+        
+        localStorage.setItem(ROUTE_KEY, JSON.stringify(routeTagList));
     }
 
     function saveRoute(route) {
         var routeObj = { dateCreated: Date.now(), route: route},
             routeTag = route.tag,
             routeKey = ROUTE_KEY + "." + routeTag;
+        
         localStorage.setItem(routeKey, JSON.stringify(routeObj));
         cachedRoutes[routeTag] = route;
+        updateCachedRoutes();
+        
         setTimeout(function () {
-            cachedRoutes[routeTag] = null;
+            delete cachedRoutes[routeTag];
+            localStorage.removeItem(routeKey);
+            updateCachedRoutes();
         }, ROUTE_TIMEOUT);
     }
     
     function loadSavedRoutes() {
-        
+        var routeTagsJSON = localStorage.getItem(ROUTE_KEY);
+        if (routeTagsJSON) {
+            var routeTags = JSON.parse(routeTagsJSON);
+            
+            routeTags.forEach(function (routeTag) {
+                var routeKey = ROUTE_KEY + "." + routeTag,
+                    routeJSON = localStorage.getItem(routeKey),
+                    routeObj = JSON.parse(routeJSON),
+                    route = routeObj.route,
+                    dateCreated = parseInt(routeObj.dateCreated, 10),
+                    age = Date.now() - dateCreated;
+                
+                if (age < ROUTE_TIMEOUT) {
+                    cachedRoutes[routeTag] = route;
+                    setTimeout(function () {
+                        delete cachedRoutes[routeTag];
+                        localStorage.removeItem(routeKey);
+                        updateCachedRoutes();
+                    }, ROUTE_TIMEOUT - age);
+                } else {
+                    localStorage.removeItem(routeKey);
+                }
+                
+            });
+        }
+        updateCachedRoutes();
     }
     
     function getRoutes() {
