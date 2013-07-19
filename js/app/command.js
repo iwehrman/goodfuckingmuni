@@ -6,6 +6,9 @@ define(function (require, exports, module) {
     
     var $ = require("jquery");
 
+    var MAX_RETRIES = 5,
+        HTTP_TIMEOUT = 5000;
+    
     var cachedPromises = {};
     
     function defineCommand(commandName, args) {
@@ -26,18 +29,42 @@ define(function (require, exports, module) {
         }
         
         function doCommand() {
-            var routeUrl        = commandURL.apply(null, arguments),
-                promise         = cachedPromises[routeUrl];
+            var routeUrl    = commandURL.apply(null, arguments),
+                promise     = cachedPromises[routeUrl],
+                deferred,
+                settings,
+                retries;
             
-            if (!promise) {
-                var settings = { datatype: "xml" };
-                promise = $.ajax(routeUrl, settings)
-                    .always(function () {
+            function ajaxHelper() {
+                deferred.notify();
+                $.ajax(routeUrl, settings)
+                    .done(function () {
                         delete cachedPromises[routeUrl];
+                        deferred.resolve.apply(deferred, arguments);
                     })
                     .fail(function (jqXHR, textStatus, errorThrown) {
                         console.error("Command " + commandName + " failed: " + textStatus);
+                        if (++retries < MAX_RETRIES) {
+                            ajaxHelper();
+                        } else {
+                            delete cachedPromises[routeUrl];
+                            deferred.reject.apply(deferred, arguments);
+                        }
                     });
+            }
+            
+            
+            if (!promise) {
+                deferred = $.Deferred();
+                retries = 0;
+                settings = {
+                    datatype: "xml",
+                    timeout: 5000
+                };
+                
+                promise = deferred.promise();
+                cachedPromises[routeUrl] = promise;
+                ajaxHelper();
             }
             
             return promise;
