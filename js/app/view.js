@@ -350,7 +350,10 @@ define(function (require, exports, module) {
                         dirTag = routeObj.dirTag,
                         stopTag = routeObj.stopTag,
                         stop = route.stops[stopTag],
-                        title = titleTemplate({title: route.title, subtitles: [route.directions[dirTag].title, stop.title]}),
+                        stopTitle = "@ " + stop.title,
+                        title = "<span style='color: #" + route.color + ";'> • </span>" + route.title,
+                        subtitles = [route.directions[dirTag].title, stopTitle],
+                        title = titleTemplate({title: title, subtitles: subtitles}),
                         predictions = routeObj.predictions,
                         firstPrediction = predictions.length ? predictions[0] : [],
                         firstPredictionString = predictionsTemplate({ predictions: firstPrediction }),
@@ -372,30 +375,33 @@ define(function (require, exports, module) {
                 var options = {
                     entryClickHandler: entryClickHandler,
                     removeClickHandler: removeClickHandler,
-                    addClickHandler: addClickHandler,
-                    addTitle: "Add stop..."
+                    addClickHandler: addClickHandler
                 };
                 
                 showList(title, entries, options);
                 
                 function refreshPredictions() {
-                    return preds.getPredictionsForMultiStops(place.stops).done(function (predictionObjs) {
-                        $content.find(".entry").each(function (index, entry) {
-                            var $entry = $(entry),
-                                data = entry.dataset,
-                                routeTag = data.route,
-                                stopTag = data.stop,
-                                predictions = predictionObjs[routeTag][stopTag];
-                            
-                            $entry.find(".entry__minutes").each(function (index, minutes) {
-                                if (index < 3) {
-                                    $(minutes).text(predictions[index].minutes);
-                                    return true;
-                                } else {
-                                    return false;
-                                }
+                    return preds.getPredictionsForMultiStops(place.stops)
+                        .progress(function () {
+                            $content.find(".entry__right").addClass("stale");
+                        }).done(function (predictionObjs) {
+                            $content.find(".entry").each(function (index, entry) {
+                                var $entry = $(entry),
+                                    data = entry.dataset,
+                                    routeTag = data.route,
+                                    stopTag = data.stop,
+                                    predictions = predictionObjs[routeTag][stopTag];
+                                
+                                $entry.find(".entry__right").removeClass("stale");
+                                $entry.find(".entry__minutes").each(function (index, minutes) {
+                                    if (index < 3) {
+                                        $(minutes).text(predictions[index].minutes);
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                });
                             });
-                        });
                     });
                 }
                 
@@ -455,8 +461,7 @@ define(function (require, exports, module) {
             var options = {
                 entryClickHandler: entryClickHandler,
                 removeClickHandler: removeClickHandler,
-                addClickHandler: addClickHandler,
-                addTitle: "Add place..."
+                addClickHandler: addClickHandler
             };
             
             showList("Places", entries, options);
