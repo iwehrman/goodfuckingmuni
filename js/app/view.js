@@ -45,9 +45,17 @@ define(function (require, exports, module) {
             });
         }
         
+        var backURL;
+        if (options.backURL) {
+            backURL = "<a href='" + options.backURL + "' class='backnav'>&lsaquo;</a>";
+        } else {
+            backURL = null;
+        }
+        
         var addButton = options.addClickHandler ? buttonTemplate({"class": "entry__add", title: "+"}) : "",
             $container = $(containerTemplate({
-                left: title,
+                left: backURL,
+                center: title,
                 right: addButton,
                 entries: entries
             }));
@@ -108,7 +116,7 @@ define(function (require, exports, module) {
         routes.getRoute(routeTag).done(function (route) {
             preds.getPredictions(routeTag, stopTag).done(function (predictions) {
                 var stop = route.stops[stopTag],
-                    title = "Predictions: " + stop.title;
+                    title = stop.title;
                 
                 var entries = predictions.map(function (prediction, index) {
                     return {
@@ -351,9 +359,9 @@ define(function (require, exports, module) {
                         stopTag = routeObj.stopTag,
                         stop = route.stops[stopTag],
                         stopTitle = "@ " + stop.title,
-                        title = "<span style='color: #" + route.color + ";'> • </span>" + route.title,
+                        routeTitle = "<span style='color: #" + route.color + ";'> • </span>" + route.title,
                         subtitles = [route.directions[dirTag].title, stopTitle],
-                        title = titleTemplate({title: title, subtitles: subtitles}),
+                        title = titleTemplate({title: routeTitle, subtitles: subtitles}),
                         predictions = routeObj.predictions,
                         firstPrediction = predictions.length ? predictions[0] : [],
                         firstPredictionString = predictionsTemplate({ predictions: firstPrediction }),
@@ -373,6 +381,7 @@ define(function (require, exports, module) {
                 });
                 
                 var options = {
+                    backURL: "#",
                     entryClickHandler: entryClickHandler,
                     removeClickHandler: removeClickHandler,
                     addClickHandler: addClickHandler
@@ -402,7 +411,7 @@ define(function (require, exports, module) {
                                     }
                                 });
                             });
-                    });
+                        });
                 }
                 
                 refreshTimer = window.setInterval(refreshPredictions, REFRESH_INTERVAL);
