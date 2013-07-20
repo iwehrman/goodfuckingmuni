@@ -359,7 +359,7 @@ define(function (require, exports, module) {
                         stopTag = routeObj.stopTag,
                         stop = route.stops[stopTag],
                         stopTitle = "@ " + stop.title,
-                        routeTitle = "<span style='color: #" + route.color + ";'> • </span>" + route.title,
+                        routeTitle = route.getTitleWithColor(),
                         subtitles = [route.directions[dirTag].title, stopTitle],
                         title = titleTemplate({title: routeTitle, subtitles: subtitles}),
                         predictions = routeObj.predictions,

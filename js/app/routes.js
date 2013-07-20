@@ -5,7 +5,6 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        geo = require("app/geolocation"),
         command = require("app/command");
 
     var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 365, // 1 year
@@ -16,11 +15,31 @@ define(function (require, exports, module) {
     
     var cachedRouteList = null,
         cachedRoutes = {};
-    
-    var locationPromise = geo.getLocation();
-    
+        
     var cmdRouteList = command.defineCommand("routeList"),
         cmdRouteConfig = command.defineCommand("routeConfig", ["r", "terse"]);
+    
+    function Route(objOrTag, title, stops, directions, color, oppositeColor) {
+        if (typeof objOrTag === "string") {
+            this.tag = objOrTag;
+            this.title = title;
+            this.stops = stops;
+            this.directions = directions;
+            this.color = color;
+            this.oppositeColor = oppositeColor;
+        } else {
+            this.tag = objOrTag.tag;
+            this.title = objOrTag.title;
+            this.stops = objOrTag.stops;
+            this.directions = objOrTag.directions;
+            this.color = objOrTag.color;
+            this.oppositeColor = objOrTag.oppositeColor;
+        }
+    }
+    
+    Route.prototype.getTitleWithColor = function () {
+        return "<span style='color: #" + this.color + ";'> • </span>" + this.title;
+    };
     
     function saveRouteList(routes) {
         var routeObj = { dateCreated: Date.now(), routelist: routes};
@@ -88,7 +107,7 @@ define(function (require, exports, module) {
                 var routeKey = ROUTE_KEY + "." + routeTag,
                     routeJSON = localStorage.getItem(routeKey),
                     routeObj = JSON.parse(routeJSON),
-                    route = routeObj.route,
+                    route = new Route(routeObj.route),
                     dateCreated = parseInt(routeObj.dateCreated, 10),
                     age = Date.now() - dateCreated;
                 
@@ -146,7 +165,8 @@ define(function (require, exports, module) {
                     color       = $route.attr("color"),
                     opposite    = $route.attr("oppositeColor"),
                     directions  = {},
-                    allStops    = {};
+                    allStops    = {},
+                    route;
                 
                 $route.children("stop").each(function (i, s) {
                     var $stop   = $(s),
@@ -185,19 +205,9 @@ define(function (require, exports, module) {
                     };
                 });
                                     
-                var route = {
-                    tag:            tag,
-                    title:          title,
-                    color:          color,
-                    oppositeColor:  opposite,
-                    directions:     directions,
-                    stops:          allStops
-                };
-                
+                route = new Route(tag, title, allStops, directions, color, opposite);
                 saveRoute(route);
-                
                 deferred.resolve(route);
-                
             }).fail(deferred.reject.bind(deferred));
         }
 
