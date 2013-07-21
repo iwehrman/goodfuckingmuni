@@ -1,3 +1,8 @@
+.content a {
+    text-decoration: none;
+    color: inherit;   
+}
+
 .highlight {
     font-weight: bold;
 }
@@ -21,8 +26,6 @@
 }
 
 .header__left a.backnav {
-    text-decoration: none;
-    color: inherit;
     padding: 0 25px;
 }
 

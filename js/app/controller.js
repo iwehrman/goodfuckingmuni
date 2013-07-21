@@ -46,7 +46,7 @@ define(function (require, exports, module) {
         
         switch (page) {
         case "places":
-            view.showPlaces();
+            view.showPlaces.apply(null, params);
             break;
         case "addPlace":
             addPlace().done(function (place) {
@@ -106,14 +106,26 @@ define(function (require, exports, module) {
         }
     }
     
-    function getHashParams() {
+    function getStateFromHash() {
+        function filterInt(value) {
+            if (/^\-?([0-9]+|Infinity)$/.test(value)) {
+                return Number(value);
+            }
+	        return NaN;
+        }
+        
         var hash = window.location.hash,
             params;
         
         if (hash) {
             params = hash.substring(1).split("&").reduce(function (obj, eq) {
-                var terms = eq.split("=");
-                obj[terms[0]] = terms[1];
+                var terms = eq.split("="),
+                    key = terms[0],
+                    val = terms[1],
+                    filteredVal = filterInt(val),
+                    castVal = isNaN(filteredVal) ? val : filteredVal;
+                    
+                obj[key] = castVal;
                 return obj;
             }, {});
         } else {
@@ -123,8 +135,25 @@ define(function (require, exports, module) {
         return params;
     }
     
+    function getHashFromState(state) {
+        var hash = "#",
+            key;
+        
+        if (state.page) {
+            hash += "page=" + state.page;
+            
+            for (key in state) {
+                if (state.hasOwnProperty(key) && key !== "page") {
+                    hash += "&" + key + "=" + state[key];
+                }
+            }
+        }
+        
+        return hash;
+    }
+    
     function loadFromHashParams() {
-        var params = getHashParams();
+        var params = getStateFromHash();
         if (params.p) {
             view.showPlace(parseInt(params.p, 10));
         } else {
@@ -144,30 +173,48 @@ define(function (require, exports, module) {
         }
     }
         
-    window.onpopstate = function (event) {
-        var state = event.state;
-
-        if (state) {
-            if (state.place !== null) {
-                view.showPlace(state.place);
-                return;
-            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
-                view.showPredictions(state.route, state.dir, state.stop);
-                return;
-            }
-        }
-        view.showPlaces();
-    };
-    
-//    window.onhashchange = function (event) {
-//        var hash = location.hash,
-//            oldURL = event.oldURL,
-//            newURL = event.newURL;
-//        
-//        console.log(hash);
-//        console.log(oldURL);
-//        console.log(newURL);
+//    window.onpopstate = function (event) {
+//        var state = event.state;
+//
+//        if (state) {
+//            if (state.place !== null) {
+//                view.showPlace(state.place);
+//                return;
+//            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
+//                view.showPredictions(state.route, state.dir, state.stop);
+//                return;
+//            }
+//        }
+//        view.showPlaces();
 //    };
+    
+    function loadPageFromState(state) {
+        switch (state.page) {
+        case "places":
+            if (state.op === "add") {
+                addPlace().done(function (place) {
+                    location.hash = "#page=place&place=" + place.id;
+                });
+            } else {
+                view.showPlaces(true);
+            }
+            break;
+        case "place":
+            view.showPlace(state.place);
+            break;
+        case "predictions":
+            view.showPredictions(state.route, state.stop, state.place);
+            break;
+        default:
+            view.showPlaces(false);
+        }
+    }
+    
+    window.onhashchange = function (event) {
+        var state = getStateFromHash();
+
+        loadPageFromState(state);
+    };
     
     return {
         loadPage: loadPage,

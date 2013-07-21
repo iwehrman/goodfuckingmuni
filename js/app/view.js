@@ -12,7 +12,8 @@ define(function (require, exports, module) {
         places = require("app/places"),
         geo = require("app/geolocation");
 
-    var REFRESH_INTERVAL = 5000;
+    var REFRESH_INTERVAL = 5000,
+        NEARBY_IN_KM = 0.5;
     
     var _containerHtml = require("text!html/container.html"),
         _distanceHtml = require("text!html/distance.html"),
@@ -39,44 +40,50 @@ define(function (require, exports, module) {
             refreshTimer = null;
         }
  
-        if (options.removeClickHandler) {
+//        if (options.removeClickHandler) {
+//            entries.forEach(function (entry) {
+//                entry.right += buttonTemplate({"class": "entry__remove", title: "&times;"});
+//            });
+//        }
+        
+        if (options.removeHref) {
             entries.forEach(function (entry) {
-                entry.right += buttonTemplate({"class": "entry__remove", title: "&times;"});
+                entry.right += buttonTemplate({"class": "entry__remove",
+                                               href: options.removeHref,
+                                               title: "&times;"});
             });
         }
         
-        var backURL;
-        if (options.backURL) {
-            backURL = "<a href='" + options.backURL + "' class='backnav'>&lsaquo;</a>";
-        } else {
-            backURL = null;
-        }
-        
-        var addButton = options.addClickHandler ? buttonTemplate({"class": "entry__add", title: "+"}) : "",
-            $container = $(containerTemplate({
-                left: backURL,
+        var addButton = options.addHref ?
+                buttonTemplate({"class": "entry__add",
+                                href: options.addHref,
+                                title: "+"}) : "",
+            containerHtml = containerTemplate({
+                left: options.backHref ? "&lsaquo;" : null,
+                leftHref: options.backHref,
                 center: title,
                 right: addButton,
                 entries: entries
-            }));
+            }),
+            $container = $(containerHtml);
         
-        if (options.addClickHandler) {
-            var $addButton = $container.find(".entry__add");
-            $addButton.on("click", options.addClickHandler);
-        }
+//        if (options.addClickHandler) {
+//            var $addButton = $container.find(".entry__add");
+//            $addButton.on("click", options.addClickHandler);
+//        }
         
         var $entries = $container.find(".entry");
         
-        if (options.entryClickHandler) {
-            $entries.each(function (index, entry) {
-                var data = entry.dataset,
-                    $entry = $(entry);
-                
-                $entry.on("click", options.entryClickHandler.bind(null, data));
-            });
-        }
+//        if (options.entryClickHandler) {
+//            $entries.each(function (index, entry) {
+//                var data = entry.dataset,
+//                    $entry = $(entry);
+//                
+//                $entry.on("click", options.entryClickHandler.bind(null, data));
+//            });
+//        }
         
-        if (options.removeClickHandler) {
+        if (options.removeHref) {
             $entries.each(function (index, entry) {
                 var data = entry.dataset,
                     $entry = $(entry),
@@ -91,8 +98,9 @@ define(function (require, exports, module) {
                     $subtitle.hide();
                     $remove.show();
                     event.stopPropagation();
+                    event.preventDefault();
 
-                    // capture-phase event listener to cancel entry clicks during removal                    
+                    // capture-phase event listener to cancel entry clicks during removal
                     document.addEventListener("click", function listener(event) {
                         if (event.target === removeButton && options.removeClickHandler(data)) {
                             $entry.remove();
@@ -100,6 +108,7 @@ define(function (require, exports, module) {
                             $remove.hide();
                             $title.show();
                             $subtitle.show();
+                            event.preventDefault();
                         }
                         document.removeEventListener("click", listener, true);
                         event.stopPropagation();
@@ -112,11 +121,12 @@ define(function (require, exports, module) {
         $content.append($container);
     }
     
-    function showPredictions(routeTag, dirTag, stopTag) {
+    function showPredictions(routeTag, stopTag, placeId) {
         routes.getRoute(routeTag).done(function (route) {
             preds.getPredictions(routeTag, stopTag).done(function (predictions) {
                 var stop = route.stops[stopTag],
-                    title = stop.title;
+                    title = stop.title,
+                    backHref = "#page=place&place=" + placeId;
                 
                 var entries = predictions.map(function (prediction, index) {
                     return {
@@ -125,7 +135,7 @@ define(function (require, exports, module) {
                     };
                 });
                 
-                showList(title, entries);
+                showList(title, entries, { backHref: backHref });
                 
                 function refreshPredictions() {
                     preds.getPredictions(routeTag, stopTag).done(function (predictions) {
@@ -374,6 +384,8 @@ define(function (require, exports, module) {
                                 {tag: "stop", value: stopTag}];
                     
                     return {
+                        href: "#page=predictions&place=" + placeId +
+                            "&route=" + routeTag + "&stop=" + stopTag,
                         left: title,
                         right: predictionsString,
                         tags: tags
@@ -381,7 +393,7 @@ define(function (require, exports, module) {
                 });
                 
                 var options = {
-                    backURL: "#",
+                    backHref: "#page=places",
                     entryClickHandler: entryClickHandler,
                     removeClickHandler: removeClickHandler,
                     addClickHandler: addClickHandler
@@ -422,7 +434,7 @@ define(function (require, exports, module) {
         });
     }
     
-    function showPlaces() {
+    function showPlaces(showAll) {
         var placeList = places.getAllPlaces();
         
         function entryClickHandler(data) {
@@ -454,23 +466,36 @@ define(function (require, exports, module) {
             });
         }
         
+        if (!showAll && placeList.length === 1) {
+            return showPlace(placeList[0].id);
+        }
+        
         geo.sortByCurrentLocation(placeList).done(function (position) {
+            if (!showAll && placeList.length > 1) {
+                if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
+                        geo.distance(position, placeList[1]) >= NEARBY_IN_KM) {
+                    window.hash = "#page=place&place=" + placeList[0].id;
+                    return;
+                }
+            }
+            
             var entries = placeList.map(function (place) {
                 var tags = [{tag: "place", value: place.id}],
-                    miles = geo.kilometersToMiles(geo.distance(position, place)),
+                    meters = geo.distance(position, place),
+                    miles = geo.kilometersToMiles(meters),
                     distance = distanceTemplate({miles: miles});
                 
                 return {
+                    href: "#page=place&place=" + place.id,
+                    removeHref: "#page=place&op=remove&place=" + place.id,
                     left: titleTemplate(place),
                     right: titleTemplate({title: distance}),
                     tags: tags
                 };
             });
-            
+
             var options = {
-                entryClickHandler: entryClickHandler,
-                removeClickHandler: removeClickHandler,
-                addClickHandler: addClickHandler
+                addHref: "#page=places&op=add"
             };
             
             showList("Places", entries, options);
