@@ -191,16 +191,33 @@ define(function (require, exports, module) {
     function loadPageFromState(state) {
         switch (state.page) {
         case "places":
-            if (state.op === "add") {
+            switch (state.op) {
+            case "add":
                 addPlace().done(function (place) {
                     location.hash = "#page=place&place=" + place.id;
                 });
-            } else {
+                break;
+            case "remove":
+                removePlace(state.place);
+                location.hash = "#page=places";
+                break;
+            default:
                 view.showPlaces(true);
             }
             break;
         case "place":
-            view.showPlace(state.place);
+            switch (state.op) {
+            case "add":
+                addStop(state.place, state.route, state.dir, state.stop);
+                location.hash = "#page=place&place=" + state.place;
+                break;
+            case "remove":
+                removePlace(state.place, state.stop);
+                location.hash = "#page=places";
+                break;
+            default:
+                view.showPlace(state.place);
+            }
             break;
         case "predictions":
             view.showPredictions(state.route, state.stop, state.place);

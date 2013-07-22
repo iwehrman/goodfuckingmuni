@@ -8,20 +8,5 @@
         <div class="header__center">{{{center}}}</div>
         <div class="header__right">{{{right}}}</div>
     </h1>
-    <ul class="topcoat-list entries">
-        {{#entries}}
-        <li class="topcoat-list__item entry" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
-            <a href="{{{href}}}">
-                <div class="entry__content">
-                    <div class="entry__left{{#highlight}} highlight{{/highlight}}">
-                        {{{left}}}
-                    </div>
-                    <div class="entry__right">
-                        {{{right}}}
-                    </div>
-                </div>
-            </a>
-        </li>
-        {{/entries}}
-    </ul>
+    <ul class="topcoat-list entries"></ul>
 </div>

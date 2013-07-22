@@ -15,13 +15,17 @@ define(function (require, exports, module) {
     var REFRESH_INTERVAL = 5000,
         NEARBY_IN_KM = 0.5;
     
-    var _containerHtml = require("text!html/container.html"),
+    var _backHtml = require("text!html/back.html"),
+        _containerHtml = require("text!html/container.html"),
+        _entryHtml = require("text!html/entry.html"),
         _distanceHtml = require("text!html/distance.html"),
         _buttonHtml = require("text!html/button.html"),
         _predictionsHtml = require("text!html/predictions.html"),
         _titleHtml = require("text!html/title.html");
 
-    var containerTemplate = mustache.compile(_containerHtml),
+    var backTemplate = mustache.compile(_backHtml),
+        containerTemplate = mustache.compile(_containerHtml),
+        entryTemplate = mustache.compile(_entryHtml),
         distanceTemplate = mustache.compile(_distanceHtml),
         buttonTemplate = mustache.compile(_buttonHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
@@ -32,7 +36,112 @@ define(function (require, exports, module) {
     
     var refreshTimer = null;
 
-    function showList(title, entries, options) {
+    function makeListEntry(obj, opts) {
+        var entrySettings = {
+            href: opts.getEntryHref(obj),
+            highlight: opts.getHighlight(obj),
+            left: opts.getLeft(obj),
+            right: opts.getRight(obj)
+        };
+        
+        var entryHTML = entryTemplate(entrySettings),
+            $entry = $(entryHTML);
+
+        if (opts.getRemoveHref) {
+            var removeHref = opts.getRemoveHref(obj),
+                removeSettings = {
+                    "class": "entry__remove",
+                    href: removeHref,
+                    title: "&times;"
+                },
+                removeHtml = buttonTemplate(removeSettings),
+                $remove = $(removeHtml),
+                removeButton = $remove.children()[0];
+            
+            $entry.find(".entry__right").append($remove);
+            $entry.on("swipeleft", function (event) {
+                var $title = $entry.find(".entry__right .entry__title"),
+                    $subtitle = $entry.find(".entry__right .entry__subtitle");
+                
+                $title.hide();
+                $subtitle.hide();
+                $remove.show();
+                event.stopPropagation();
+                event.preventDefault();
+    
+                // capture-phase event listener to cancel entry clicks during removal
+                document.addEventListener("click", function listener(event) {
+                    if (event.target === removeButton && opts.confirmRemove(obj)) {
+                        $entry.remove();
+                    } else {
+                        $remove.hide();
+                        $title.show();
+                        $subtitle.show();
+                        event.preventDefault();
+                    }
+                    document.removeEventListener("click", listener, true);
+                    event.stopPropagation();
+                }, true);
+            });
+        }
+        
+        return $entry;
+    }
+
+    function makeList(title, list, opts) {
+        var left;
+        if (opts.backHref) {
+            var backSettings = {
+                title: "&lsaquo;",
+                href: opts.backHref
+            };
+            left = backTemplate(backSettings);
+        } else {
+            left = null;
+        }
+        
+        var right;
+        if (opts.addHref) {
+            var addSettings = {
+                title: "+",
+                href: opts.addHref
+            };
+            right = buttonTemplate(addSettings);
+        } else {
+            right = null;
+        }
+        
+        var containerSettings = {
+            left: left,
+            center: title,
+            right: right
+        },  containerHTML = containerTemplate(containerSettings),
+            $container = $(containerHTML),
+            $entries = $container.find(".entries");
+        
+        list.forEach(function (obj) {
+            var $entry = makeListEntry(obj, opts);
+            $entries.append($entry);
+        });
+        
+        return $container;
+    }
+
+    function showList(title, list, options) {
+        options = options || {};
+        
+        if (refreshTimer) {
+            window.clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+        
+        var $container = makeList(title, list, options);
+        
+        $content.empty();
+        $content.append($container);
+    }
+    
+    function _showList(title, entries, options) {
         options = options || {};
         
         if (refreshTimer) {
@@ -392,14 +501,72 @@ define(function (require, exports, module) {
                     };
                 });
                 
+//                var options = {
+//                    backHref: "#page=places",
+//                    entryClickHandler: entryClickHandler,
+//                    removeClickHandler: removeClickHandler,
+//                    addClickHandler: addClickHandler
+//                };
+                
                 var options = {
                     backHref: "#page=places",
-                    entryClickHandler: entryClickHandler,
-                    removeClickHandler: removeClickHandler,
-                    addClickHandler: addClickHandler
+                    addHref: "#page=place&op=add",
+                    getEntryHref: function (routeObj) {
+                        var routeTag = routeObj.route.tag,
+                            stopTag = routeObj.stopTag;
+                        
+                        return "#page=predictions&place=" + placeId +
+                            "&route=" + routeTag + "&stop=" + stopTag;
+                    },
+                    getHighlight: function (routeObj) { return false; },
+                    getLeft: function (routeObj) {
+                        var route = routeObj.route,
+                            routeTag = route.tag,
+                            dirTag = routeObj.dirTag,
+                            stopTag = routeObj.stopTag,
+                            stop = route.stops[stopTag],
+                            stopTitle = "@ " + stop.title,
+                            routeTitle = route.getTitleWithColor(),
+                            subtitles = [route.directions[dirTag].title, stopTitle];
+                        
+                        return titleTemplate({title: routeTitle, subtitles: subtitles});
+                    },
+                    getRight: function (routeObj) {
+                        var predictions = routeObj.predictions,
+                            firstPrediction = predictions.length ? predictions[0] : [],
+                            firstPredictionString = predictionsTemplate({
+                                predictions: firstPrediction
+                            }),
+                            lastPredictionIndex = Math.min(3, predictions.length),
+                            laterPredictions = predictions.slice(1, lastPredictionIndex),
+                            laterPredictionsString = predictionsTemplate({
+                                predictions: laterPredictions
+                            });
+                        
+                        return titleTemplate({
+                            title: firstPredictionString,
+                            subtitles: [laterPredictionsString]
+                        });
+                    },
+                    getRemoveHref: function (routeObj) {
+                        var route = routeObj.route,
+                            routeTag = route.tag,
+                            stopTag = routeObj.stopTag;
+
+                        return "#page=place&op=remove&place=" + placeId +
+                            "&route=" + routeTag + "&stop=" + stopTag;
+                    },
+                    confirmRemove: function (routeObj) {
+                        var route = routeObj.route,
+                            dirTag = routeObj.dirTag,
+                            stopTag = routeObj.stopTag,
+                            stop = route.stops[stopTag];
+
+                        return window.confirm("Remove stop " + stop.title + "?");
+                    }
                 };
                 
-                showList(title, entries, options);
+                showList(title, routeObjs, options);
                 
                 function refreshPredictions() {
                     return preds.getPredictionsForMultiStops(place.stops)
@@ -437,25 +604,6 @@ define(function (require, exports, module) {
     function showPlaces(showAll) {
         var placeList = places.getAllPlaces();
         
-        function entryClickHandler(data) {
-            $(exports).triggerHandler("navigate", ["place", data.place]);
-        }
-        
-        function removeClickHandler(data) {
-            var place = places.getPlace(parseInt(data.place, 10));
-        
-            if (window.confirm("Remove place '" + place.title + "'?")) {
-                $(exports).triggerHandler("navigate", ["removePlace", data.place]);
-                return true;
-            }
-    
-            return false;
-        }
-        
-        function addClickHandler() {
-            $(exports).triggerHandler("navigate", ["addPlace"]);
-        }
-        
         function preloadPredictions() {
             placeList.forEach(function (place) {
                 // FIXME: Could reduce this to one predictions request
@@ -474,31 +622,35 @@ define(function (require, exports, module) {
             if (!showAll && placeList.length > 1) {
                 if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
                         geo.distance(position, placeList[1]) >= NEARBY_IN_KM) {
-                    window.hash = "#page=place&place=" + placeList[0].id;
+                    location.hash = "#page=place&place=" + placeList[0].id;
                     return;
                 }
             }
-            
-            var entries = placeList.map(function (place) {
-                var tags = [{tag: "place", value: place.id}],
-                    meters = geo.distance(position, place),
-                    miles = geo.kilometersToMiles(meters),
-                    distance = distanceTemplate({miles: miles});
-                
-                return {
-                    href: "#page=place&place=" + place.id,
-                    removeHref: "#page=place&op=remove&place=" + place.id,
-                    left: titleTemplate(place),
-                    right: titleTemplate({title: distance}),
-                    tags: tags
-                };
-            });
 
             var options = {
-                addHref: "#page=places&op=add"
+                addHref: "#page=places&op=add",
+                getEntryHref: function (place) {
+                    return "#page=place&place=" + place.id;
+                },
+                getHighlight: function (place) { return false; },
+                getLeft: function (place) {
+                    return titleTemplate(place);
+                },
+                getRight: function (place) {
+                    var meters = geo.distance(position, place),
+                        miles = geo.kilometersToMiles(meters),
+                        distance = distanceTemplate({miles: miles});
+                    return titleTemplate({title: distance});
+                },
+                getRemoveHref: function (place) {
+                    return "#page=places&op=remove&place=" + place.id;
+                },
+                confirmRemove: function (place) {
+                    return window.confirm("Remove place " + place.title + "?");
+                }
             };
             
-            showList("Places", entries, options);
+            showList("Places", placeList, options);
             
             // warm up cache
             preloadPredictions();
