@@ -5,15 +5,12 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        geo = require("app/geolocation"),
         command = require("app/command");
 
     var PREDICTION_TIMEOUT = 1000 * 60; // 1 minute
     
     var cachedPredictions = {};
-    
-    var locationPromise = geo.getLocation();
-    
+        
     var cmdPredictions = command.defineCommand("predictions", ["r", "s"]),
         cmdPredictionsForMultiStops = command.defineCommand("predictionsForMultiStops", ["stops"]);
     

@@ -5,7 +5,8 @@ define(function (require, exports, module) {
     "use strict";
     
     var view = require("app/view"),
-        places = require("app/places");
+        places = require("app/places"),
+        util = require("app/util");
         
     function addPlace() {
         var deferred = $.Deferred(),
@@ -39,81 +40,18 @@ define(function (require, exports, module) {
         place.removeStop(stopTag);
     }
     
-    function loadPage(page) {
-        var args = Array.prototype.slice.call(arguments, 0),
-            params = args.length > 1 ? args.slice(1) : [],
-            stateObj = {};
-        
-        switch (page) {
-        case "places":
-            view.showPlaces();
-            break;
-        case "addPlace":
-            addPlace().done(function (place) {
-                stateObj.place = place.id;
-                history.pushState(stateObj, null, "#p=" + place.id);
-                view.showPlace(place.id);
-            });
-            break;
-        case "removePlace":
-            params[0] = parseInt(params[0], 10);
-            removePlace(params[0]);
-            break;
-        case "place":
-            params[0] = parseInt(params[0], 10);
-            stateObj.place = params[0];
-            history.pushState(stateObj, null, "#p=" + params[0]);
-            view.showPlace.apply(null, params);
-            break;
-        case "routes":
-            params[0] = parseInt(params[0], 10);
-            stateObj.place = params[0];
-            history.pushState(stateObj, null, "#p=" + params[0] + "&o=add");
-            view.showRoutes.apply(null, params);
-            break;
-        case "directions":
-            params[0] = parseInt(params[0], 10);
-            stateObj.place = params[0];
-            stateObj.route = params[1];
-            history.pushState(stateObj, null, "#p=" + params[0] + "&o=add&r=" + params[1]);
-            view.showDirections.apply(null, params);
-            break;
-        case "stops":
-            params[0] = parseInt(params[0], 10);
-            params.push(true);
-            stateObj.place = params[0];
-            stateObj.route = params[1];
-            stateObj.dir = params[2];
-            history.pushState(stateObj, null, "#p=" + params[0] + "&o=add&r=" + params[1] + "&d=" + params[2]);
-            view.showStops.apply(null, params);
-            break;
-        case "addStop":
-            params[0] = parseInt(params[0], 10);
-            addStop.apply(null, params);
-            stateObj.place = params[0];
-            history.pushState(stateObj, null, "#p=" + params[0]);
-            view.showPlace(params[0]);
-            break;
-        case "removeStop":
-            params[0] = parseInt(params[0], 10);
-            removeStop.apply(null, params);
-            break;
-        case "predictions":
-            view.showPredictions.apply(null, params);
-            break;
-        default:
-            break;
-        }
-    }
-    
-    function getHashParams() {
+    function getStateFromHash() {
         var hash = window.location.hash,
             params;
         
         if (hash) {
             params = hash.substring(1).split("&").reduce(function (obj, eq) {
-                var terms = eq.split("=");
-                obj[terms[0]] = terms[1];
+                var terms = eq.split("="),
+                    key = terms[0],
+                    val = terms[1],
+                    castVal = key === "place" ? util.castInt(val) : val;
+                    
+                obj[key] = castVal;
                 return obj;
             }, {});
         } else {
@@ -123,8 +61,25 @@ define(function (require, exports, module) {
         return params;
     }
     
+    function getHashFromState(state) {
+        var hash = "#",
+            key;
+        
+        if (state.page) {
+            hash += "page=" + state.page;
+            
+            for (key in state) {
+                if (state.hasOwnProperty(key) && key !== "page") {
+                    hash += "&" + key + "=" + state[key];
+                }
+            }
+        }
+        
+        return hash;
+    }
+    
     function loadFromHashParams() {
-        var params = getHashParams();
+        var params = getStateFromHash();
         if (params.p) {
             view.showPlace(parseInt(params.p, 10));
         } else {
@@ -144,33 +99,75 @@ define(function (require, exports, module) {
         }
     }
         
-    window.onpopstate = function (event) {
-        var state = event.state;
-
-        if (state) {
-            if (state.place !== null) {
-                view.showPlace(state.place);
-                return;
-            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
-                view.showPredictions(state.route, state.dir, state.stop);
-                return;
-            }
-        }
-        view.showPlaces();
-    };
-    
-//    window.onhashchange = function (event) {
-//        var hash = location.hash,
-//            oldURL = event.oldURL,
-//            newURL = event.newURL;
-//        
-//        console.log(hash);
-//        console.log(oldURL);
-//        console.log(newURL);
+//    window.onpopstate = function (event) {
+//        var state = event.state;
+//
+//        if (state) {
+//            if (state.place !== null) {
+//                view.showPlace(state.place);
+//                return;
+//            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
+//                view.showPredictions(state.route, state.dir, state.stop);
+//                return;
+//            }
+//        }
+//        view.showPlaces();
 //    };
     
-    return {
-        loadPage: loadPage,
-        loadFromHashParams: loadFromHashParams
-    };
+    function loadPageFromState(state) {
+        switch (state.page) {
+        case "places":
+            switch (state.op) {
+            case "add":
+                addPlace().done(function (place) {
+                    location.hash = "#page=place&place=" + place.id;
+                });
+                break;
+            case "remove":
+                removePlace(state.place);
+                location.hash = "#page=places";
+                break;
+            default:
+                view.showPlaces(true);
+            }
+            break;
+        case "place":
+            switch (state.op) {
+            case "add":
+                addStop(state.place, state.route, state.direction, state.stop);
+                location.hash = "#page=place&place=" + state.place;
+                break;
+            case "remove":
+                removeStop(state.place, state.stop);
+                location.hash = "#page=place&place=" + state.place;
+                break;
+            default:
+                view.showPlace(state.place);
+            }
+            break;
+        case "predictions":
+            view.showPredictions(state.place, state.route, state.stop);
+            break;
+        case "routes":
+            view.showRoutes(state.place);
+            break;
+        case "directions":
+            view.showDirections(state.place, state.route);
+            break;
+        case "stops":
+            view.showStops(state.place, state.route, state.direction, true);
+            break;
+        default:
+            view.showPlaces(false);
+        }
+    }
+    
+    function loadPageFromHash() {
+        var state = getStateFromHash();
+        loadPageFromState(state);
+    }
+    
+    window.onhashchange = loadPageFromHash;
+    
+    exports.loadPageFromHash = loadPageFromHash;
 });

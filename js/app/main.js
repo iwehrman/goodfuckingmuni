@@ -12,13 +12,9 @@ define(function (require, exports, module) {
     require("jquery.event.move");
     require("jquery.event.swipe");
 
-    $(view).on("navigate", function (event) {
-        if (arguments.length > 1) {
-            var params = Array.prototype.slice.call(arguments, 1);
-
-            controller.loadPage.apply(null, params);
-        }
-    });
+    var $html = $("html"),
+        $head = $("head"),
+        $body = $("body");
     
     function loadStylesheet() {
         var link;
@@ -27,18 +23,16 @@ define(function (require, exports, module) {
         } else {
             link = "<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-dark.min.css'>";
         }
-        $("head").append(link);
+        $head.append(link);
     }
 
     loadStylesheet();
     
     $(function () {
-        controller.loadFromHashParams();
+        controller.loadPageFromHash();
         
-        $("html").on("swiperight", function (e) {
-            if (history.state) {
-                window.history.back();
-            }
+        $html.on("swiperight", function (e) {
+            location.hash = $body.find("a.backnav").attr("href");
         }).on("movestart", function (e) {
             // If the movestart is heading off in an upwards or downwards
             // direction, prevent it so that the browser scrolls normally.
