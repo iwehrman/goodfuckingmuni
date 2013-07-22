@@ -5,7 +5,8 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        command = require("app/command");
+        command = require("app/command"),
+        util = require("app/util");
 
     var ROUTE_LIST_TIMEOUT = 1000 * 60 * 60 * 24 * 365, // 1 year
         ROUTE_TIMEOUT = 1000 * 60 * 60 * 24; // 1 day

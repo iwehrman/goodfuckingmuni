@@ -1,5 +1,5 @@
 <li class="topcoat-list__item entry" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
-    <a href="{{{href}}}">
+    {{#href}}<a href="{{{href}}}">{{/href}}
         <div class="entry__content">
             <div class="entry__left{{#highlight}} highlight{{/highlight}}">
                 {{{left}}}
@@ -8,5 +8,5 @@
                 {{{right}}}
             </div>
         </div>
-    </a>
+    {{#href}}</a>{{/href}}
 </li>
