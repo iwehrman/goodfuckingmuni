@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.8
+# Cache manifest version 0.0.9
 
 /css/main.css
 /css/topcoat-mobile-dark.min.css
@@ -7,6 +7,10 @@ CACHE MANIFEST
 /js/lib/require.js
 /js/app-built.js
 /img/bg_dark.png
+/img/bus-57.png
+/img/bus-72.png
+/img/bus-114.png
+/img/bus-144.png
 /font/SourceSansPro-Regular.otf
 /font/SourceSansPro-Light.otf
 /font/SourceSansPro-Semibold.otf

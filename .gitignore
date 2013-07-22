@@ -1,3 +1,4 @@
 .DS_Store
 etc/app.manifest
 js/app-built.js
+js/app-min.js
