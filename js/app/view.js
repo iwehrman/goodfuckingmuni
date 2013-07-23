@@ -187,9 +187,8 @@ define(function (require, exports, module) {
                     title = route.title + ": " + direction.name,
                     minDist = Number.POSITIVE_INFINITY,
                     maxDist = Number.NEGATIVE_INFINITY,
-                    distances = direction.stops.map(function (stopTag) {
-                        var stop = route.stops[stopTag],
-                            dist = geo.distance(position, stop);
+                    distances = direction.stops.map(function (stop) {
+                        var dist = stop.distanceFrom(position);
                             
                         if (dist > maxDist) {
                             maxDist = dist;
@@ -203,21 +202,19 @@ define(function (require, exports, module) {
                 
                 var options = {
                     backHref: "#page=directions&place=" + placeId + "&route=" + routeTag,
-                    getHighlight: function (stopTag, index) {
-                        var stop = route.stops[stopTag],
-                            range = maxDist - minDist,
+                    getHighlight: function (stop, index) {
+                        var range = maxDist - minDist,
                             fromMin = distances[index] - minDist,
                             norm = 1 - (fromMin / range);
                         
                         return (norm === 1);
                     },
-                    getEntryHref: function (stopTag) {
+                    getEntryHref: function (stop) {
                         return "#page=place&op=add&place=" + placeId +
                             "&route=" + routeTag + "&direction=" + dirTag +
-                            "&stop=" + stopTag;
+                            "&stop=" + stop.tag;
                     },
-                    getLeft: function (stopTag) {
-                        var stop = route.stops[stopTag];
+                    getLeft: function (stop) {
                         return stop.title;
                     }
                 };

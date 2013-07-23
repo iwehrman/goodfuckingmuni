@@ -5,6 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
+        geo = require("app/geolocation"),
         command = require("app/command"),
         util = require("app/util");
 
@@ -20,7 +21,71 @@ define(function (require, exports, module) {
     var cmdRouteList = command.defineCommand("routeList"),
         cmdRouteConfig = command.defineCommand("routeConfig", ["r", "terse"]);
     
+    function Stop(objOrTag, title, lat, lon) {
+        if (typeof objOrTag === "string") {
+            this.tag = objOrTag;
+            this.title = title;
+            this.lat = lat;
+            this.lon = lon;
+        } else {
+            this.tag = objOrTag.tag;
+            this.title = objOrTag.title;
+            this.lat = objOrTag.lat;
+            this.lon = objOrTag.lon;
+        }
+    }
+    
+    Stop.prototype.clone = function () {
+        return new Stop(this.tag, this.title, this.lat, this.lon);
+    };
+    
+    Stop.prototype.toJSONObject = function () {
+        return this.clone();
+    };
+    
+    Stop.prototype.distanceFrom = function (position) {
+        return geo.distance(this, position);
+    };
+    
+    function Direction(route, objOrTag, title, name, stops) {
+        this._route = route;
+        if (typeof objOrTag === "string") {
+            this.tag = objOrTag;
+            this.title = title;
+            this.name = name;
+            this.stops = stops;
+        } else {
+            this.tag = objOrTag.tag;
+            this.title = objOrTag.title;
+            this.name = objOrTag.name;
+            this.stops = objOrTag.stops.map(function (stopTag) {
+                return route.stops[stopTag];
+            });
+        }
+    }
+    
+    Direction.prototype.clone = function (route) {
+        var stops = this.stops.map(function (stop) {
+            return stop.clone();
+        });
+        
+        return new Direction(route, this.tag, this.title, this.name, stops);
+    };
+    
+    Direction.prototype.toJSONObject = function () {
+        var stopTags = this.stops.map(function (stop) {
+            return stop.tag;
+        }), direction = new Direction(null, this.tag, this.title, this.name, stopTags);
+        
+        delete direction._route;
+        
+        return direction;
+    };
+    
     function Route(objOrTag, title, stops, directions, color, oppositeColor) {
+        var route = this,
+            tag;
+        
         if (typeof objOrTag === "string") {
             this.tag = objOrTag;
             this.title = title;
@@ -31,12 +96,63 @@ define(function (require, exports, module) {
         } else {
             this.tag = objOrTag.tag;
             this.title = objOrTag.title;
-            this.stops = objOrTag.stops;
-            this.directions = objOrTag.directions;
+            this.stops = {};
+            for (tag in objOrTag.stops) {
+                if (objOrTag.stops.hasOwnProperty(tag)) {
+                    this.stops[tag] = new Stop(objOrTag.stops[tag]);
+                }
+            }
+            this.directions = {};
+            for (tag in objOrTag.directions) {
+                if (objOrTag.directions.hasOwnProperty(tag)) {
+                    this.directions[tag] = new Direction(route, objOrTag.directions[tag]);
+                }
+            }
             this.color = objOrTag.color;
             this.oppositeColor = objOrTag.oppositeColor;
         }
     }
+    
+    Route.prototype.clone = function () {
+        var tag,
+            stops = {},
+            directions = {},
+            route = new Route(this.tag, this.title, this.stops,
+                              this.directions, this.color, this.oppositeColor);
+        
+        for (tag in this.stops) {
+            if (this.stops.hasOwnProperty(tag)) {
+                this.stops[tag] = this.stops[tag].clone();
+            }
+        }
+        
+        for (tag in this.directions) {
+            if (this.directions.hasOwnProperty(tag)) {
+                this.directions[tag] = this.directions[tag].clone(route);
+            }
+        }
+        
+        return route;
+    };
+    
+    Route.prototype.toJSONObject = function () {
+        var route = this.clone(),
+            tag;
+        
+        for (tag in this.stops) {
+            if (this.stops.hasOwnProperty(tag)) {
+                this.stops[tag] = this.stops[tag].toJSONObject();
+            }
+        }
+        
+        for (tag in this.directions) {
+            if (this.directions.hasOwnProperty(tag)) {
+                this.directions[tag] = this.directions[tag].toJSONObject();
+            }
+        }
+        
+        return route;
+    };
     
     Route.prototype.getTitleWithColor = function () {
         return "<span style='color: #" + this.color + ";'> • </span>" + this.title;
@@ -84,7 +200,8 @@ define(function (require, exports, module) {
     }
 
     function saveRoute(route) {
-        var routeObj = { dateCreated: Date.now(), route: route},
+        var routeJSONObj = route.toJSONObject(),
+            routeObj = { dateCreated: Date.now(), route: routeJSONObj },
             routeTag = route.tag,
             routeKey = ROUTE_KEY + "." + routeTag;
         
@@ -177,12 +294,10 @@ define(function (require, exports, module) {
                         lat     = parseFloat($stop.attr("lat")),
                         lon     = parseFloat($stop.attr("lon"));
                     
-                    allStops[tag] = {
-                        title:  title,
-                        lat:    lat,
-                        lon:    lon
-                    };
+                    allStops[tag] = new Stop(tag, title, lat, lon);
                 });
+                
+                route = new Route(tag, title, allStops, directions, color, opposite);
                 
                 $route.children("direction").each(function (i, d) {
                     var $direction = $(d),
@@ -195,18 +310,12 @@ define(function (require, exports, module) {
                         var $stop = $(s),
                             stopTag = $stop.attr("tag");
                         
-                        stops.push(stopTag);
+                        stops.push(allStops[stopTag]);
                     });
                     
-                    directions[tag] = {
-                        tag: tag,
-                        title:  title,
-                        name:   name,
-                        stops:  stops
-                    };
+                    directions[tag] = new Direction(route, tag, title, name, stops);
                 });
-                                    
-                route = new Route(tag, title, allStops, directions, color, opposite);
+                
                 saveRoute(route);
                 deferred.resolve(route);
             }).fail(deferred.reject.bind(deferred));
