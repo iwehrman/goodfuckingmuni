@@ -448,18 +448,12 @@ define(function (require, exports, module) {
             });
         }
         
-        if (!showAll && placeList.length === 1) {
-            location.hash = "#page=place&place=" + placeList[0].id;
-            return;
-        }
-        
         geo.sortByCurrentLocation(placeList).done(function (position) {
-            if (!showAll && placeList.length > 1) {
-                if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
-                        geo.distance(position, placeList[1]) >= NEARBY_IN_KM) {
-                    location.hash = "#page=place&place=" + placeList[0].id;
-                    return;
-                }
+            if (!showAll && placeList.length >= 1 &&
+                    geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
+                    (placeList.length < 2 ||
+                        geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
+                return showPlace(placeList[0].id);
             }
 
             var options = {
