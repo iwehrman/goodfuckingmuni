@@ -185,29 +185,12 @@ define(function (require, exports, module) {
             locationPromise.done(function (position) {
                 var direction = route.directions[dirTag],
                     title = route.title + ": " + direction.name,
-                    minDist = Number.POSITIVE_INFINITY,
-                    maxDist = Number.NEGATIVE_INFINITY,
-                    distances = direction.stops.map(function (stop) {
-                        var dist = stop.distanceFrom(position);
-                            
-                        if (dist > maxDist) {
-                            maxDist = dist;
-                        }
-                        
-                        if (dist < minDist) {
-                            minDist = dist;
-                        }
-                        return dist;
-                    });
+                    closestStop = direction.getClosestStop(position);
                 
                 var options = {
                     backHref: "#page=directions&place=" + placeId + "&route=" + routeTag,
                     getHighlight: function (stop, index) {
-                        var range = maxDist - minDist,
-                            fromMin = distances[index] - minDist,
-                            norm = 1 - (fromMin / range);
-                        
-                        return (norm === 1);
+                        return stop === closestStop;
                     },
                     getEntryHref: function (stop) {
                         return "#page=place&op=add&place=" + placeId +

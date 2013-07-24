@@ -82,6 +82,22 @@ define(function (require, exports, module) {
         return direction;
     };
     
+    Direction.prototype.getClosestStop = function (position) {
+        var minDist = Number.POSITIVE_INFINITY,
+            closestStop = null;
+        
+        this.stops.forEach(function (stop) {
+            var dist = stop.distanceFrom(position);
+            
+            if (dist < minDist) {
+                minDist = dist;
+                closestStop = stop;
+            }
+        });
+        
+        return closestStop;
+    };
+    
     function Route(objOrTag, title, stops, directions, color, oppositeColor) {
         var route = this,
             tag;
