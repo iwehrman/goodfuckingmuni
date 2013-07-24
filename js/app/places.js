@@ -19,6 +19,11 @@ define(function (require, exports, module) {
         var key = placeKey(place.id);
         localStorage.setItem(key, JSON.stringify(place));
     }
+
+    function forgetPlace(place) {
+        var key = placeKey(place.id);
+        localStorage.removeItem(key);
+    }
     
     function Place(id, title, lat, lon, stops) {
         this.id = id;
@@ -129,6 +134,7 @@ define(function (require, exports, module) {
         if (index > 0) {
             allPlaces.splice(index, 1);
             savePlaces();
+            forgetPlace(place);
         }
     }
     
