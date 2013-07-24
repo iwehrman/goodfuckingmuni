@@ -117,21 +117,21 @@ define(function (require, exports, module) {
         var tag,
             stops = {},
             directions = {},
-            route = new Route(this.tag, this.title, this.stops,
-                              this.directions, this.color, this.oppositeColor);
+            route = new Route(this.tag, this.title, stops, directions,
+                              this.color, this.oppositeColor);
         
         for (tag in this.stops) {
             if (this.stops.hasOwnProperty(tag)) {
-                this.stops[tag] = this.stops[tag].clone();
+                stops[tag] = this.stops[tag].clone();
             }
         }
         
         for (tag in this.directions) {
             if (this.directions.hasOwnProperty(tag)) {
-                this.directions[tag] = this.directions[tag].clone(route);
+                directions[tag] = this.directions[tag].clone(route);
             }
         }
-        
+
         return route;
     };
     
@@ -141,13 +141,13 @@ define(function (require, exports, module) {
         
         for (tag in this.stops) {
             if (this.stops.hasOwnProperty(tag)) {
-                this.stops[tag] = this.stops[tag].toJSONObject();
+                route.stops[tag] = route.stops[tag].toJSONObject();
             }
         }
         
         for (tag in this.directions) {
             if (this.directions.hasOwnProperty(tag)) {
-                this.directions[tag] = this.directions[tag].toJSONObject();
+                route.directions[tag] = route.directions[tag].toJSONObject();
             }
         }
         
