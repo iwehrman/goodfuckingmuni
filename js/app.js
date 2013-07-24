@@ -10,7 +10,7 @@ requirejs.config({
         "app": "../app",
         "data": "../../data",
         "html": "../../html",
-        "jquery": "//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min"
+        "jquery": "//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min"
     }
 });
 
