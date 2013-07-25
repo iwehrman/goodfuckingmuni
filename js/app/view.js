@@ -383,18 +383,18 @@ define(function (require, exports, module) {
                 showList(title, routeObjs, options);
                 
                 function refreshPredictions() {
-                    return preds.getPredictionsForMultiStops(place.stops)
-                        .progress(function () {
-                            $content.find(".entry__right").addClass("stale");
-                        }).done(function (predictionObjs) {
-                            $content.find(".entry").each(function (index, entry) {
-                                var $entry = $(entry),
-                                    data = entry.dataset,
-                                    routeTag = data.route,
-                                    stopTag = data.stop,
-                                    predictions = predictionObjs[routeTag][stopTag];
-                                
-                                $entry.find(".entry__right").removeClass("stale");
+                    function updateEntries(predictionObjects) {
+                        $content.find(".entry").each(function (index, entry) {
+                            var $entry = $(entry),
+                                data = entry.dataset,
+                                routeTag = data.route,
+                                stopTag = data.stop,
+                                predictionRoute = predictionObjects[routeTag],
+                                predictions;
+                            
+                            if (predictionRoute && predictionRoute[stopTag]) {
+                                predictions = predictionRoute[stopTag];
+                                $entry.find(".entry__right").animate({opacity: 1.0});
                                 $entry.find(".entry__minutes").each(function (index, minutes) {
                                     if (index < 3 && predictions.length > index) {
                                         $(minutes).text(predictions[index].minutes);
@@ -403,8 +403,16 @@ define(function (require, exports, module) {
                                         return false;
                                     }
                                 });
-                            });
+                            } else {
+                                $entry.find(".entry__right").animate({opacity: 0.5});
+                            }
                         });
+                    }
+                    
+                    preds.getPredictionsForMultiStops(place.stops)
+                        .progress(updateEntries)
+                        .done(updateEntries)
+                        .fail(updateEntries.bind(null, {}));
                 }
                 
                 refreshTimer = window.setInterval(refreshPredictions, REFRESH_INTERVAL);

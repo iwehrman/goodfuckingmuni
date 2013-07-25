@@ -36,7 +36,6 @@ define(function (require, exports, module) {
                 retries;
             
             function ajaxHelper() {
-                deferred.notify();
                 $.ajax(routeUrl, settings)
                     .done(function () {
                         delete cachedPromises[routeUrl];

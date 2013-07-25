@@ -91,10 +91,14 @@ define(function (require, exports, module) {
             }
         });
         
+        
+        
         if (uncachedStopObjs.length > 0) {
             var stopParams = uncachedStopObjs.map(function (stopObj) {
                 return stopObj.routeTag + "|" + stopObj.stopTag;
             });
+            
+            deferred.notify(predictionsForMultiStops);
             
             cmdPredictionsForMultiStops(stopParams).done(function (data) {
                 $(data).find("predictions").each(function (i, d) {
