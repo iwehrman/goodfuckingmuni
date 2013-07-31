@@ -15,8 +15,8 @@ define(function (require, exports, module) {
         var local = new Date(),
             diff = (UTC_OFFSET - local.getTimezoneOffset()),
             today = new Date(local.getTime() - (diff * 60 * 1000)),
-            month = today.getMonth(),
-            date = today.getDate(),
+            month = today.getMonth(), // 0-indexed
+            date = today.getDate() - 1, // 1-indexed
             hours = today.getHours(),
             minutes = today.getMinutes(),
             monthData = astronomyData[month],
