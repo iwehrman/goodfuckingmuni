@@ -59,9 +59,17 @@ define(function (require, exports, module) {
             this.title = objOrTag.title;
             this.name = objOrTag.name;
             this.stops = objOrTag.stops.map(function (stopTag) {
-                return route.stops[stopTag];
+                return route.stops[stopTag].clone();
             });
         }
+        
+        var self = this,
+            length = this.stops.length;
+        this.stops.forEach(function (stop, index) {
+            if (index + 1 < length) {
+                stop.next = self.stops[index + 1];
+            }
+        });
     }
     
     Direction.prototype.clone = function (route) {
@@ -98,6 +106,16 @@ define(function (require, exports, module) {
         return closestStop;
     };
     
+    Direction.prototype.isApproaching = function (stop, position) {
+        var nextStop = this.getClosestStop(position);
+        
+        while (nextStop.next && nextStop !== stop) {
+            nextStop = nextStop.next;
+        }
+        
+        return nextStop !== stop;
+    };
+
     function Route(objOrTag, title, stops, directions, color, oppositeColor) {
         var route = this,
             tag;
@@ -326,7 +344,7 @@ define(function (require, exports, module) {
                         var $stop = $(s),
                             stopTag = $stop.attr("tag");
                         
-                        stops.push(allStops[stopTag]);
+                        stops.push(allStops[stopTag].clone());
                     });
                     
                     directions[tag] = new Direction(route, tag, title, name, stops);

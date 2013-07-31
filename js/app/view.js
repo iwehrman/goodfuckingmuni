@@ -199,6 +199,13 @@ define(function (require, exports, module) {
                     },
                     getLeft: function (stop) {
                         return stop.title;
+                    },
+                    getRight: function (stop) {
+                        if (stop === closestStop) {
+                            return "&rarr;&larr;";
+                        } else {
+                            return direction.isApproaching(stop, position) ? "&ensp;&larr;" : "&rarr;&ensp;";
+                        }
                     }
                 };
                 
