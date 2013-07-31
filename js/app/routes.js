@@ -40,7 +40,11 @@ define(function (require, exports, module) {
     };
     
     Stop.prototype.toJSONObject = function () {
-        return this.clone();
+        var stop = this.clone();
+        if (stop.next) {
+            delete stop.next;
+        }
+        return stop;
     };
     
     Stop.prototype.distanceFrom = function (position) {
