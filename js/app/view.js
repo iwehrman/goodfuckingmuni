@@ -353,21 +353,25 @@ define(function (require, exports, module) {
                         return titleTemplate({title: routeTitle, subtitles: subtitles});
                     },
                     getRight: function (routeObj) {
-                        var predictions = routeObj.predictions,
-                            firstPrediction = predictions.length ? predictions[0] : [],
-                            firstPredictionString = predictionsTemplate({
-                                predictions: firstPrediction
-                            }),
-                            lastPredictionIndex = Math.min(3, predictions.length),
-                            laterPredictions = predictions.slice(1, lastPredictionIndex),
-                            laterPredictionsString = predictionsTemplate({
-                                predictions: laterPredictions
-                            });
+                        var predictions = routeObj.predictions;
                         
-                        return titleTemplate({
-                            title: firstPredictionString,
-                            subtitles: [laterPredictionsString]
-                        });
+                        if (predictions.length) {
+                            var firstPrediction = predictions[0],
+                                firstPredictionString = predictionsTemplate({
+                                    predictions: firstPrediction
+                                }),
+                                lastIndex = Math.min(3, predictions.length),
+                                laterPredictions = predictions.slice(1, lastIndex),
+                                laterPredictionsString = predictionsTemplate({
+                                    predictions: laterPredictions
+                                });
+                            return titleTemplate({
+                                title: firstPredictionString,
+                                subtitles: [laterPredictionsString]
+                            });
+                        } else {
+                            return titleTemplate();
+                        }
                     },
                     getRemoveHref: function (routeObj) {
                         var route = routeObj.route,
