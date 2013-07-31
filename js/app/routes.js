@@ -208,18 +208,23 @@ define(function (require, exports, module) {
     function loadSavedRouteList() {
         var routesJSON = localStorage.getItem(ROUTE_LIST_KEY);
         if (routesJSON) {
-            var routesObj = JSON.parse(routesJSON),
-                dateCreated = parseInt(routesObj.dateCreated, 10),
-                age = Date.now() - dateCreated;
-
-            if (age < ROUTE_LIST_TIMEOUT) {
-                cachedRouteList = routesObj.routelist;
-                setTimeout(function () {
-                    cachedRouteList = null;
+            try {
+                var routesObj = JSON.parse(routesJSON),
+                    dateCreated = parseInt(routesObj.dateCreated, 10),
+                    age = Date.now() - dateCreated;
+    
+                if (age < ROUTE_LIST_TIMEOUT) {
+                    cachedRouteList = routesObj.routelist;
+                    setTimeout(function () {
+                        cachedRouteList = null;
+                        localStorage.removeItem(ROUTE_LIST_KEY);
+                    }, ROUTE_LIST_TIMEOUT - age);
+                } else {
                     localStorage.removeItem(ROUTE_LIST_KEY);
-                }, ROUTE_LIST_TIMEOUT - age);
-            } else {
-                localStorage.removeItem(ROUTE_LIST_KEY);
+                }
+            } catch (err) {
+                console.warn("Unable to load saved route list: ", err);
+                console.warn("Route list JSON: " + routesJSON);
             }
         }
     }
@@ -261,23 +266,28 @@ define(function (require, exports, module) {
             
             routeTags.forEach(function (routeTag) {
                 var routeKey = ROUTE_KEY + "." + routeTag,
-                    routeJSON = localStorage.getItem(routeKey),
-                    routeObj = JSON.parse(routeJSON),
-                    route = new Route(routeObj.route),
-                    dateCreated = parseInt(routeObj.dateCreated, 10),
-                    age = Date.now() - dateCreated;
-                
-                if (age < ROUTE_TIMEOUT) {
-                    cachedRoutes[routeTag] = route;
-                    setTimeout(function () {
-                        delete cachedRoutes[routeTag];
+                    routeJSON = localStorage.getItem(routeKey);
+                try {
+                    var routeObj = JSON.parse(routeJSON),
+                        route = new Route(routeObj.route),
+                        dateCreated = parseInt(routeObj.dateCreated, 10),
+                        age = Date.now() - dateCreated;
+                    
+                    if (age < ROUTE_TIMEOUT) {
+                        cachedRoutes[routeTag] = route;
+                        setTimeout(function () {
+                            delete cachedRoutes[routeTag];
+                            localStorage.removeItem(routeKey);
+                            updateCachedRoutes();
+                        }, ROUTE_TIMEOUT - age);
+                    } else {
                         localStorage.removeItem(routeKey);
-                        updateCachedRoutes();
-                    }, ROUTE_TIMEOUT - age);
-                } else {
+                    }
+                } catch (err) {
+                    console.warn("Unable to load saved route: ", err);
+                    console.warn("Route JSON: ", routeJSON);
                     localStorage.removeItem(routeKey);
                 }
-                
             });
         }
         updateCachedRoutes();
