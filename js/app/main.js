@@ -28,6 +28,10 @@ define(function (require, exports, module) {
 
     loadStylesheet();
     
+    window.addEventListener("focus", function (event) {
+        view.refreshList(true); // force refresh
+    });
+    
     $(function () {
         controller.loadPageFromHash();
         

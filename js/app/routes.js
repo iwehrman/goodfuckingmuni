@@ -52,7 +52,6 @@ define(function (require, exports, module) {
     };
     
     function Direction(route, objOrTag, title, name, stops) {
-        this._route = route;
         if (typeof objOrTag === "string") {
             this.tag = objOrTag;
             this.title = title;
@@ -67,13 +66,16 @@ define(function (require, exports, module) {
             });
         }
         
-        var self = this,
-            length = this.stops.length;
-        this.stops.forEach(function (stop, index) {
-            if (index + 1 < length) {
-                stop.next = self.stops[index + 1];
-            }
-        });
+        if (route) {
+            var self = this,
+                length = this.stops.length;
+            this._route = route;
+            this.stops.forEach(function (stop, index) {
+                if (index + 1 < length) {
+                    stop.next = self.stops[index + 1];
+                }
+            });
+        }
     }
     
     Direction.prototype.clone = function (route) {

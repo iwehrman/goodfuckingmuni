@@ -34,7 +34,8 @@ define(function (require, exports, module) {
     var $body = $("body"),
         $content = $body.find(".content");
     
-    var refreshTimer = null;
+    var refreshTimer = null,
+        handleRefresh;
 
     function makeListEntry(obj, index, opts) {
         var entrySettings = {
@@ -132,31 +133,39 @@ define(function (require, exports, module) {
         if (refreshTimer) {
             window.clearInterval(refreshTimer);
             refreshTimer = null;
+            handleRefresh = null;
         }
         
         var $container = makeList(title, list, options);
         
         $content.empty();
         $content.append($container);
+        
+        if (options.refresh) {
+            handleRefresh = options.refresh;
+            refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
+        }
+        
+        if (options.scroll) {
+            var $entry = $content.find(".highlight").parents(".entry");
+            $body.animate({
+                scrollTop: $entry.offset().top - $content.scrollTop()
+            });
+        }
+    }
+    
+    function refreshList(force) {
+        if (handleRefresh) {
+            handleRefresh(force);
+        }
     }
     
     function showPredictions(placeId, routeTag, stopTag) {
         routes.getRoute(routeTag).done(function (route) {
             preds.getPredictions(routeTag, stopTag).done(function (predictions) {
-                var stop = route.stops[stopTag],
-                    title = stop.title;
                 
-                var options = {
-                    backHref: "#page=place&place=" + placeId,
-                    getHighlight: function (prediction) { return false; },
-                    getLeft: function (prediction) {
-                        return predictionsTemplate({predictions: prediction});
-                    }
-                };
-                
-                showList(title, predictions, options);
-                refreshTimer = window.setInterval(function () {
-                    preds.getPredictions(routeTag, stopTag).done(function (newPredictions) {
+                function refreshPredictions(force) {
+                    preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
                         $content.find(".entry").each(function (index, entry) {
                             var $entry = $(entry);
                             
@@ -170,7 +179,21 @@ define(function (require, exports, module) {
                             });
                         });
                     });
-                }, REFRESH_INTERVAL);
+                }
+                
+                var stop = route.stops[stopTag],
+                    title = stop.title;
+                
+                var options = {
+                    backHref: "#page=place&place=" + placeId,
+                    getHighlight: function (prediction) { return false; },
+                    getLeft: function (prediction) {
+                        return predictionsTemplate({predictions: prediction});
+                    },
+                    refresh: refreshPredictions
+                };
+                
+                showList(title, predictions, options);
             }).fail(function (err) {
                 console.error("[showPredictions] failed to get predictions: " + err);
             });
@@ -206,17 +229,11 @@ define(function (require, exports, module) {
                         } else {
                             return direction.isApproaching(stop, position) ? "&ensp;&larr;" : "&rarr;&ensp;";
                         }
-                    }
+                    },
+                    scroll: scroll
                 };
                 
                 showList(title, direction.stops, options);
-                
-                if (scroll) {
-                    var $entry = $content.find(".highlight").parents(".entry");
-                    $body.animate({
-                        scrollTop: $entry.offset().top - $content.scrollTop()
-                    });
-                }
             });
         }).fail(function (err) {
             console.error("[showStops] failed to get route: " + err);
@@ -316,6 +333,39 @@ define(function (require, exports, module) {
                     }
                 }
                 
+                function refreshPredictions(force) {
+                    function updateEntries(predictionObjects) {
+                        $content.find(".entry").each(function (index, entry) {
+                            var $entry = $(entry),
+                                data = entry.dataset,
+                                routeTag = data.route,
+                                stopTag = data.stop,
+                                predictionRoute = predictionObjects[routeTag],
+                                predictions;
+                            
+                            if (predictionRoute && predictionRoute[stopTag]) {
+                                predictions = predictionRoute[stopTag];
+                                $entry.find(".entry__right").animate({opacity: 1.0});
+                                $entry.find(".entry__minutes").each(function (index, minutes) {
+                                    if (index < 3 && predictions.length > index) {
+                                        $(minutes).text(predictions[index].minutes);
+                                        return true;
+                                    } else {
+                                        return false;
+                                    }
+                                });
+                            } else {
+                                $entry.find(".entry__right").animate({opacity: 0.5});
+                            }
+                        });
+                    }
+                    
+                    preds.getPredictionsForMultiStops(place.stops, force)
+                        .progress(updateEntries)
+                        .done(updateEntries)
+                        .fail(updateEntries.bind(null, {}));
+                }
+                
                 routeObjs.forEach(function (routeObj, index) {
                     var routeTag = routeObj.route.tag,
                         stopTag = routeObj.stopTag;
@@ -388,46 +438,11 @@ define(function (require, exports, module) {
                             stop = route.stops[stopTag];
 
                         return window.confirm("Remove stop " + stop.title + "?");
-                    }
+                    },
+                    refresh: refreshPredictions
                 };
                 
                 showList(title, routeObjs, options);
-                
-                function refreshPredictions() {
-                    function updateEntries(predictionObjects) {
-                        $content.find(".entry").each(function (index, entry) {
-                            var $entry = $(entry),
-                                data = entry.dataset,
-                                routeTag = data.route,
-                                stopTag = data.stop,
-                                predictionRoute = predictionObjects[routeTag],
-                                predictions;
-                            
-                            if (predictionRoute && predictionRoute[stopTag]) {
-                                predictions = predictionRoute[stopTag];
-                                $entry.find(".entry__right").animate({opacity: 1.0});
-                                $entry.find(".entry__minutes").each(function (index, minutes) {
-                                    if (index < 3 && predictions.length > index) {
-                                        $(minutes).text(predictions[index].minutes);
-                                        return true;
-                                    } else {
-                                        return false;
-                                    }
-                                });
-                            } else {
-                                $entry.find(".entry__right").animate({opacity: 0.5});
-                            }
-                        });
-                    }
-                    
-                    preds.getPredictionsForMultiStops(place.stops)
-                        .progress(updateEntries)
-                        .done(updateEntries)
-                        .fail(updateEntries.bind(null, {}));
-                }
-                
-                refreshTimer = window.setInterval(refreshPredictions, REFRESH_INTERVAL);
-                
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -437,14 +452,25 @@ define(function (require, exports, module) {
     function showPlaces(showAll) {
         var placeList = places.getAllPlaces();
         
-        function preloadPredictions() {
+        function preloadRoutes() {
+            var routeList = [];
             placeList.forEach(function (place) {
-                // FIXME: Could reduce this to one predictions request
-                preds.getPredictionsForMultiStops(place.stops);
                 place.stops.forEach(function (stopObj) {
-                    routes.getRoute(stopObj.routeTag);
+                    routeList.push(stopObj.routeTag);
                 });
             });
+            routeList.forEach(function (routeTag) {
+                routes.getRoute(routeTag);
+            });
+        }
+        
+        function preloadPredictions(force) {
+            var stopObjs = [];
+            
+            placeList.forEach(function (place) {
+                stopObjs = stopObjs.concat(place.stops);
+            });
+            preds.getPredictionsForMultiStops(stopObjs, force);
         }
         
         geo.sortByCurrentLocation(placeList).done(function (position) {
@@ -474,14 +500,15 @@ define(function (require, exports, module) {
                 },
                 confirmRemove: function (place) {
                     return window.confirm("Remove place " + place.title + "?");
-                }
+                },
+                refresh: preloadPredictions
             };
             
             showList("Places", placeList, options);
             
             // warm up cache
+            preloadRoutes();
             preloadPredictions();
-            refreshTimer = window.setInterval(preloadPredictions, REFRESH_INTERVAL);
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
         });
@@ -493,4 +520,5 @@ define(function (require, exports, module) {
     exports.showDirections = showDirections;
     exports.showStops = showStops;
     exports.showPredictions = showPredictions;
+    exports.refreshList = refreshList;
 });

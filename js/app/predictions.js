@@ -7,7 +7,7 @@ define(function (require, exports, module) {
     var $ = require("jquery"),
         command = require("app/command");
 
-    var PREDICTION_TIMEOUT = 1000 * 60; // 1 minute
+    var PREDICTION_TIMEOUT = 1000 * 30; // 30 seconds
     
     var cachedPredictions = {};
         
@@ -42,21 +42,35 @@ define(function (require, exports, module) {
     }
     
     function cachePredictions(routeTag, stopTag, predictions) {
-        cachedPredictions[routeTag][stopTag] = predictions;
-        setTimeout(function () {
+        var timer = setTimeout(function () {
             delete cachedPredictions[routeTag][stopTag];
         }, PREDICTION_TIMEOUT);
+        
+        //TODO should enforce a minimum 10-second prediction lifetime
+        function invalidate() {
+            clearTimeout(timer);
+            delete cachedPredictions[routeTag][stopTag];
+        }
+        
+        cachedPredictions[routeTag][stopTag] = {
+            predictions: predictions,
+            invalidate: invalidate
+        };
     }
     
-    function getPredictions(routeTag, stopTag) {
+    function getPredictions(routeTag, stopTag, force) {
         var deferred = $.Deferred();
         
         if (!cachedPredictions[routeTag]) {
             cachedPredictions[routeTag] = {};
         }
 
+        if (force && cachedPredictions[routeTag][stopTag]) {
+            cachedPredictions[routeTag][stopTag].invalidate();
+        }
+        
         if (cachedPredictions[routeTag][stopTag]) {
-            deferred.resolve(cachedPredictions[routeTag][stopTag]);
+            deferred.resolve(cachedPredictions[routeTag][stopTag].predictions);
         } else {
             cmdPredictions(routeTag, stopTag).done(function (data) {
                 var predictions = handlePredictionData(data);
@@ -68,7 +82,7 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
-    function getPredictionsForMultiStops(stopObjs) {
+    function getPredictionsForMultiStops(stopObjs, force) {
         var deferred = $.Deferred(),
             predictionsForMultiStops = {},
             uncachedStopObjs = [];
@@ -81,17 +95,20 @@ define(function (require, exports, module) {
                 cachedPredictions[routeTag] = {};
             }
             
+            if (force && cachedPredictions[routeTag][stopTag]) {
+                cachedPredictions[routeTag][stopTag].invalidate();
+            }
+            
             if (!cachedPredictions[routeTag][stopTag]) {
                 uncachedStopObjs.push(stopObj);
             } else {
                 if (!predictionsForMultiStops[routeTag]) {
                     predictionsForMultiStops[routeTag] = {};
                 }
-                predictionsForMultiStops[routeTag][stopTag] = cachedPredictions[routeTag][stopTag];
+                predictionsForMultiStops[routeTag][stopTag] = cachedPredictions[routeTag][stopTag].predictions;
             }
         });
-        
-        
+
         
         if (uncachedStopObjs.length > 0) {
             var stopParams = uncachedStopObjs.map(function (stopObj) {
