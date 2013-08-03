@@ -60,13 +60,10 @@ define(function (require, exports, module) {
     };
     
     Stop.prototype.isApproaching = function (position) {
-        var nextStop = this._direction.getClosestStop(position);
+        var thisDist = this.distanceFrom(position),
+            nextDist = this.next ? this.next.distanceFrom(position) : Number.POSITIVE_INFINITY;
         
-        while (nextStop.next && nextStop !== this) {
-            nextStop = nextStop.next;
-        }
-        
-        return nextStop !== this;
+        return nextDist < thisDist;
     };
     
     function Direction(route, objOrTag, title, name, stops) {
@@ -127,6 +124,22 @@ define(function (require, exports, module) {
             var dist = stop.distanceFrom(position);
             
             if (dist < minDist) {
+                minDist = dist;
+                closestStop = stop;
+            }
+        });
+        
+        return closestStop;
+    };
+    
+    Direction.prototype.getClosestApproachingStop = function (destPos, currPos) {
+        var minDist = Number.POSITIVE_INFINITY,
+            closestStop = null;
+    
+        this.stops.forEach(function (stop) {
+            var dist = stop.distanceFrom(currPos);
+            
+            if (dist < minDist && stop.isApproaching(destPos)) {
                 minDist = dist;
                 closestStop = stop;
             }

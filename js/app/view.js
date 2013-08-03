@@ -203,7 +203,9 @@ define(function (require, exports, module) {
     }
     
     function showStops(placeId, routeTag, dirTag, scroll) {
-        var locationPromise = geo.getLocation();
+        var locationPromise = geo.getLocation(),
+            place = places.getPlace(placeId);
+    
         routes.getRoute(routeTag).done(function (route) {
             locationPromise.done(function (position) {
                 var direction = route.directions[dirTag],
@@ -224,7 +226,7 @@ define(function (require, exports, module) {
                         return stop.title;
                     },
                     getRight: function (stop) {
-                        return stop.isApproaching(position) ? "&larr;&ensp;" : "&ensp;&rarr;";
+                        return stop.isApproaching(place) ? "&ensp;&rarr;" : "&larr;&ensp;";
                     },
                     scroll: scroll
                 };
@@ -237,6 +239,9 @@ define(function (require, exports, module) {
     }
     
     function showDirections(placeId, routeTag) {
+        var locationPromise = geo.getLocation(),
+            place = places.getPlace(placeId);
+        
         routes.getRoute(routeTag).done(function (route) {
             var directions = [],
                 dirTag;
@@ -251,19 +256,36 @@ define(function (require, exports, module) {
                 return a.title > b.title;
             });
 
-            var options = {
-                backHref: "#page=routes&place=" + placeId,
-                getEntryHref: function (direction) {
-                    var routeTag = route.tag;
-                    return "#page=stops&place=" + placeId +
-                        "&route=" + routeTag + "&direction=" + direction.tag;
-                },
-                getLeft: function (direction) {
-                    return direction.title;
-                }
-            };
-            
-            showList(route.title, directions, options);
+            locationPromise.done(function (position) {
+                var options = {
+                    backHref: "#page=routes&place=" + placeId,
+                    getEntryHref: function (direction) {
+                        var routeTag = route.tag;
+                        return "#page=stops&place=" + placeId +
+                            "&route=" + routeTag + "&direction=" + direction.tag;
+                    },
+                    getLeft: function (direction) {
+                        return direction.title;
+                    },
+                    getRight: function (direction) {
+                        var stop = direction.getClosestApproachingStop(place, position);
+                        
+                        if (!stop) {
+                            return "";
+                        }
+                        
+                        var kilometers = stop.distanceFrom(position),
+                            miles = geo.kilometersToMiles(kilometers),
+                            title = distanceTemplate({miles: miles}),
+                            subtitles = [stop.title],
+                            titleHtml = titleTemplate({title: title, subtitles: subtitles});
+                            
+                        return titleHtml;
+                    }
+                };
+                
+                showList(route.title, directions, options);
+            });
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
         });
