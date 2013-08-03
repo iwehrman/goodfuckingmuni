@@ -224,11 +224,7 @@ define(function (require, exports, module) {
                         return stop.title;
                     },
                     getRight: function (stop) {
-                        if (stop === closestStop) {
-                            return "&rarr;&larr;";
-                        } else {
-                            return direction.isApproaching(stop, position) ? "&ensp;&larr;" : "&rarr;&ensp;";
-                        }
+                        return stop.isApproaching(position) ? "&larr;&ensp;" : "&ensp;&rarr;";
                     },
                     scroll: scroll
                 };

@@ -36,14 +36,22 @@ define(function (require, exports, module) {
     }
     
     Stop.prototype.clone = function () {
-        return new Stop(this.tag, this.title, this.lat, this.lon);
+        var stop = new Stop(this.tag, this.title, this.lat, this.lon);
+        stop._direction = this._direction;
+        return stop;
     };
     
     Stop.prototype.toJSONObject = function () {
         var stop = this.clone();
+        
+        if (stop._direction) {
+            delete stop._direction;
+        }
+        
         if (stop.next) {
             delete stop.next;
         }
+        
         return stop;
     };
     
@@ -51,7 +59,19 @@ define(function (require, exports, module) {
         return geo.distance(this, position);
     };
     
+    Stop.prototype.isApproaching = function (position) {
+        var nextStop = this._direction.getClosestStop(position);
+        
+        while (nextStop.next && nextStop !== this) {
+            nextStop = nextStop.next;
+        }
+        
+        return nextStop !== this;
+    };
+    
     function Direction(route, objOrTag, title, name, stops) {
+        var self = this;
+        
         if (typeof objOrTag === "string") {
             this.tag = objOrTag;
             this.title = title;
@@ -67,8 +87,11 @@ define(function (require, exports, module) {
         }
         
         if (route) {
-            var self = this,
-                length = this.stops.length;
+            this.stops.forEach(function (stop) {
+                stop._direction = self;
+            });
+            
+            var length = this.stops.length;
             this._route = route;
             this.stops.forEach(function (stop, index) {
                 if (index + 1 < length) {
@@ -110,16 +133,6 @@ define(function (require, exports, module) {
         });
         
         return closestStop;
-    };
-    
-    Direction.prototype.isApproaching = function (stop, position) {
-        var nextStop = this.getClosestStop(position);
-        
-        while (nextStop.next && nextStop !== stop) {
-            nextStop = nextStop.next;
-        }
-        
-        return nextStop !== stop;
     };
 
     function Route(objOrTag, title, stops, directions, color, oppositeColor) {
