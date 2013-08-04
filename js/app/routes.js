@@ -59,6 +59,38 @@ define(function (require, exports, module) {
         return geo.distance(this, position);
     };
     
+    Stop.prototype.nextLength = function () {
+        if (this.next) {
+            // TODO use more precise route information to calulate route edge length
+            return this.distanceFrom(this.next);
+        } else {
+            throw new Error("There is no next stop");
+        }
+    };
+    
+    Stop.prototype.pathLength = function (targetStop) {
+        var distance = 0;
+        
+        if (this === targetStop) {
+            return distance;
+        } else {
+            var currentStop = this,
+                nextStop = this.next;
+            
+            while (nextStop) {
+                distance += currentStop.nextLength();
+                if (nextStop === targetStop) {
+                    return distance;
+                } else {
+                    currentStop = nextStop;
+                    nextStop = nextStop.next;
+                }
+            }
+            
+            throw new Error("Target stop is not on path", targetStop);
+        }
+    };
+    
     Stop.prototype.isApproaching = function (position) {
         var thisDist = this.distanceFrom(position),
             nextDist = this.next ? this.next.distanceFrom(position) : Number.POSITIVE_INFINITY;
@@ -137,17 +169,32 @@ define(function (require, exports, module) {
             closestStop = null;
     
         this.stops.forEach(function (stop) {
-            var dist = stop.distanceFrom(currPos);
-            
-            if (dist < minDist && stop.isApproaching(destPos)) {
-                minDist = dist;
-                closestStop = stop;
+            if (stop.isApproaching(destPos)) {
+                var dist = stop.distanceFrom(currPos);
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestStop = stop;
+                }
             }
         });
         
         return closestStop;
     };
-
+    
+    Direction.prototype.journeyLength = function (destPos, currPos) {
+        var arrivalStop = this.getClosestStop(destPos),
+            departureStop = this.getClosestApproachingStop(destPos, currPos);
+        
+        try {
+            return arrivalStop.distanceFrom(destPos) +
+                departureStop.pathLength(arrivalStop) +
+                departureStop.distanceFrom(currPos);
+        } catch (err) {
+            return Number.POSITIVE_INFINITY;
+        }
+    };
+    
     function Route(objOrTag, title, stops, directions, color, oppositeColor) {
         var route = this,
             tag;

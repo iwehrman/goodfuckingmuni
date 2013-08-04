@@ -265,16 +265,16 @@ define(function (require, exports, module) {
                             "&route=" + routeTag + "&direction=" + direction.tag;
                     },
                     getLeft: function (direction) {
-                        return direction.title;
+                        var title = direction.title,
+                            departure = direction.getClosestApproachingStop(place, position),
+                            subtitle = departure ? departure.title : "",
+                            subtitles = [subtitle];
+                        
+                        return titleTemplate({title: title, subtitles: subtitles});
                     },
                     getRight: function (direction) {
-                        var stop = direction.getClosestApproachingStop(place, position);
-                        
-                        if (!stop) {
-                            return "";
-                        }
-                        
-                        var kilometers = stop.distanceFrom(position),
+                        var stop = direction.getClosestStop(place),
+                            kilometers = direction.journeyLength(place, position),
                             miles = geo.kilometersToMiles(kilometers),
                             title = distanceTemplate({miles: miles}),
                             subtitles = [stop.title],
