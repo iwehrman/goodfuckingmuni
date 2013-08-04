@@ -136,10 +136,17 @@ define(function (require, exports, module) {
             handleRefresh = null;
         }
         
-        var $container = makeList(title, list, options);
+        var $container = makeList(title, list, options),
+            $children = $content.children();
         
-        $content.empty();
-        $content.append($container);
+        if ($children.length === 1) {
+            $children.replaceWith($container);
+        } else {
+            if ($children.length > 1) {
+                $content.empty();
+            }
+            $content.append($container);
+        }
         
         if (options.refresh) {
             handleRefresh = options.refresh;
