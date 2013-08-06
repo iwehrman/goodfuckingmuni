@@ -187,9 +187,9 @@ define(function (require, exports, module) {
             departureStop = this.getClosestApproachingStop(destPos, currPos);
         
         try {
-            return arrivalStop.distanceFrom(destPos) +
+            return departureStop.distanceFrom(currPos) +
                 departureStop.pathLength(arrivalStop) +
-                departureStop.distanceFrom(currPos);
+                arrivalStop.distanceFrom(destPos);
         } catch (err) {
             return Number.POSITIVE_INFINITY;
         }

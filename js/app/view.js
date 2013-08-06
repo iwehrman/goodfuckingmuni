@@ -10,162 +10,21 @@ define(function (require, exports, module) {
         routes = require("app/routes"),
         preds = require("app/predictions"),
         places = require("app/places"),
-        geo = require("app/geolocation");
+        geo = require("app/geolocation"),
+        list = require("app/list");
 
-    var REFRESH_INTERVAL = 5000,
-        NEARBY_IN_KM = 0.5;
+    var NEARBY_IN_KM = 0.5;
     
-    var _backHtml = require("text!html/back.html"),
-        _containerHtml = require("text!html/container.html"),
-        _entryHtml = require("text!html/entry.html"),
-        _distanceHtml = require("text!html/distance.html"),
-        _buttonHtml = require("text!html/button.html"),
+    var _distanceHtml = require("text!html/distance.html"),
         _predictionsHtml = require("text!html/predictions.html"),
         _titleHtml = require("text!html/title.html");
 
-    var backTemplate = mustache.compile(_backHtml),
-        containerTemplate = mustache.compile(_containerHtml),
-        entryTemplate = mustache.compile(_entryHtml),
-        distanceTemplate = mustache.compile(_distanceHtml),
-        buttonTemplate = mustache.compile(_buttonHtml),
+    var distanceTemplate = mustache.compile(_distanceHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
         titleTemplate = mustache.compile(_titleHtml);
 
     var $body = $("body"),
         $content = $body.find(".content");
-    
-    var refreshTimer = null,
-        handleRefresh;
-
-    function makeListEntry(obj, index, opts) {
-        var entrySettings = {
-            href: opts.getEntryHref ? opts.getEntryHref(obj, index) : null,
-            tags: opts.getTags ? opts.getTags(obj, index) : null,
-            highlight: opts.getHighlight ? opts.getHighlight(obj, index) : null,
-            left: opts.getLeft ? opts.getLeft(obj, index) : null,
-            right: opts.getRight ? opts.getRight(obj, index) : null
-        },  entryHTML = entryTemplate(entrySettings),
-            $entry = $(entryHTML);
-
-        if (opts.getRemoveHref) {
-            var removeHref = opts.getRemoveHref(obj),
-                removeSettings = {
-                    "class": "entry__remove",
-                    href: removeHref,
-                    title: "&times;"
-                },
-                removeHtml = buttonTemplate(removeSettings),
-                $remove = $(removeHtml),
-                removeButton = $remove.children()[0];
-            
-            $entry.find(".entry__right").append($remove);
-            $entry.on("swipeleft", function (event) {
-                var $title = $entry.find(".entry__right .entry__title"),
-                    $subtitle = $entry.find(".entry__right .entry__subtitle");
-                
-                $title.hide();
-                $subtitle.hide();
-                $remove.show();
-                event.stopPropagation();
-                event.preventDefault();
-    
-                // capture-phase event listener to cancel entry clicks during removal
-                document.addEventListener("click", function listener(event) {
-                    if (event.target === removeButton && opts.confirmRemove(obj)) {
-                        $entry.remove();
-                    } else {
-                        $remove.hide();
-                        $title.show();
-                        $subtitle.show();
-                        event.preventDefault();
-                    }
-                    document.removeEventListener("click", listener, true);
-                    event.stopPropagation();
-                }, true);
-            });
-        }
-        
-        return $entry;
-    }
-
-    function makeList(title, list, opts) {
-        var left;
-        if (opts.backHref) {
-            var backSettings = {
-                title: "&lsaquo;",
-                href: opts.backHref
-            };
-            left = backTemplate(backSettings);
-        } else {
-            left = null;
-        }
-        
-        var right;
-        if (opts.addHref) {
-            var addSettings = {
-                title: "+",
-                href: opts.addHref
-            };
-            right = buttonTemplate(addSettings);
-        } else {
-            right = null;
-        }
-        
-        var containerSettings = {
-            left: left,
-            center: title,
-            right: right
-        },  containerHTML = containerTemplate(containerSettings),
-            $container = $(containerHTML),
-            $entries = $container.find(".entries");
-        
-        list.forEach(function (obj, index) {
-            var $entry = makeListEntry(obj, index, opts);
-            $entries.append($entry);
-        });
-        
-        return $container;
-    }
-
-    function showList(title, list, options) {
-        options = options || {};
-        
-        if (refreshTimer) {
-            window.clearInterval(refreshTimer);
-            refreshTimer = null;
-            handleRefresh = null;
-        }
-        
-        var $container = makeList(title, list, options),
-            $children = $content.children();
-        
-        if ($children.length === 1) {
-            $children.replaceWith($container);
-        } else {
-            if ($children.length > 1) {
-                $content.empty();
-            }
-            $content.append($container);
-        }
-        
-        if (options.refresh) {
-            handleRefresh = options.refresh;
-            refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
-        }
-        
-        if (options.scroll) {
-            var $entry = $content.find(".highlight").parents(".entry");
-            $body.animate({
-                scrollTop: $entry.offset().top - $content.scrollTop()
-            });
-        }
-    }
-    
-    function refreshList(force) {
-        if (handleRefresh) {
-            handleRefresh(force);
-        }
-    }
     
     function showPredictions(placeId, routeTag, stopTag) {
         routes.getRoute(routeTag).done(function (route) {
@@ -200,7 +59,7 @@ define(function (require, exports, module) {
                     refresh: refreshPredictions
                 };
                 
-                showList(title, predictions, options);
+                list.showList(title, predictions, options);
             }).fail(function (err) {
                 console.error("[showPredictions] failed to get predictions: " + err);
             });
@@ -238,7 +97,7 @@ define(function (require, exports, module) {
                     scroll: scroll
                 };
                 
-                showList(title, direction.stops, options);
+                list.showList(title, direction.stops, options);
             });
         }).fail(function (err) {
             console.error("[showStops] failed to get route: " + err);
@@ -291,7 +150,7 @@ define(function (require, exports, module) {
                     }
                 };
                 
-                showList(route.title, directions, options);
+                list.showList(route.title, directions, options);
             });
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
@@ -312,7 +171,7 @@ define(function (require, exports, module) {
                 }
             };
         
-            showList("Routes", routes, options);
+            list.showList("Routes", routes, options);
         }).fail(function (err) {
             console.error("[showRoutes] failed to get routes: " + err);
         });
@@ -467,7 +326,7 @@ define(function (require, exports, module) {
                     refresh: refreshPredictions
                 };
                 
-                showList(title, routeObjs, options);
+                list.showList(title, routeObjs, options);
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
             });
@@ -529,7 +388,7 @@ define(function (require, exports, module) {
                 refresh: preloadPredictions
             };
             
-            showList("Places", placeList, options);
+            list.showList("Places", placeList, options);
             
             // warm up cache
             preloadRoutes();
@@ -539,11 +398,81 @@ define(function (require, exports, module) {
         });
     }
     
+    function showBestStops(placeId) {
+        var locationPromise = geo.getLocation(),
+            place = places.getPlace(placeId);
+        
+        routes.getRoutes().done(function (routeList) {
+            locationPromise.done(function (position) {
+                async.map(routeList, function (routeTag, callback) {
+                    routes.getRoute().done(function (route) {
+                        callback(null, route);
+                    }).fail(function (err) {
+                        callback(err);
+                    });
+                }, function (err, allRoutes) {
+                    if (err) {
+                        console.error("[showBestStops] failed to get routes: " + err);
+                        return;
+                    }
+                    
+                    var stopObjs = allRoutes.map(function (route) {
+                        var directions = [],
+                            dirTag;
+            
+                        for (dirTag in route.directions) {
+                            if (route.directions.hasOwnProperty(dirTag)) {
+                                directions.push(route.directions[dirTag]);
+                            }
+                        }
+                        
+                        directions.sort(function (a, b) {
+                            return a.title > b.title;
+                        });
+
+                    });
+                    
+                    var options = {
+                        backHref: "#page=places",
+                        getEntryHref: function (direction) {
+                            var routeTag = direction._route.tag;
+                            return "#page=stops&place=" + placeId +
+                                "&route=" + routeTag + "&direction=" + direction.tag;
+                        },
+                        getLeft: function (direction) {
+                            var title = direction.title,
+                                departure = direction.getClosestApproachingStop(place, position),
+                                subtitle = departure ? departure.title : "",
+                                subtitles = [subtitle];
+                            
+                            return titleTemplate({title: title, subtitles: subtitles});
+                        },
+                        getRight: function (direction) {
+                            var stop = direction.getClosestStop(place),
+                                kilometers = direction.journeyLength(place, position),
+                                miles = geo.kilometersToMiles(kilometers),
+                                title = distanceTemplate({miles: miles}),
+                                subtitles = [stop.title],
+                                titleHtml = titleTemplate({title: title, subtitles: subtitles});
+                                
+                            return titleHtml;
+                        }
+                    };
+                    
+                    list.showList(place.title, stopObjs, options);
+
+                });
+            });
+        });
+        
+    }
+
+    exports.showBestStops = showBestStops;
     exports.showPlaces = showPlaces;
     exports.showPlace = showPlace;
     exports.showRoutes = showRoutes;
     exports.showDirections = showDirections;
     exports.showStops = showStops;
     exports.showPredictions = showPredictions;
-    exports.refreshList = refreshList;
+    exports.refreshList = list.refreshList;
 });
