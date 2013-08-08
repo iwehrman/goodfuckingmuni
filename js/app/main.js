@@ -32,6 +32,18 @@ define(function (require, exports, module) {
         view.refreshList(true); // force refresh
     });
     
+    
+    // hack to refresh the page on focus in Mobile Safari
+    var lastTime = Date.now();
+    (function getTime() {
+        var newTime = Date.now();
+        if (newTime - lastTime > 1000) {
+            view.refreshList(true);
+        }
+        lastTime = newTime;
+        setTimeout(getTime, 500);
+    }());
+    
     $(function () {
         controller.loadPageFromHash();
         
