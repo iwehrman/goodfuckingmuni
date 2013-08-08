@@ -93,9 +93,14 @@ define(function (require, exports, module) {
     
     Stop.prototype.isApproaching = function (position) {
         var thisDist = this.distanceFrom(position),
-            nextDist = this.next ? this.next.distanceFrom(position) : Number.POSITIVE_INFINITY;
+            nextStop = this,
+            nextDist;
         
-        return nextDist < thisDist;
+        do {
+            nextStop = nextStop.next;
+        } while (nextStop && nextStop.distanceFrom(position) >= thisDist);
+        
+        return !nextStop;
     };
     
     function Direction(route, objOrTag, title, name, stops) {
