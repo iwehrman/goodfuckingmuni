@@ -147,6 +147,10 @@ define(function (require, exports, module) {
             $body.animate({
                 scrollTop: $entry.offset().top - $content.scrollTop()
             });
+        } else {
+            $body.animate({
+                scrollTop: 0
+            });
         }
     }
     
