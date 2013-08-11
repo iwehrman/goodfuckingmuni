@@ -398,14 +398,14 @@ define(function (require, exports, module) {
         });
     }
     
-    function showBestStops(placeId) {
+    function showJourneys(placeId) {
         var locationPromise = geo.getLocation(),
             place = places.getPlace(placeId);
         
         routes.getRoutes().done(function (routeList) {
             locationPromise.done(function (position) {
-                async.map(routeList, function (routeTag, callback) {
-                    routes.getRoute().done(function (route) {
+                async.map(routeList, function (routeObj, callback) {
+                    routes.getRoute(routeObj.tag).done(function (route) {
                         callback(null, route);
                     }).fail(function (err) {
                         callback(err);
@@ -416,8 +416,10 @@ define(function (require, exports, module) {
                         return;
                     }
                     
-                    var stopObjs = allRoutes.map(function (route) {
+                    var journeys = [];
+                    allRoutes.map(function (route) {
                         var directions = [],
+                            bestJourney = null,
                             dirTag;
             
                         for (dirTag in route.directions) {
@@ -426,40 +428,62 @@ define(function (require, exports, module) {
                             }
                         }
                         
-                        directions.sort(function (a, b) {
-                            return a.title > b.title;
+                        directions.forEach(function (direction) {
+                            var journey = direction.getJourney(place, position);
+                            
+                            if (journey && (!bestJourney || journey.totalLength < bestJourney.totalLength)) {
+                                if (journey.arrival !== journey.departure) {
+                                    bestJourney = journey;
+                                }
+                            }
                         });
-
+                        
+                        if (bestJourney) {
+                            journeys.push(bestJourney);
+                        }
+                    });
+                    
+                    journeys.sort(function (journey1, journey2) {
+                        var length1 = journey1.walkingLength,
+                            length2 = journey2.walkingLength;
+                        
+                        return length1 - length2;
                     });
                     
                     var options = {
                         backHref: "#page=places",
-                        getEntryHref: function (direction) {
-                            var routeTag = direction._route.tag;
-                            return "#page=stops&place=" + placeId +
-                                "&route=" + routeTag + "&direction=" + direction.tag;
+                        getEntryHref: function (journey) {
+                            var stop = journey.departure,
+                                direction = stop._direction,
+                                route = direction._route;
+                            
+                            return "#page=predictions&place=" + placeId +
+                                "&route=" + route.tag + "&direction=" + direction.tag +
+                                "&stop=" + stop.tag;
                         },
-                        getLeft: function (direction) {
-                            var title = direction.title,
-                                departure = direction.getClosestApproachingStop(place, position),
-                                subtitle = departure ? departure.title : "",
-                                subtitles = [subtitle];
+                        getLeft: function (journey) {
+                            var stop = journey.departure,
+                                direction = stop._direction,
+                                route = direction._route,
+                                title = route.title,
+                                subtitles = [direction.title, stop.title];
                             
                             return titleTemplate({title: title, subtitles: subtitles});
                         },
-                        getRight: function (direction) {
-                            var stop = direction.getClosestStop(place),
-                                kilometers = direction.journeyLength(place, position),
-                                miles = geo.kilometersToMiles(kilometers),
-                                title = distanceTemplate({miles: miles}),
-                                subtitles = [stop.title],
+                        getRight: function (journey) {
+                            var stop = journey.arrival,
+                                direction = stop._direction,
+                                journeyMiles = geo.kilometersToMiles(journey.totalLength),
+                                walkingMiles = geo.kilometersToMiles(journey.walkingLength),
+                                title = distanceTemplate({miles: journeyMiles}),
+                                subtitles = [distanceTemplate({miles: walkingMiles}), stop.title],
                                 titleHtml = titleTemplate({title: title, subtitles: subtitles});
                                 
                             return titleHtml;
                         }
                     };
                     
-                    list.showList(place.title, stopObjs, options);
+                    list.showList(place.title, journeys, options);
 
                 });
             });
@@ -467,7 +491,7 @@ define(function (require, exports, module) {
         
     }
 
-    exports.showBestStops = showBestStops;
+    exports.showJourneys = showJourneys;
     exports.showPlaces = showPlaces;
     exports.showPlace = showPlace;
     exports.showRoutes = showRoutes;

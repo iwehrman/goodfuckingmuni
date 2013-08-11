@@ -157,8 +157,8 @@ define(function (require, exports, module) {
         case "stops":
             view.showStops(state.place, state.route, state.direction, true);
             break;
-        case "best":
-            view.showBestStops(state.place);
+        case "journeys":
+            view.showJourneys(state.place);
             break;
         default:
             view.showPlaces(false);

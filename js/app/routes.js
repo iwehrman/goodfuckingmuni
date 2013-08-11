@@ -100,7 +100,7 @@ define(function (require, exports, module) {
             nextStop = nextStop.next;
         } while (nextStop && nextStop.distanceFrom(position) >= thisDist);
         
-        return !nextStop;
+        return !!nextStop;
     };
     
     function Direction(route, objOrTag, title, name, stops) {
@@ -187,16 +187,31 @@ define(function (require, exports, module) {
         return closestStop;
     };
     
-    Direction.prototype.journeyLength = function (destPos, currPos) {
+    Direction.prototype.getJourney = function (destPos, currPos) {
         var arrivalStop = this.getClosestStop(destPos),
             departureStop = this.getClosestApproachingStop(destPos, currPos);
         
         try {
-            return departureStop.distanceFrom(currPos) +
-                departureStop.pathLength(arrivalStop) +
-                arrivalStop.distanceFrom(destPos);
+            var currentToDeparture = departureStop.distanceFrom(currPos),
+                arrivalToDestination = arrivalStop.distanceFrom(destPos),
+                pathLength = departureStop.pathLength(arrivalStop),
+                walkingLength = currentToDeparture + arrivalToDestination;
+            
+            if (walkingLength > geo.distance(destPos, currPos)) {
+                return null;
+            }
+            
+            return {
+                arrival: arrivalStop,
+                departure: departureStop,
+                currentToDeparture: currentToDeparture,
+                arrivalToDestination: arrivalToDestination,
+                pathLength: pathLength,
+                walkingLength: walkingLength,
+                totalLength: pathLength + walkingLength
+            };
         } catch (err) {
-            return Number.POSITIVE_INFINITY;
+            return null;
         }
     };
     
