@@ -5,6 +5,8 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery");
+    
+    var WALKING_SPEED_IN_KM_PER_SEC = 0.0014;
         
     function getLocation() {
         var deferred = $.Deferred();
@@ -79,10 +81,15 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
+    function walkTime(km) {
+        return km / WALKING_SPEED_IN_KM_PER_SEC;
+    }
+    
     return {
         distance: distance,
         kilometersToMiles: kilometersToMiles,
         getLocation: getLocation,
-        sortByCurrentLocation: sortByCurrentLocation
+        sortByCurrentLocation: sortByCurrentLocation,
+        walkTime: walkTime
     };
 });

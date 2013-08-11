@@ -59,6 +59,12 @@ define(function (require, exports, module) {
         return geo.distance(this, position);
     };
     
+    Stop.prototype.secondsFromWalking = function (position) {
+        var km = this.distanceFrom(position);
+        
+        return geo.walkTime(km);
+    };
+    
     Stop.prototype.nextLength = function () {
         if (this.next) {
             // TODO use more precise route information to calulate route edge length

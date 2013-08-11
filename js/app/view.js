@@ -132,19 +132,17 @@ define(function (require, exports, module) {
                     },
                     getLeft: function (direction) {
                         var title = direction.title,
-                            departure = direction.getClosestApproachingStop(place, position),
-                            subtitle = departure ? departure.title : "",
-                            subtitles = [subtitle];
+                            stop = direction.getClosestStop(place),
+                            subtitles = [stop.title];
                         
                         return titleTemplate({title: title, subtitles: subtitles});
                     },
                     getRight: function (direction) {
                         var stop = direction.getClosestStop(place),
-                            kilometers = direction.journeyLength(place, position),
+                            kilometers = stop.distanceFrom(place),
                             miles = geo.kilometersToMiles(kilometers),
                             title = distanceTemplate({miles: miles}),
-                            subtitles = [stop.title],
-                            titleHtml = titleTemplate({title: title, subtitles: subtitles});
+                            titleHtml = titleTemplate({title: title});
                             
                         return titleHtml;
                     }
@@ -443,48 +441,99 @@ define(function (require, exports, module) {
                         }
                     });
                     
-                    journeys.sort(function (journey1, journey2) {
-                        var length1 = journey1.walkingLength,
-                            length2 = journey2.walkingLength;
+                    var stopObjs = [];
+                    journeys.map(function (journey) {
+                        var departure = journey.departure,
+                            arrival = journey.arrival,
+                            route = departure._direction._route;
+                            
+                        stopObjs.push({
+                            stopTag: departure.tag,
+                            routeTag: route.tag
+                        });
                         
-                        return length1 - length2;
+                        stopObjs.push({
+                            stopTag: arrival.tag,
+                            routeTag: route.tag
+                        });
                     });
                     
-                    var options = {
-                        backHref: "#page=places",
-                        getEntryHref: function (journey) {
-                            var stop = journey.departure,
-                                direction = stop._direction,
+                    preds.getPredictionsForMultiStops(stopObjs).done(function (predictions) {
+                        function getAllDeparturePredictions(journey) {
+                            var departure = journey.departure,
+                                direction = departure._direction,
                                 route = direction._route;
                             
-                            return "#page=predictions&place=" + placeId +
-                                "&route=" + route.tag + "&direction=" + direction.tag +
-                                "&stop=" + stop.tag;
-                        },
-                        getLeft: function (journey) {
-                            var stop = journey.departure,
-                                direction = stop._direction,
-                                route = direction._route,
-                                title = route.title,
-                                subtitles = [direction.title, stop.title];
-                            
-                            return titleTemplate({title: title, subtitles: subtitles});
-                        },
-                        getRight: function (journey) {
-                            var stop = journey.arrival,
-                                direction = stop._direction,
-                                journeyMiles = geo.kilometersToMiles(journey.totalLength),
-                                walkingMiles = geo.kilometersToMiles(journey.walkingLength),
-                                title = distanceTemplate({miles: journeyMiles}),
-                                subtitles = [distanceTemplate({miles: walkingMiles}), stop.title],
-                                titleHtml = titleTemplate({title: title, subtitles: subtitles});
-                                
-                            return titleHtml;
+                            return predictions[route.tag][departure.tag];
                         }
-                    };
-                    
-                    list.showList(place.title, journeys, options);
+                        
+                        journeys = journeys.filter(function (journey) {
+                            var preds = getAllDeparturePredictions(journey);
+                            
+                            return preds.length > 0;
+                        });
+                        
+                        journeys.forEach(function (journey) {
+                            var preds = getAllDeparturePredictions(journey),
+                                departure = journey.departure,
+                                secondsAway = departure.secondsFromWalking(position),
+                                index;
+                            
+                            for (index = 0; index < preds.length; index++) {
+                                if (preds[index].seconds > secondsAway) {
+                                    break;
+                                }
+                            }
+                            
+                            preds.splice(0, index);
+                        });
+                        
+                        journeys = journeys.filter(function (journey) {
+                            var preds = getAllDeparturePredictions(journey);
+                            
+                            return preds.length > 0;
+                        });
+                        
+                        journeys.sort(function (journey1, journey2) {
+                            var pred1 = getAllDeparturePredictions(journey1)[0],
+                                pred2 = getAllDeparturePredictions(journey2)[0];
+                            
+                            return pred1.seconds - pred2.seconds;
+                        });
+                        
+                        var options = {
+                            backHref: "#page=places",
+                            getEntryHref: function (journey) {
+                                var stop = journey.departure,
+                                    direction = stop._direction,
+                                    route = direction._route;
+                                
+                                return "#page=predictions&place=" + placeId +
+                                    "&route=" + route.tag + "&direction=" + direction.tag +
+                                    "&stop=" + stop.tag;
+                            },
+                            getLeft: function (journey) {
+                                var stop = journey.departure,
+                                    direction = stop._direction,
+                                    route = direction._route,
+                                    title = route.getTitleWithColor(),
+                                    subtitles = [direction.title, stop.title];
+                                
+                                return titleTemplate({title: title, subtitles: subtitles});
+                            },
+                            getRight: function (journey) {
+                                var stop = journey.arrival,
+                                    pred = getAllDeparturePredictions(journey)[0],
+                                    title = predictionsTemplate({predictions: pred}),
+                                    subtitles = [stop.title],
+                                    titleHtml = titleTemplate({title: title, subtitles: subtitles});
 
+                                return titleHtml;
+                            }
+                        };
+                        
+                        list.showList(place.title, journeys, options);
+                    });
                 });
             });
         });

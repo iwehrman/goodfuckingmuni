@@ -24,7 +24,8 @@ define(function (require, exports, module) {
                 seconds = parseInt($prediction.attr("seconds"), 10),
                 minutes = parseInt($prediction.attr("minutes"), 10),
                 isDeparture = $prediction.attr("isDeparture") === "true",
-                affectedByLayover = $prediction.attr("affectedByLayover") === "true";
+                affectedByLayover = $prediction.attr("affectedByLayover") === "true",
+                vehicle = parseInt($prediction.attr("vehicle"), 10);
                 
             predictions.push({
                 dirTag: dirTag,
@@ -32,7 +33,8 @@ define(function (require, exports, module) {
                 seconds: seconds,
                 minutes: minutes,
                 isDeparture: isDeparture,
-                affectedByLayover: affectedByLayover
+                affectedByLayover: affectedByLayover,
+                vehicle: vehicle
             });
         });
         
