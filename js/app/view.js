@@ -467,8 +467,43 @@ define(function (require, exports, module) {
                             return predictions[route.tag][departure.tag];
                         }
                         
+                        function getAllArrivalPredictions(journey) {
+                            var departure = journey.arrival,
+                                direction = departure._direction,
+                                route = direction._route;
+                            
+                            return predictions[route.tag][departure.tag];
+                        }
+                        
+                        function filterArrivalsByDepartures(departures, arrivals) {
+                            var feasibleArrivals = [],
+                                departureIndex = 0,
+                                arrivalIndex = 0,
+                                departure,
+                                arrival,
+                                vehicle;
+
+                            while (departureIndex < departures.length) {
+                                departure = departures[departureIndex++];
+                                vehicle = departure.vehicle;
+                                
+                                while (arrivalIndex < arrivals.length) {
+                                    arrival = arrivals[arrivalIndex++];
+                                    if (arrival.vehicle === vehicle) {
+                                        feasibleArrivals.push(arrival);
+                                        break;
+                                    }
+                                }
+                            }
+                            return feasibleArrivals;
+                        }
+                        
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
+                            
+                            if (preds.length === 0) {
+                                console.log("Filtering empty preds", journey.departure._direction._route);
+                            }
                             
                             return preds.length > 0;
                         });
@@ -482,6 +517,8 @@ define(function (require, exports, module) {
                             for (index = 0; index < preds.length; index++) {
                                 if (preds[index].seconds > secondsAway) {
                                     break;
+                                } else {
+                                    console.log("Filtering pred by walk infeasibilty", journey.departure._direction._route, preds[index]);
                                 }
                             }
                             
@@ -490,15 +527,59 @@ define(function (require, exports, module) {
                         
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
+                            if (preds.length === 0) {
+                                console.log("Filtering by walk infeasibility", journey.departure._direction._route);
+                            }
                             
                             return preds.length > 0;
                         });
                         
-                        journeys.sort(function (journey1, journey2) {
-                            var pred1 = getAllDeparturePredictions(journey1)[0],
-                                pred2 = getAllDeparturePredictions(journey2)[0];
+                        var totalDistance = geo.distance(place, position);
+                        journeys = journeys.filter(function (journey) {
+                            if (journey.walkingLength > totalDistance) {
+                                console.log("Filtering by walkingLength", journey);
+                            } else {
+                                console.log("Riding fraction: ", (totalDistance - journey.walkingLength) / totalDistance, journey.departure._direction._route);
+                            }
+                            return journey.walkingLength <= totalDistance;
+                        });
+                        
+                        var feasibleArrivalsForRoute = {};
+                        journeys = journeys.filter(function (journey) {
+                            var departures = getAllDeparturePredictions(journey),
+                                arrivals = getAllArrivalPredictions(journey),
+                                feasibleArrivals = filterArrivalsByDepartures(departures, arrivals);
                             
-                            return pred1.seconds - pred2.seconds;
+                            if (feasibleArrivals.length > 0) {
+                                feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
+                                console.log("Feasible arrivals", feasibleArrivals, journey.departure._direction._route);
+                                return true;
+                            } else {
+                                console.log("No feasible arrivals", journey.departure._direction._route);
+                                return false;
+                            }
+                        });
+
+                        journeys.sort(function (journey1, journey2) {
+                            var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
+                                pred2 = feasibleArrivalsForRoute[journey2.departure._direction._route.tag],
+                                arrival1 = pred1[0].seconds,
+                                arrival2 = pred2[0].seconds,
+                                walk1 = geo.walkTime(journey1.arrivalToDestination),
+                                walk2 = geo.walkTime(journey2.arrivalToDestination),
+                                dest1 = arrival1 + walk1,
+                                dest2 = arrival2 + walk2;
+                            
+                            return dest1 - dest2;
+                        });
+                        
+                        journeys.forEach(function (journey1) {
+                            var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
+                                arrival1 = pred1[0].seconds,
+                                walk1 = geo.walkTime(journey1.arrivalToDestination),
+                                dest1 = arrival1 + walk1;
+                            
+                            console.log("Arrival for", journey1.departure, journey1.arrival, arrival1, walk1, dest1);
                         });
                         
                         var options = {
