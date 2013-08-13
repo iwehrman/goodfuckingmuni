@@ -498,11 +498,13 @@ define(function (require, exports, module) {
                             return feasibleArrivals;
                         }
                         
+                        var MUNI_TOLERANCE = 1.5;
+                        
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
                             
                             if (preds.length === 0) {
-                                console.log("Filtering empty preds", journey.departure._direction._route);
+                                console.log("No departures for route " + journey.departure._direction._route.tag);
                             }
                             
                             return preds.length > 0;
@@ -518,7 +520,7 @@ define(function (require, exports, module) {
                                 if (preds[index].seconds > secondsAway) {
                                     break;
                                 } else {
-                                    console.log("Filtering pred by walk infeasibilty", journey.departure._direction._route, preds[index]);
+                                    console.log("Infeasible departure " + journey.departure._direction._route.tag, preds[index].minutes, (secondsAway / 60).toFixed(2));
                                 }
                             }
                             
@@ -528,7 +530,7 @@ define(function (require, exports, module) {
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
                             if (preds.length === 0) {
-                                console.log("Filtering by walk infeasibility", journey.departure._direction._route);
+                                console.log("No feasible departures for route " + journey.departure._direction._route.tag);
                             }
                             
                             return preds.length > 0;
@@ -536,12 +538,12 @@ define(function (require, exports, module) {
                         
                         var totalDistance = geo.distance(place, position);
                         journeys = journeys.filter(function (journey) {
-                            if (journey.walkingLength > totalDistance) {
-                                console.log("Filtering by walkingLength", journey);
+                            if (journey.walkingLength * MUNI_TOLERANCE > totalDistance) {
+                                console.log("Long walk " + journey.departure._direction._route.tag, journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
                             } else {
-                                console.log("Riding fraction: ", (totalDistance - journey.walkingLength) / totalDistance, journey.departure._direction._route);
+                                console.log("Riding fraction for " + journey.departure._direction._route.tag, ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
                             }
-                            return journey.walkingLength <= totalDistance;
+                            return journey.walkingLength <= (totalDistance / MUNI_TOLERANCE);
                         });
                         
                         var feasibleArrivalsForRoute = {};
@@ -552,10 +554,10 @@ define(function (require, exports, module) {
                             
                             if (feasibleArrivals.length > 0) {
                                 feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
-                                console.log("Feasible arrivals", feasibleArrivals, journey.departure._direction._route);
+                                console.log("Best arrival for " + journey.departure._direction._route.tag, (feasibleArrivals[0].seconds / 60).toFixed(2));
                                 return true;
                             } else {
-                                console.log("No feasible arrivals", journey.departure._direction._route);
+                                console.log("No feasible arrivals for " + journey.departure._direction._route.tag);
                                 return false;
                             }
                         });
@@ -577,9 +579,10 @@ define(function (require, exports, module) {
                             var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
                                 arrival1 = pred1[0].seconds,
                                 walk1 = geo.walkTime(journey1.arrivalToDestination),
-                                dest1 = arrival1 + walk1;
+                                dest1 = arrival1 + walk1,
+                                departure = getAllDeparturePredictions(journey1)[0].minutes;
                             
-                            console.log("Arrival for", journey1.departure, journey1.arrival, arrival1, walk1, dest1);
+                            console.log("Arrival for " + journey1.departure._direction._route.tag, journey1.departure.title + " in " + departure, journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2), (walk1 / 60).toFixed(2));
                         });
                         
                         var options = {
