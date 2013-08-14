@@ -441,6 +441,25 @@ define(function (require, exports, module) {
                         }
                     });
                     
+                    var MUNI_TOLERANCE = 0.735;
+                    var totalDistance = geo.distance(place, position);
+                    console.log("Total distance " + totalDistance);
+                    journeys = journeys.filter(function (journey) {
+                        console.log("Walk length " + journey.departure._direction._route.tag,
+                                    journey.currentToDeparture.toFixed(2),
+                                    journey.arrivalToDestination.toFixed(2),
+                                    journey.walkingLength.toFixed(2));
+                        if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
+                            console.log("Long walk " + journey.departure._direction._route.tag,
+                                        journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
+                            return false;
+                        } else {
+                            console.log("Riding fraction for " + journey.departure._direction._route.tag,
+                                        ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
+                            return true;
+                        }
+                    });
+                    
                     var stopObjs = [];
                     journeys.map(function (journey) {
                         var departure = journey.departure,
@@ -536,25 +555,6 @@ define(function (require, exports, module) {
                             }
                             
                             return preds.length > 0;
-                        });
-                        
-                        var MUNI_TOLERANCE = 0.735;
-                        var totalDistance = geo.distance(place, position);
-                        console.log("Total distance " + totalDistance);
-                        journeys = journeys.filter(function (journey) {
-                            console.log("Walk length " + journey.departure._direction._route.tag,
-                                        journey.currentToDeparture.toFixed(2),
-                                        journey.arrivalToDestination.toFixed(2),
-                                        journey.walkingLength.toFixed(2));
-                            if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
-                                console.log("Long walk " + journey.departure._direction._route.tag,
-                                            journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
-                                return false;
-                            } else {
-                                console.log("Riding fraction for " + journey.departure._direction._route.tag,
-                                            ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
-                                return true;
-                            }
                         });
                         
                         var feasibleArrivalsForRoute = {};
