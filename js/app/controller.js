@@ -127,6 +127,9 @@ define(function (require, exports, module) {
                 removePlace(state.place);
                 location.hash = "#page=places";
                 break;
+            case "arrivals":
+                view.showPlaces(true, "arrivals");
+                break;
             default:
                 view.showPlaces(true);
             }
@@ -140,6 +143,9 @@ define(function (require, exports, module) {
             case "remove":
                 removeStop(state.place, state.stop);
                 location.hash = "#page=place&place=" + state.place;
+                break;
+            case "arrivals":
+                view.showJourneys(state.place);
                 break;
             default:
                 view.showPlace(state.place);
@@ -156,9 +162,6 @@ define(function (require, exports, module) {
             break;
         case "stops":
             view.showStops(state.place, state.route, state.direction, true);
-            break;
-        case "journeys":
-            view.showJourneys(state.place);
             break;
         default:
             view.showPlaces(false);

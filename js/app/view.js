@@ -331,7 +331,7 @@ define(function (require, exports, module) {
         });
     }
     
-    function showPlaces(showAll) {
+    function showPlaces(showAll, entryOp) {
         var placeList = places.getAllPlaces();
         
         function preloadRoutes() {
@@ -366,7 +366,7 @@ define(function (require, exports, module) {
             var options = {
                 addHref: "#page=places&op=add",
                 getEntryHref: function (place) {
-                    return "#page=place&place=" + place.id;
+                    return "#page=place&place=" + place.id + (entryOp ? "&op=" + entryOp : "");
                 },
                 getLeft: function (place) {
                     return titleTemplate(place);
@@ -498,13 +498,12 @@ define(function (require, exports, module) {
                             return feasibleArrivals;
                         }
                         
-                        var MUNI_TOLERANCE = 1.5;
-                        
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
                             
                             if (preds.length === 0) {
-                                console.log("No departures for route " + journey.departure._direction._route.tag);
+                                console.log("No departures for route " +
+                                            journey.departure._direction._route.tag);
                             }
                             
                             return preds.length > 0;
@@ -520,7 +519,9 @@ define(function (require, exports, module) {
                                 if (preds[index].seconds > secondsAway) {
                                     break;
                                 } else {
-                                    console.log("Infeasible departure " + journey.departure._direction._route.tag, preds[index].minutes, (secondsAway / 60).toFixed(2));
+                                    console.log("Infeasible departure " +
+                                                journey.departure._direction._route.tag,
+                                                preds[index].minutes, (secondsAway / 60).toFixed(2));
                                 }
                             }
                             
@@ -530,20 +531,30 @@ define(function (require, exports, module) {
                         journeys = journeys.filter(function (journey) {
                             var preds = getAllDeparturePredictions(journey);
                             if (preds.length === 0) {
-                                console.log("No feasible departures for route " + journey.departure._direction._route.tag);
+                                console.log("No feasible departures for route " +
+                                            journey.departure._direction._route.tag);
                             }
                             
                             return preds.length > 0;
                         });
                         
+                        var MUNI_TOLERANCE = 0.735;
                         var totalDistance = geo.distance(place, position);
+                        console.log("Total distance " + totalDistance);
                         journeys = journeys.filter(function (journey) {
-                            if (journey.walkingLength * MUNI_TOLERANCE > totalDistance) {
-                                console.log("Long walk " + journey.departure._direction._route.tag, journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
+                            console.log("Walk length " + journey.departure._direction._route.tag,
+                                        journey.currentToDeparture.toFixed(2),
+                                        journey.arrivalToDestination.toFixed(2),
+                                        journey.walkingLength.toFixed(2));
+                            if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
+                                console.log("Long walk " + journey.departure._direction._route.tag,
+                                            journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
+                                return false;
                             } else {
-                                console.log("Riding fraction for " + journey.departure._direction._route.tag, ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
+                                console.log("Riding fraction for " + journey.departure._direction._route.tag,
+                                            ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
+                                return true;
                             }
-                            return journey.walkingLength <= (totalDistance / MUNI_TOLERANCE);
                         });
                         
                         var feasibleArrivalsForRoute = {};
@@ -554,10 +565,12 @@ define(function (require, exports, module) {
                             
                             if (feasibleArrivals.length > 0) {
                                 feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
-                                console.log("Best arrival for " + journey.departure._direction._route.tag, (feasibleArrivals[0].seconds / 60).toFixed(2));
+                                console.log("Best arrival for " + journey.departure._direction._route.tag,
+                                            (feasibleArrivals[0].seconds / 60).toFixed(2));
                                 return true;
                             } else {
-                                console.log("No feasible arrivals for " + journey.departure._direction._route.tag);
+                                console.log("No feasible arrivals for " +
+                                            journey.departure._direction._route.tag);
                                 return false;
                             }
                         });
@@ -582,11 +595,14 @@ define(function (require, exports, module) {
                                 dest1 = arrival1 + walk1,
                                 departure = getAllDeparturePredictions(journey1)[0].minutes;
                             
-                            console.log("Arrival for " + journey1.departure._direction._route.tag, journey1.departure.title + " in " + departure, journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2), (walk1 / 60).toFixed(2));
+                            console.log("Arrival for " + journey1.departure._direction._route.tag,
+                                        journey1.departure.title + " in " + departure,
+                                        journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2),
+                                        (walk1 / 60).toFixed(2));
                         });
                         
                         var options = {
-                            backHref: "#page=places",
+                            backHref: "#page=places&op=arrivals",
                             getEntryHref: function (journey) {
                                 var stop = journey.departure,
                                     direction = stop._direction,
