@@ -7,10 +7,11 @@ define(function (require, exports, module) {
     var $ = require("jquery"),
         async = require("async"),
         mustache = require("mustache"),
+        geo = require("app/geolocation"),
+        places = require("app/places"),
         routes = require("app/routes"),
         preds = require("app/predictions"),
-        places = require("app/places"),
-        geo = require("app/geolocation"),
+        journeys = require("app/journeys"),
         list = require("app/list");
 
     var NEARBY_IN_KM = 0.5;
@@ -400,244 +401,42 @@ define(function (require, exports, module) {
         var locationPromise = geo.getLocation(),
             place = places.getPlace(placeId);
         
-        routes.getRoutes().done(function (routeList) {
-            locationPromise.done(function (position) {
-                async.map(routeList, function (routeObj, callback) {
-                    routes.getRoute(routeObj.tag).done(function (route) {
-                        callback(null, route);
-                    }).fail(function (err) {
-                        callback(err);
-                    });
-                }, function (err, allRoutes) {
-                    if (err) {
-                        console.error("[showBestStops] failed to get routes: " + err);
-                        return;
+        locationPromise.done(function (position) {
+            journeys.getJourneys(position, place).done(function (journeys) {
+                var options = {
+                    backHref: "#page=places&op=arrivals",
+                    getEntryHref: function (journey) {
+                        var stop = journey.departure,
+                            direction = stop._direction,
+                            route = direction._route;
+                        
+                        return "#page=predictions&place=" + placeId +
+                            "&route=" + route.tag + "&direction=" + direction.tag +
+                            "&stop=" + stop.tag;
+                    },
+                    getLeft: function (journey) {
+                        var stop = journey.departure,
+                            direction = stop._direction,
+                            route = direction._route,
+                            title = route.getTitleWithColor(),
+                            subtitles = [direction.title, stop.title];
+                        
+                        return titleTemplate({title: title, subtitles: subtitles});
+                    },
+                    getRight: function (journey) {
+                        var stop = journey.arrival,
+                            pred = journey.departurePredictions[0],
+                            title = predictionsTemplate({predictions: pred}),
+                            subtitles = [stop.title],
+                            titleHtml = titleTemplate({title: title, subtitles: subtitles});
+
+                        return titleHtml;
                     }
-                    
-                    var journeys = [];
-                    allRoutes.map(function (route) {
-                        var directions = [],
-                            bestJourney = null,
-                            dirTag;
-            
-                        for (dirTag in route.directions) {
-                            if (route.directions.hasOwnProperty(dirTag)) {
-                                directions.push(route.directions[dirTag]);
-                            }
-                        }
-                        
-                        directions.forEach(function (direction) {
-                            var journey = direction.getJourney(place, position);
-                            
-                            if (journey && (!bestJourney || journey.totalLength < bestJourney.totalLength)) {
-                                if (journey.arrival !== journey.departure) {
-                                    bestJourney = journey;
-                                }
-                            }
-                        });
-                        
-                        if (bestJourney) {
-                            journeys.push(bestJourney);
-                        }
-                    });
-                    
-                    var MUNI_TOLERANCE = 0.735;
-                    var totalDistance = geo.distance(place, position);
-                    console.log("Total distance " + totalDistance);
-                    journeys = journeys.filter(function (journey) {
-                        console.log("Walk length " + journey.departure._direction._route.tag,
-                                    journey.currentToDeparture.toFixed(2),
-                                    journey.arrivalToDestination.toFixed(2),
-                                    journey.walkingLength.toFixed(2));
-                        if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
-                            console.log("Long walk " + journey.departure._direction._route.tag,
-                                        journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
-                            return false;
-                        } else {
-                            console.log("Riding fraction for " + journey.departure._direction._route.tag,
-                                        ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
-                            return true;
-                        }
-                    });
-                    
-                    var stopObjs = [];
-                    journeys.map(function (journey) {
-                        var departure = journey.departure,
-                            arrival = journey.arrival,
-                            route = departure._direction._route;
-                            
-                        stopObjs.push({
-                            stopTag: departure.tag,
-                            routeTag: route.tag
-                        });
-                        
-                        stopObjs.push({
-                            stopTag: arrival.tag,
-                            routeTag: route.tag
-                        });
-                    });
-                    
-                    preds.getPredictionsForMultiStops(stopObjs).done(function (predictions) {
-                        function getAllDeparturePredictions(journey) {
-                            var departure = journey.departure,
-                                direction = departure._direction,
-                                route = direction._route;
-                            
-                            return predictions[route.tag][departure.tag];
-                        }
-                        
-                        function getAllArrivalPredictions(journey) {
-                            var departure = journey.arrival,
-                                direction = departure._direction,
-                                route = direction._route;
-                            
-                            return predictions[route.tag][departure.tag];
-                        }
-                        
-                        function filterArrivalsByDepartures(departures, arrivals) {
-                            var feasibleArrivals = [],
-                                departureIndex = 0,
-                                arrivalIndex = 0,
-                                departure,
-                                arrival,
-                                vehicle;
-
-                            while (departureIndex < departures.length) {
-                                departure = departures[departureIndex++];
-                                vehicle = departure.vehicle;
-                                
-                                while (arrivalIndex < arrivals.length) {
-                                    arrival = arrivals[arrivalIndex++];
-                                    if (arrival.vehicle === vehicle) {
-                                        feasibleArrivals.push(arrival);
-                                        break;
-                                    }
-                                }
-                            }
-                            return feasibleArrivals;
-                        }
-                        
-                        journeys = journeys.filter(function (journey) {
-                            var preds = getAllDeparturePredictions(journey);
-                            
-                            if (preds.length === 0) {
-                                console.log("No departures for route " +
-                                            journey.departure._direction._route.tag);
-                            }
-                            
-                            return preds.length > 0;
-                        });
-                        
-                        journeys.forEach(function (journey) {
-                            var preds = getAllDeparturePredictions(journey),
-                                departure = journey.departure,
-                                secondsAway = departure.secondsFromWalking(position),
-                                index;
-                            
-                            for (index = 0; index < preds.length; index++) {
-                                if (preds[index].seconds > secondsAway) {
-                                    break;
-                                } else {
-                                    console.log("Infeasible departure " +
-                                                journey.departure._direction._route.tag,
-                                                preds[index].minutes, (secondsAway / 60).toFixed(2));
-                                }
-                            }
-                            
-                            preds.splice(0, index);
-                        });
-                        
-                        journeys = journeys.filter(function (journey) {
-                            var preds = getAllDeparturePredictions(journey);
-                            if (preds.length === 0) {
-                                console.log("No feasible departures for route " +
-                                            journey.departure._direction._route.tag);
-                            }
-                            
-                            return preds.length > 0;
-                        });
-                        
-                        var feasibleArrivalsForRoute = {};
-                        journeys = journeys.filter(function (journey) {
-                            var departures = getAllDeparturePredictions(journey),
-                                arrivals = getAllArrivalPredictions(journey),
-                                feasibleArrivals = filterArrivalsByDepartures(departures, arrivals);
-                            
-                            if (feasibleArrivals.length > 0) {
-                                feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
-                                console.log("Best arrival for " + journey.departure._direction._route.tag,
-                                            (feasibleArrivals[0].seconds / 60).toFixed(2));
-                                return true;
-                            } else {
-                                console.log("No feasible arrivals for " +
-                                            journey.departure._direction._route.tag);
-                                return false;
-                            }
-                        });
-
-                        journeys.sort(function (journey1, journey2) {
-                            var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
-                                pred2 = feasibleArrivalsForRoute[journey2.departure._direction._route.tag],
-                                arrival1 = pred1[0].seconds,
-                                arrival2 = pred2[0].seconds,
-                                walk1 = geo.walkTime(journey1.arrivalToDestination),
-                                walk2 = geo.walkTime(journey2.arrivalToDestination),
-                                dest1 = arrival1 + walk1,
-                                dest2 = arrival2 + walk2;
-                            
-                            return dest1 - dest2;
-                        });
-                        
-                        journeys.forEach(function (journey1) {
-                            var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
-                                arrival1 = pred1[0].seconds,
-                                walk1 = geo.walkTime(journey1.arrivalToDestination),
-                                dest1 = arrival1 + walk1,
-                                departure = getAllDeparturePredictions(journey1)[0].minutes;
-                            
-                            console.log("Arrival for " + journey1.departure._direction._route.tag,
-                                        journey1.departure.title + " in " + departure,
-                                        journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2),
-                                        (walk1 / 60).toFixed(2));
-                        });
-                        
-                        var options = {
-                            backHref: "#page=places&op=arrivals",
-                            getEntryHref: function (journey) {
-                                var stop = journey.departure,
-                                    direction = stop._direction,
-                                    route = direction._route;
-                                
-                                return "#page=predictions&place=" + placeId +
-                                    "&route=" + route.tag + "&direction=" + direction.tag +
-                                    "&stop=" + stop.tag;
-                            },
-                            getLeft: function (journey) {
-                                var stop = journey.departure,
-                                    direction = stop._direction,
-                                    route = direction._route,
-                                    title = route.getTitleWithColor(),
-                                    subtitles = [direction.title, stop.title];
-                                
-                                return titleTemplate({title: title, subtitles: subtitles});
-                            },
-                            getRight: function (journey) {
-                                var stop = journey.arrival,
-                                    pred = getAllDeparturePredictions(journey)[0],
-                                    title = predictionsTemplate({predictions: pred}),
-                                    subtitles = [stop.title],
-                                    titleHtml = titleTemplate({title: title, subtitles: subtitles});
-
-                                return titleHtml;
-                            }
-                        };
-                        
-                        list.showList(place.title, journeys, options);
-                    });
-                });
+                };
+                
+                list.showList(place.title, journeys, options);
             });
         });
-        
     }
 
     exports.showJourneys = showJourneys;
