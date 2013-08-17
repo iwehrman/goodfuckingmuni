@@ -76,8 +76,8 @@ define(function (require, exports, module) {
         
         return $entry;
     }
-
-    function makeList(title, list, opts) {
+    
+    function makeListContainer(title, opts) {
         var left;
         if (opts.backHref) {
             var backSettings = {
@@ -105,18 +105,12 @@ define(function (require, exports, module) {
             center: title,
             right: right
         },  containerHTML = containerTemplate(containerSettings),
-            $container = $(containerHTML),
-            $entries = $container.find(".entries");
-        
-        list.forEach(function (obj, index) {
-            var $entry = makeListEntry(obj, index, opts);
-            $entries.append($entry);
-        });
-        
+            $container = $(containerHTML);
+            
         return $container;
     }
 
-    function showList(title, list, options) {
+    function showList(title, listPromise, options) {
         options = options || {};
         
         if (refreshTimer) {
@@ -125,7 +119,7 @@ define(function (require, exports, module) {
             handleRefresh = null;
         }
         
-        var $container = makeList(title, list, options),
+        var $container = makeListContainer(title, options),
             $children = $content.children();
         
         if ($children.length === 1) {
@@ -137,21 +131,30 @@ define(function (require, exports, module) {
             $content.append($container);
         }
         
-        if (options.refresh) {
-            handleRefresh = options.refresh;
-            refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
-        }
-        
-        if (options.scroll) {
-            var $entry = $content.find(".highlight").parents(".entry");
-            $body.animate({
-                scrollTop: $entry.offset().top - $content.scrollTop()
+        listPromise.done(function (list) {
+            var $entries = $container.find(".entries");
+            
+            list.forEach(function (obj, index) {
+                var $entry = makeListEntry(obj, index, options);
+                $entries.append($entry);
             });
-        } else {
-            $body.animate({
-                scrollTop: 0
-            });
-        }
+            
+            if (options.refresh) {
+                handleRefresh = options.refresh;
+                refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
+            }
+            
+            if (options.scroll) {
+                var $entry = $content.find(".highlight").parents(".entry");
+                $body.animate({
+                    scrollTop: $entry.offset().top - $content.scrollTop()
+                });
+            } else {
+                $body.animate({
+                    scrollTop: 0
+                });
+            }
+        });
     }
     
     function refreshList(force) {

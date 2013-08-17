@@ -28,30 +28,30 @@ define(function (require, exports, module) {
         $content = $body.find(".content");
     
     function showPredictions(placeId, routeTag, stopTag) {
+        var deferred = $.Deferred(),
+            listPromise = deferred.promise();
+        
         routes.getRoute(routeTag).done(function (route) {
-            preds.getPredictions(routeTag, stopTag).done(function (predictions) {
-                
-                function refreshPredictions(force) {
-                    preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
-                        $content.find(".entry").each(function (index, entry) {
-                            var $entry = $(entry);
-                            
-                            $entry.find(".entry__minutes").each(function (_index, minutes) {
-                                if (index < newPredictions.length) {
-                                    $(minutes).text(newPredictions[index].minutes);
-                                    return true;
-                                } else {
-                                    return false;
-                                }
-                            });
+            function refreshPredictions(force) {
+                preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
+                    $content.find(".entry").each(function (index, entry) {
+                        var $entry = $(entry);
+                        
+                        $entry.find(".entry__minutes").each(function (_index, minutes) {
+                            if (index < newPredictions.length) {
+                                $(minutes).text(newPredictions[index].minutes);
+                                return true;
+                            } else {
+                                return false;
+                            }
                         });
                     });
-                }
-                
-                var stop = route.stops[stopTag],
-                    title = stop.title;
-                
-                var options = {
+                });
+            }
+            
+            var stop = route.stops[stopTag],
+                title = stop.title,
+                options = {
                     backHref: "#page=place&place=" + placeId,
                     getHighlight: function (prediction) { return false; },
                     getLeft: function (prediction) {
@@ -59,55 +59,81 @@ define(function (require, exports, module) {
                     },
                     refresh: refreshPredictions
                 };
-                
-                list.showList(title, predictions, options);
+
+            list.showList(title, listPromise, options);
+        
+            preds.getPredictions(routeTag, stopTag).done(function (predictions) {
+                deferred.resolve(predictions);
             }).fail(function (err) {
-                console.error("[showPredictions] failed to get predictions: " + err);
+                deferred.reject(err);
             });
+        
         }).fail(function (err) {
             console.error("[showPredictions] failed to get route: " + err);
+            deferred.reject();
         });
     }
     
     function showStops(placeId, routeTag, dirTag, scroll) {
         var locationPromise = geo.getLocation(),
-            place = places.getPlace(placeId);
+            place = places.getPlace(placeId),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise();
     
         routes.getRoute(routeTag).done(function (route) {
-            locationPromise.done(function (position) {
-                var direction = route.directions[dirTag],
-                    title = route.title + ": " + direction.name,
-                    closestStop = direction.getClosestStop(position);
-                
-                var options = {
+            var direction = route.directions[dirTag],
+                title = route.title + ": " + direction.name,
+                options = {
                     backHref: "#page=directions&place=" + placeId + "&route=" + routeTag,
-                    getHighlight: function (stop, index) {
-                        return stop === closestStop;
+                    getHighlight: function (stopInfo, index) {
+                        return stopInfo.isClosest;
                     },
-                    getEntryHref: function (stop) {
+                    getEntryHref: function (stopInfo) {
+                        var stop = stopInfo.stop;
+                        
                         return "#page=place&op=add&place=" + placeId +
                             "&route=" + routeTag + "&direction=" + dirTag +
                             "&stop=" + stop.tag;
                     },
-                    getLeft: function (stop) {
+                    getLeft: function (stopInfo) {
+                        var stop = stopInfo.stop;
+                        
                         return stop.title;
                     },
-                    getRight: function (stop) {
+                    getRight: function (stopInfo) {
+                        var stop = stopInfo.stop;
+                        
                         return stop.isApproaching(place) ? "&ensp;&rarr;" : "&larr;&ensp;";
                     },
                     scroll: scroll
                 };
+            
+            list.showList(title, listPromise, options);
+    
+            locationPromise.done(function (position) {
+                var closestStop = direction.getClosestStop(position),
+                    stopInfoList = direction.stops.map(function (stop) {
+                        return {
+                            stop: stop,
+                            isClosest: stop === closestStop
+                        };
+                    });
                 
-                list.showList(title, direction.stops, options);
+                deferred.resolve(stopInfoList);
+            }).fail(function (err) {
+                deferred.reject(err);
             });
+            
         }).fail(function (err) {
             console.error("[showStops] failed to get route: " + err);
+            deferred.reject(err);
         });
     }
     
     function showDirections(placeId, routeTag) {
-        var locationPromise = geo.getLocation(),
-            place = places.getPlace(placeId);
+        var place = places.getPlace(placeId),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise();
         
         routes.getRoute(routeTag).done(function (route) {
             var directions = [],
@@ -123,64 +149,166 @@ define(function (require, exports, module) {
                 return a.title > b.title;
             });
 
-            locationPromise.done(function (position) {
-                var options = {
-                    backHref: "#page=routes&place=" + placeId,
-                    getEntryHref: function (direction) {
-                        var routeTag = route.tag;
-                        return "#page=stops&place=" + placeId +
-                            "&route=" + routeTag + "&direction=" + direction.tag;
-                    },
-                    getLeft: function (direction) {
-                        var title = direction.title,
-                            stop = direction.getClosestStop(place),
-                            subtitles = [stop.title];
+            deferred.resolve(directions);
+
+            var options = {
+                backHref: "#page=routes&place=" + placeId,
+                getEntryHref: function (direction) {
+                    var routeTag = route.tag;
+                    return "#page=stops&place=" + placeId +
+                        "&route=" + routeTag + "&direction=" + direction.tag;
+                },
+                getLeft: function (direction) {
+                    var title = direction.title,
+                        stop = direction.getClosestStop(place),
+                        subtitles = [stop.title];
+                    
+                    return titleTemplate({title: title, subtitles: subtitles});
+                },
+                getRight: function (direction) {
+                    var stop = direction.getClosestStop(place),
+                        kilometers = stop.distanceFrom(place),
+                        miles = geo.kilometersToMiles(kilometers),
+                        title = distanceTemplate({miles: miles}),
+                        titleHtml = titleTemplate({title: title});
                         
-                        return titleTemplate({title: title, subtitles: subtitles});
-                    },
-                    getRight: function (direction) {
-                        var stop = direction.getClosestStop(place),
-                            kilometers = stop.distanceFrom(place),
-                            miles = geo.kilometersToMiles(kilometers),
-                            title = distanceTemplate({miles: miles}),
-                            titleHtml = titleTemplate({title: title});
-                            
-                        return titleHtml;
-                    }
-                };
+                    return titleHtml;
+                }
+            };
                 
-                list.showList(route.title, directions, options);
-            });
+            list.showList(route.title, listPromise, options);
+
         }).fail(function (err) {
             console.error("[showDirections] failed to get route: " + err);
+            deferred.reject(err);
         });
     }
     
     function showRoutes(placeId) {
-        routes.getRoutes().done(function (routes) {
-            var options = {
-                backHref: "#page=place&place=" + placeId,
-                getEntryHref: function (route) {
-                    var routeTag = route.tag;
-                    return "#page=directions&place=" + placeId +
-                        "&route=" + routeTag;
-                },
-                getLeft: function (route) {
-                    return route.title;
-                }
-            };
-        
-            list.showList("Routes", routes, options);
-        }).fail(function (err) {
-            console.error("[showRoutes] failed to get routes: " + err);
-        });
+        var options = {
+            backHref: "#page=place&place=" + placeId,
+            getEntryHref: function (route) {
+                var routeTag = route.tag;
+                return "#page=directions&place=" + placeId +
+                    "&route=" + routeTag;
+            },
+            getLeft: function (route) {
+                return route.title;
+            }
+        };
+    
+        list.showList("Routes", routes.getRoutes(), options);
     }
     
     function showPlace(placeId) {
         var place = places.getPlace(placeId),
             predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
             title = place.title,
-            routeObjMap = {};
+            routeObjMap = {},
+            deferred = $.Deferred(),
+            listPromise = deferred.promise();
+        
+        function refreshPredictions(force) {
+            function updateEntries(predictionObjects) {
+                $content.find(".entry").each(function (index, entry) {
+                    var $entry = $(entry),
+                        data = entry.dataset,
+                        routeTag = data.route,
+                        stopTag = data.stop,
+                        predictionRoute = predictionObjects[routeTag],
+                        predictions;
+                    
+                    if (predictionRoute && predictionRoute[stopTag]) {
+                        predictions = predictionRoute[stopTag];
+                        $entry.find(".entry__right").animate({opacity: 1.0});
+                        $entry.find(".entry__minutes").each(function (index, minutes) {
+                            if (index < 3 && predictions.length > index) {
+                                $(minutes).text(predictions[index].minutes);
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        });
+                    } else {
+                        $entry.find(".entry__right").animate({opacity: 0.5});
+                    }
+                });
+            }
+            
+            preds.getPredictionsForMultiStops(place.stops, force)
+                .progress(updateEntries)
+                .done(updateEntries)
+                .fail(updateEntries.bind(null, {}));
+        }
+        
+        var options = {
+            backHref: "#page=places",
+            addHref: "#page=routes&place=" + placeId,
+            getEntryHref: function (routeObj) {
+                var routeTag = routeObj.route.tag,
+                    stopTag = routeObj.stopTag;
+                
+                return "#page=predictions&place=" + placeId +
+                    "&route=" + routeTag + "&stop=" + stopTag;
+            },
+            getTags: function (routeObj) {
+                return [{tag: "route", value: routeObj.route.tag},
+                        {tag: "dir", value: routeObj.dirTag},
+                        {tag: "stop", value: routeObj.stopTag}];
+            },
+            getLeft: function (routeObj) {
+                var route = routeObj.route,
+                    routeTag = route.tag,
+                    dirTag = routeObj.dirTag,
+                    stopTag = routeObj.stopTag,
+                    stop = route.stops[stopTag],
+                    stopTitle = "@ " + stop.title,
+                    routeTitle = route.getTitleWithColor(),
+                    subtitles = [route.directions[dirTag].title, stopTitle];
+                
+                return titleTemplate({title: routeTitle, subtitles: subtitles});
+            },
+            getRight: function (routeObj) {
+                var predictions = routeObj.predictions;
+                
+                if (predictions.length) {
+                    var firstPrediction = predictions[0],
+                        firstPredictionString = predictionsTemplate({
+                            predictions: firstPrediction
+                        }),
+                        lastIndex = Math.min(3, predictions.length),
+                        laterPredictions = predictions.slice(1, lastIndex),
+                        laterPredictionsString = predictionsTemplate({
+                            predictions: laterPredictions
+                        });
+                    return titleTemplate({
+                        title: firstPredictionString,
+                        subtitles: [laterPredictionsString]
+                    });
+                } else {
+                    return titleTemplate();
+                }
+            },
+            getRemoveHref: function (routeObj) {
+                var route = routeObj.route,
+                    routeTag = route.tag,
+                    stopTag = routeObj.stopTag;
+
+                return "#page=place&op=remove&place=" + placeId +
+                    "&route=" + routeTag + "&stop=" + stopTag;
+            },
+            confirmRemove: function (routeObj) {
+                var route = routeObj.route,
+                    dirTag = routeObj.dirTag,
+                    stopTag = routeObj.stopTag,
+                    stop = route.stops[stopTag];
+
+                return window.confirm("Remove stop " + stop.title + "?");
+            },
+            refresh: refreshPredictions
+        };
+        
+        list.showList(title, listPromise, options);
 
         async.map(place.stops, function (stopObj, callback) {
             routes.getRoute(stopObj.routeTag).done(function (route) {
@@ -196,6 +324,7 @@ define(function (require, exports, module) {
         }, function (err, routeObjs) {
             if (err) {
                 console.error("[showPlace] failed to get routes: " + err);
+                deferred.reject(err);
                 return;
             }
             
@@ -216,39 +345,6 @@ define(function (require, exports, module) {
                     }
                 }
                 
-                function refreshPredictions(force) {
-                    function updateEntries(predictionObjects) {
-                        $content.find(".entry").each(function (index, entry) {
-                            var $entry = $(entry),
-                                data = entry.dataset,
-                                routeTag = data.route,
-                                stopTag = data.stop,
-                                predictionRoute = predictionObjects[routeTag],
-                                predictions;
-                            
-                            if (predictionRoute && predictionRoute[stopTag]) {
-                                predictions = predictionRoute[stopTag];
-                                $entry.find(".entry__right").animate({opacity: 1.0});
-                                $entry.find(".entry__minutes").each(function (index, minutes) {
-                                    if (index < 3 && predictions.length > index) {
-                                        $(minutes).text(predictions[index].minutes);
-                                        return true;
-                                    } else {
-                                        return false;
-                                    }
-                                });
-                            } else {
-                                $entry.find(".entry__right").animate({opacity: 0.5});
-                            }
-                        });
-                    }
-                    
-                    preds.getPredictionsForMultiStops(place.stops, force)
-                        .progress(updateEntries)
-                        .done(updateEntries)
-                        .fail(updateEntries.bind(null, {}));
-                }
-                
                 routeObjs.forEach(function (routeObj, index) {
                     var routeTag = routeObj.route.tag,
                         stopTag = routeObj.stopTag;
@@ -258,82 +354,18 @@ define(function (require, exports, module) {
                 
                 routeObjs.sort(predictionComparator);
                 
-                var options = {
-                    backHref: "#page=places",
-                    addHref: "#page=routes&place=" + placeId,
-                    getEntryHref: function (routeObj) {
-                        var routeTag = routeObj.route.tag,
-                            stopTag = routeObj.stopTag;
-                        
-                        return "#page=predictions&place=" + placeId +
-                            "&route=" + routeTag + "&stop=" + stopTag;
-                    },
-                    getTags: function (routeObj) {
-                        return [{tag: "route", value: routeObj.route.tag},
-                                {tag: "dir", value: routeObj.dirTag},
-                                {tag: "stop", value: routeObj.stopTag}];
-                    },
-                    getLeft: function (routeObj) {
-                        var route = routeObj.route,
-                            routeTag = route.tag,
-                            dirTag = routeObj.dirTag,
-                            stopTag = routeObj.stopTag,
-                            stop = route.stops[stopTag],
-                            stopTitle = "@ " + stop.title,
-                            routeTitle = route.getTitleWithColor(),
-                            subtitles = [route.directions[dirTag].title, stopTitle];
-                        
-                        return titleTemplate({title: routeTitle, subtitles: subtitles});
-                    },
-                    getRight: function (routeObj) {
-                        var predictions = routeObj.predictions;
-                        
-                        if (predictions.length) {
-                            var firstPrediction = predictions[0],
-                                firstPredictionString = predictionsTemplate({
-                                    predictions: firstPrediction
-                                }),
-                                lastIndex = Math.min(3, predictions.length),
-                                laterPredictions = predictions.slice(1, lastIndex),
-                                laterPredictionsString = predictionsTemplate({
-                                    predictions: laterPredictions
-                                });
-                            return titleTemplate({
-                                title: firstPredictionString,
-                                subtitles: [laterPredictionsString]
-                            });
-                        } else {
-                            return titleTemplate();
-                        }
-                    },
-                    getRemoveHref: function (routeObj) {
-                        var route = routeObj.route,
-                            routeTag = route.tag,
-                            stopTag = routeObj.stopTag;
-
-                        return "#page=place&op=remove&place=" + placeId +
-                            "&route=" + routeTag + "&stop=" + stopTag;
-                    },
-                    confirmRemove: function (routeObj) {
-                        var route = routeObj.route,
-                            dirTag = routeObj.dirTag,
-                            stopTag = routeObj.stopTag,
-                            stop = route.stops[stopTag];
-
-                        return window.confirm("Remove stop " + stop.title + "?");
-                    },
-                    refresh: refreshPredictions
-                };
-                
-                list.showList(title, routeObjs, options);
+                deferred.resolve(routeObjs);
             }).fail(function (err) {
                 console.error("[showPlace] failed to get predictions: " + err);
+                deferred.reject(err);
             });
         });
     }
     
     function showPlaces(showAll, entryOp) {
-        var placeList = places.getAllPlaces();
+        var placeList = places.getAllPlaces(),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise();
         
         function preloadRoutes() {
             var routeList = [];
@@ -356,86 +388,115 @@ define(function (require, exports, module) {
             preds.getPredictionsForMultiStops(stopObjs, force);
         }
         
+        var options = {
+            addHref: "#page=places&op=add",
+            getEntryHref: function (placeInfo) {
+                var place = placeInfo.place;
+                
+                return "#page=place&place=" + place.id + (entryOp ? "&op=" + entryOp : "");
+            },
+            getLeft: function (placeInfo) {
+                var place = placeInfo.place;
+                
+                return titleTemplate(place);
+            },
+            getRight: function (placeInfo) {
+                var place = placeInfo.place,
+                    position = placeInfo.position,
+                    meters = geo.distance(position, place),
+                    miles = geo.kilometersToMiles(meters),
+                    distance = distanceTemplate({miles: miles});
+                return titleTemplate({title: distance});
+            },
+            getRemoveHref: function (placeInfo) {
+                var place = placeInfo.place;
+                
+                return "#page=places&op=remove&place=" + place.id;
+            },
+            confirmRemove: function (placeInfo) {
+                var place = placeInfo.place;
+                
+                return window.confirm("Remove place " + place.title + "?");
+            },
+            refresh: preloadPredictions
+        };
+        
+        list.showList("Places", listPromise, options);
+        
         geo.sortByCurrentLocation(placeList).done(function (position) {
             if (!showAll && placeList.length >= 1 &&
                     geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
                     (placeList.length < 2 ||
                         geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
+                
+                deferred.reject();
                 return showPlace(placeList[0].id);
             }
-
-            var options = {
-                addHref: "#page=places&op=add",
-                getEntryHref: function (place) {
-                    return "#page=place&place=" + place.id + (entryOp ? "&op=" + entryOp : "");
-                },
-                getLeft: function (place) {
-                    return titleTemplate(place);
-                },
-                getRight: function (place) {
-                    var meters = geo.distance(position, place),
-                        miles = geo.kilometersToMiles(meters),
-                        distance = distanceTemplate({miles: miles});
-                    return titleTemplate({title: distance});
-                },
-                getRemoveHref: function (place) {
-                    return "#page=places&op=remove&place=" + place.id;
-                },
-                confirmRemove: function (place) {
-                    return window.confirm("Remove place " + place.title + "?");
-                },
-                refresh: preloadPredictions
-            };
             
-            list.showList("Places", placeList, options);
+            var placeInfoList = placeList.map(function (place) {
+                return {
+                    place: place,
+                    position: position
+                };
+            });
+            
+            deferred.resolve(placeInfoList);
             
             // warm up cache
             preloadRoutes();
             preloadPredictions();
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
+            deferred.reject(err);
         });
     }
     
     function showJourneys(placeId) {
         var locationPromise = geo.getLocation(),
-            place = places.getPlace(placeId);
+            place = places.getPlace(placeId),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise(),
+            options = {
+                backHref: "#page=places&op=arrivals",
+                getEntryHref: function (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route;
+                    
+                    return "#page=predictions&place=" + placeId +
+                        "&route=" + route.tag + "&direction=" + direction.tag +
+                        "&stop=" + stop.tag;
+                },
+                getLeft: function (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route,
+                        title = route.getTitleWithColor(),
+                        subtitles = [direction.title, stop.title];
+                    
+                    return titleTemplate({title: title, subtitles: subtitles});
+                },
+                getRight: function (journey) {
+                    var stop = journey.arrival,
+                        pred = journey.departurePredictions[0],
+                        title = predictionsTemplate({predictions: pred}),
+                        subtitles = [stop.title],
+                        titleHtml = titleTemplate({title: title, subtitles: subtitles});
+    
+                    return titleHtml;
+                }
+            };
+        
+        list.showList(place.title, listPromise, options);
         
         locationPromise.done(function (position) {
             journeys.getJourneys(position, place).done(function (journeys) {
-                var options = {
-                    backHref: "#page=places&op=arrivals",
-                    getEntryHref: function (journey) {
-                        var stop = journey.departure,
-                            direction = stop._direction,
-                            route = direction._route;
-                        
-                        return "#page=predictions&place=" + placeId +
-                            "&route=" + route.tag + "&direction=" + direction.tag +
-                            "&stop=" + stop.tag;
-                    },
-                    getLeft: function (journey) {
-                        var stop = journey.departure,
-                            direction = stop._direction,
-                            route = direction._route,
-                            title = route.getTitleWithColor(),
-                            subtitles = [direction.title, stop.title];
-                        
-                        return titleTemplate({title: title, subtitles: subtitles});
-                    },
-                    getRight: function (journey) {
-                        var stop = journey.arrival,
-                            pred = journey.departurePredictions[0],
-                            title = predictionsTemplate({predictions: pred}),
-                            subtitles = [stop.title],
-                            titleHtml = titleTemplate({title: title, subtitles: subtitles});
-
-                        return titleHtml;
-                    }
-                };
-                
-                list.showList(place.title, journeys, options);
+                deferred.resolve(journeys);
+            }).fail(function (err) {
+                deferred.reject(err);
             });
+        }).fail(function (err) {
+            deferred.reject(err);
         });
     }
 
