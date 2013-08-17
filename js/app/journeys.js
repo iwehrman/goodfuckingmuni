@@ -10,7 +10,7 @@ define(function (require, exports, module) {
         preds = require("app/predictions"),
         geo = require("app/geolocation");
     
-    var MUNI_TOLERANCE = 0.735;
+    var MUNI_TOLERANCE = 0.71;
     
     function getJourneys(begin, end) {
         var deferred = $.Deferred();
