@@ -136,6 +136,10 @@ define(function (require, exports, module) {
             
             list.forEach(function (obj, index) {
                 var $entry = makeListEntry(obj, index, options);
+                $entry.css("opacity", "0.0");
+                $entry.animate({
+                    opacity: 1.0
+                }, 100);
                 $entries.append($entry);
             });
             
