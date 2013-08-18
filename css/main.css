@@ -46,6 +46,14 @@ body {
     float: right;
 }
 
+.header__button {
+    font-size: 30px ! important;
+    padding-left: 15px ! important;
+    padding-right: 15px ! important;
+    line-height: 44px;
+    margin-top: 2px;
+}
+
 .entry__content {
     overflow-y: auto;
     font-size: 44px;
