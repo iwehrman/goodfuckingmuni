@@ -120,6 +120,7 @@ define(function (require, exports, module) {
         }
         
         var $container = makeListContainer(title, options),
+            $loading = $container.find(".loading"),
             $children = $content.children();
         
         if ($children.length === 1) {
@@ -131,9 +132,15 @@ define(function (require, exports, module) {
             $content.append($container);
         }
         
+        $loading.animate({
+            opacity: 1.0
+        }, 100);
+
         listPromise.done(function (list) {
             var $entries = $container.find(".entries");
             
+            $loading.hide();
+
             list.forEach(function (obj, index) {
                 var $entry = makeListEntry(obj, index, options);
                 $entry.css("opacity", "0.0");

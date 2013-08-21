@@ -54,6 +54,30 @@ body {
     margin-top: 2px;
 }
 
+.loading {
+    opacity: 0.0;
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    width: 100%;
+    text-align: center;
+    padding-top: 65px;
+}
+
+@-webkit-keyframes rotation {
+    from {-webkit-transform: rotate(0deg);}
+    to   {-webkit-transform: rotate(359deg);}
+}
+
+.loading__spinner {
+    height: 100%;
+    background-size: 72px 72px;
+    background-image: -webkit-image-set(url("../img/spinner.png") 1x, url("../img/spinner2x.png") 2x);
+    background-position: center;
+    background-repeat: no-repeat;
+    -webkit-animation: rotation 2s infinite linear;
+}
+
 .entry__content {
     overflow-y: auto;
     font-size: 44px;
