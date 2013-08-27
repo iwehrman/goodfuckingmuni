@@ -55,13 +55,15 @@ body {
 }
 
 .loading {
+    z-index: 999;
     opacity: 0.0;
     position: absolute;
-    top: 0px;
-    bottom: 0px;
-    width: 100%;
-    text-align: center;
-    padding-top: 65px;
+    width: 72px;
+    height: 72px;
+    top: 50%;
+    left: 50%;
+    margin-top: -32px;
+    margin-left: -32px;
 }
 
 @-webkit-keyframes rotation {
@@ -75,6 +77,8 @@ body {
     background-image: -webkit-image-set(url("../img/spinner.png") 1x, url("../img/spinner2x.png") 2x);
     background-position: center;
     background-repeat: no-repeat;
+    transform: translate3d(0,0,0);
+    -webkit-transform: translate3d(0,0,0);
     -webkit-animation: rotation 2s infinite linear;
 }
 

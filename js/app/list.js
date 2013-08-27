@@ -120,7 +120,7 @@ define(function (require, exports, module) {
         }
         
         var $container = makeListContainer(title, options),
-            $loading = $container.find(".loading"),
+            $loading = $container.first(),
             $children = $content.children();
         
         if ($children.length === 1) {
