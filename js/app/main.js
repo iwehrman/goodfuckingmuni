@@ -17,45 +17,59 @@ define(function (require, exports, module) {
         $body = $("body");
     
     function loadStylesheet() {
-        var link;
+        var deferred = $.Deferred(),
+            url;
+        
         if (astronomy.isDaytime()) {
-            link = "<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-light.min.css'>";
+            url = "css/topcoat-mobile-light.min.css";
         } else {
-            link = "<link rel='stylesheet' type='text/css' href='css/topcoat-mobile-dark.min.css'>";
+            url = "css/topcoat-mobile-dark.min.css";
         }
-        $head.append(link);
+        
+        var attributes = {
+            type: "text/css",
+            rel:  "stylesheet",
+            href: url
+        };
+        
+        $("<link/>")
+            .attr(attributes)
+            .load(deferred.resolve)
+            .error(deferred.reject)
+            .appendTo($head);
+        
+        return deferred.promise();
     }
 
-    loadStylesheet();
-    
     window.addEventListener("focus", function (event) {
-        view.refreshList(true); // force refresh
+        view.refreshPage(true); // force refresh
     });
-    
     
     // hack to refresh the page on focus in Mobile Safari
     var lastTime = Date.now();
     (function getTime() {
         var newTime = Date.now();
         if (newTime - lastTime > 1000) {
-            view.refreshList(true);
+            view.refreshPage(true);
         }
         lastTime = newTime;
         setTimeout(getTime, 500);
     }());
-    
-    $(function () {
-        controller.loadPageFromHash();
-        
-        $html.on("swiperight", function (e) {
-            location.hash = $body.find("a.backnav").attr("href");
-        }).on("movestart", function (e) {
-            // If the movestart is heading off in an upwards or downwards
-            // direction, prevent it so that the browser scrolls normally.
-            if ((e.distX > e.distY && e.distX < -e.distY) ||
-                    (e.distX < e.distY && e.distX > -e.distY)) {
-                e.preventDefault();
-            }
+
+    $html.on("swiperight", function (e) {
+        location.hash = $body.find("a.backnav").attr("href");
+    }).on("movestart", function (e) {
+        // If the movestart is heading off in an upwards or downwards
+        // direction, prevent it so that the browser scrolls normally.
+        if ((e.distX > e.distY && e.distX < -e.distY) ||
+                (e.distX < e.distY && e.distX > -e.distY)) {
+            e.preventDefault();
+        }
+    });
+
+    loadStylesheet().done(function () {
+        $(function () {
+            controller.loadPageFromHash();
         });
     });
 });

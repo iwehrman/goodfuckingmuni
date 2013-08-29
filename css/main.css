@@ -8,10 +8,6 @@ body {
     cursor: pointer;
 }
 
-.highlight {
-    font-weight: bold;
-}
-
 .stale {
     opacity: 0.5;   
 }
@@ -91,6 +87,10 @@ body {
 .entry__left {
     float: left;
     width: 70%;
+}
+
+.entry.highlight .entry__left {
+    font-weight: bold;
 }
 
 .entry__right {

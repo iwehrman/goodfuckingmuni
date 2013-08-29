@@ -5,10 +5,8 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        async = require("async"),
-        mustache = require("mustache");
-
-    var REFRESH_INTERVAL = 5000;
+        mustache = require("mustache"),
+        page = require("app/page");
     
     var _backHtml = require("text!html/back.html"),
         _containerHtml = require("text!html/list.html"),
@@ -19,13 +17,6 @@ define(function (require, exports, module) {
         containerTemplate = mustache.compile(_containerHtml),
         entryTemplate = mustache.compile(_entryHtml),
         buttonTemplate = mustache.compile(_buttonHtml);
-
-    var $body = $("body"),
-        $content = $body.find(".content"),
-        $loading = $body.find(".loading");
-    
-    var refreshTimer = null,
-        handleRefresh;
 
     function makeListEntry(obj, index, opts) {
         var entrySettings = {
@@ -110,74 +101,28 @@ define(function (require, exports, module) {
             
         return $container;
     }
-
+    
     function showList(title, listPromise, options) {
-        var finishedLoading = false;
         options = options || {};
         
-        if (refreshTimer) {
-            window.clearInterval(refreshTimer);
-            refreshTimer = null;
-            handleRefresh = null;
-        }
-        
-        var $container = makeListContainer(title, options),
-            $children = $content.children();
-        
-        if ($children.length === 1) {
-            $children.replaceWith($container);
-        } else {
-            if ($children.length > 1) {
-                $content.empty();
-            }
-            $content.append($container);
-        }
+        var finishedLoading = false,
+            $container = makeListContainer(title, options);
         
         listPromise.done(function (list) {
             var $entries = $container.find(".entries");
             
-            finishedLoading = true;
-            $loading.stop().fadeOut();
-
             list.forEach(function (obj, index) {
                 var $entry = makeListEntry(obj, index, options);
                 $entry.css("opacity", "0.0");
                 $entries.append($entry);
                 $entry.animate({
                     opacity: 1.0
-                }, 200 + (20 * index));
+                }, 100 + (20 * index));
             });
-            
-            if (options.refresh) {
-                handleRefresh = options.refresh;
-                refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
-            }
-            
-            if (options.scroll) {
-                var $entry = $content.find(".highlight").parents(".entry");
-                $body.animate({
-                    scrollTop: $entry.offset().top - $content.scrollTop()
-                });
-            } else {
-                $body.animate({
-                    scrollTop: 0
-                });
-            }
         });
         
-        setTimeout(function () {
-            if (!finishedLoading) {
-                $loading.fadeIn();
-            }
-        }, 0);
-    }
-    
-    function refreshList(force) {
-        if (handleRefresh) {
-            handleRefresh(force);
-        }
+        page.showPage($container, listPromise, options.refresh, options.scroll);
     }
 
     exports.showList = showList;
-    exports.refreshList = refreshList;
 });

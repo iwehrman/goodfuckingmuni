@@ -1,7 +1,7 @@
-<li class="topcoat-list__item entry" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
+<li class="topcoat-list__item entry{{#highlight}} highlight{{/highlight}}" {{#tags}}data-{{tag}}="{{value}}"{{/tags}}>
     {{#href}}<a href="{{{href}}}">{{/href}}
         <div class="entry__content">
-            <div class="entry__left{{#highlight}} highlight{{/highlight}}">
+            <div class="entry__left">
                 {{{left}}}
             </div>
             <div class="entry__right">

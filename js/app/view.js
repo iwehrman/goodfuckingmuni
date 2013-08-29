@@ -12,6 +12,7 @@ define(function (require, exports, module) {
         routes = require("app/routes"),
         preds = require("app/predictions"),
         journeys = require("app/journeys"),
+        page = require("app/page"),
         list = require("app/list");
 
     var NEARBY_IN_KM = 0.5;
@@ -19,7 +20,7 @@ define(function (require, exports, module) {
     var _distanceHtml = require("text!html/distance.html"),
         _predictionsHtml = require("text!html/predictions.html"),
         _titleHtml = require("text!html/title.html");
-
+    
     var distanceTemplate = mustache.compile(_distanceHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
         titleTemplate = mustache.compile(_titleHtml);
@@ -53,7 +54,6 @@ define(function (require, exports, module) {
                 title = stop.title,
                 options = {
                     backHref: "#page=place&place=" + placeId,
-                    getHighlight: function (prediction) { return false; },
                     getLeft: function (prediction) {
                         return predictionsTemplate({predictions: prediction});
                     },
@@ -507,5 +507,5 @@ define(function (require, exports, module) {
     exports.showDirections = showDirections;
     exports.showStops = showStops;
     exports.showPredictions = showPredictions;
-    exports.refreshList = list.refreshList;
+    exports.refreshPage = page.refreshPage;
 });
