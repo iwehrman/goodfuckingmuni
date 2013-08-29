@@ -11,7 +11,7 @@ define(function (require, exports, module) {
     var REFRESH_INTERVAL = 5000;
     
     var _backHtml = require("text!html/back.html"),
-        _containerHtml = require("text!html/container.html"),
+        _containerHtml = require("text!html/list.html"),
         _entryHtml = require("text!html/entry.html"),
         _buttonHtml = require("text!html/button.html");
 
@@ -21,7 +21,8 @@ define(function (require, exports, module) {
         buttonTemplate = mustache.compile(_buttonHtml);
 
     var $body = $("body"),
-        $content = $body.find(".content");
+        $content = $body.find(".content"),
+        $loading = $body.find(".loading");
     
     var refreshTimer = null,
         handleRefresh;
@@ -111,6 +112,7 @@ define(function (require, exports, module) {
     }
 
     function showList(title, listPromise, options) {
+        var finishedLoading = false;
         options = options || {};
         
         if (refreshTimer) {
@@ -120,7 +122,6 @@ define(function (require, exports, module) {
         }
         
         var $container = makeListContainer(title, options),
-            $loading = $container.first(),
             $children = $content.children();
         
         if ($children.length === 1) {
@@ -132,14 +133,11 @@ define(function (require, exports, module) {
             $content.append($container);
         }
         
-        $loading.animate({
-            opacity: 1.0
-        }, 100);
-
         listPromise.done(function (list) {
             var $entries = $container.find(".entries");
             
-            $loading.hide();
+            finishedLoading = true;
+            $loading.stop().fadeOut();
 
             list.forEach(function (obj, index) {
                 var $entry = makeListEntry(obj, index, options);
@@ -147,7 +145,7 @@ define(function (require, exports, module) {
                 $entries.append($entry);
                 $entry.animate({
                     opacity: 1.0
-                }, 100 + (20 * index));
+                }, 200 + (20 * index));
             });
             
             if (options.refresh) {
@@ -166,6 +164,12 @@ define(function (require, exports, module) {
                 });
             }
         });
+        
+        setTimeout(function () {
+            if (!finishedLoading) {
+                $loading.fadeIn();
+            }
+        }, 0);
     }
     
     function refreshList(force) {
