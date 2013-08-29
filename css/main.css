@@ -55,8 +55,7 @@ body {
 }
 
 .loading {
-    z-index: 999;
-    opacity: 0.0;
+    display: none;
     position: absolute;
     width: 72px;
     height: 72px;
