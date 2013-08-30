@@ -1,13 +1,11 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.34
+# Cache manifest version 0.0.35
 
 /css/main.css
 /css/topcoat-mobile-dark.min.css
 /css/topcoat-mobile-light.min.css
 /js/lib/require.js
 /js/app-built.js
-/img/spinner.png
-/img/spinner2x.png
 /img/bus-57.png
 /img/bus-72.png
 /img/bus-114.png

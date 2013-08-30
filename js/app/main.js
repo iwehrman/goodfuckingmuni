@@ -14,7 +14,13 @@ define(function (require, exports, module) {
 
     var $html = $("html"),
         $head = $("head"),
-        $body = $("body");
+        $body = $("body"),
+        $loading = $body.find(".loading");
+
+    var spinnerHtml = require("text!html/loading.html"),
+        $spinner = $(spinnerHtml);
+    
+    $loading.append($spinner);
     
     function loadStylesheet() {
         var deferred = $.Deferred(),
