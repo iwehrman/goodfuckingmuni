@@ -38,12 +38,13 @@ body {
 }
 
 .nav__title a.backnav {
-    padding: 0 25px;
+    padding: 0 15px;
 }
 
 .loading {
     display: none;
     position: absolute;
+    z-index: 100;
     width: 72px;
     height: 72px;
     top: 50%;
