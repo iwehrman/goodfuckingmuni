@@ -15,7 +15,7 @@ define(function (require, exports, module) {
     var refreshTimer = null,
         handleRefresh;
 
-    function showPage($container, loadPromise, refresh, scroll) {
+    function showPage($header, $container, loadPromise, refresh, scroll) {
         var finishedLoading = false;
         
         if (refreshTimer) {
@@ -24,16 +24,9 @@ define(function (require, exports, module) {
             handleRefresh = null;
         }
         
-        var $children = $content.children();
-        
-        if ($children.length === 1) {
-            $children.replaceWith($container);
-        } else {
-            if ($children.length > 1) {
-                $content.empty();
-            }
-            $content.append($container);
-        }
+        $content.empty();
+        $content.append($header);
+        $content.append($container);
         
         loadPromise.always(function () {
             finishedLoading = true;

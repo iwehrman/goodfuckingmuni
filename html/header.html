@@ -1,5 +1,15 @@
 <div class="topcoat-navigation-bar">
-    <div class="topcoat-navigation-bar__item center full">
-        <h1 class="topcoat-navigation-bar__title">Header</h1>
+    <div class="topcoat-navigation-bar__item left nav__left">
+        <h1 class="topcoat-navigation-bar__title nav__title">
+            {{#leftHref}}<a href="{{leftHref}}" class="backnav">{{/leftHref}}
+            {{{left}}}
+            {{#leftHref}}</a>{{/leftHref}}
+        </h1>
+    </div>
+    <div class="topcoat-navigation-bar__item center nav__center">
+        <h1 class="topcoat-navigation-bar__title nav__title">{{{center}}}</h1>
+    </div>
+    <div class="topcoat-navigation-bar__item right nav__right">
+        <h1 class="topcoat-navigation-bar__title nav__title">{{{right}}}</h1>
     </div>
 </div>
