@@ -82,6 +82,7 @@ body {
 
 .remove {
     display: none;
+    padding: 30px 40px;
 }
 
 .entry__title {
