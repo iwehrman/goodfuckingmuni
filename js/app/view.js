@@ -53,6 +53,7 @@ define(function (require, exports, module) {
             var stop = route.stops[stopTag],
                 title = stop.title,
                 options = {
+                    emptyMessage: "No predictions found.",
                     backHref: "#page=place&place=" + placeId,
                     getLeft: function (prediction) {
                         return predictionsTemplate({predictions: prediction});
@@ -84,6 +85,7 @@ define(function (require, exports, module) {
             var direction = route.directions[dirTag],
                 title = route.title + ": " + direction.name,
                 options = {
+                    emptyMessage: "No stops found.",
                     backHref: "#page=directions&place=" + placeId + "&route=" + routeTag,
                     getHighlight: function (stopInfo, index) {
                         return stopInfo.isClosest;
@@ -152,6 +154,7 @@ define(function (require, exports, module) {
             deferred.resolve(directions);
 
             var options = {
+                emptyMessage: "No directions found.",
                 backHref: "#page=routes&place=" + placeId,
                 getEntryHref: function (direction) {
                     var routeTag = route.tag;
@@ -186,6 +189,7 @@ define(function (require, exports, module) {
     
     function showRoutes(placeId) {
         var options = {
+            emptyMessage: "No routes found.",
             backHref: "#page=place&place=" + placeId,
             getEntryHref: function (route) {
                 var routeTag = route.tag;
@@ -242,6 +246,7 @@ define(function (require, exports, module) {
         }
         
         var options = {
+            emptyMessage: "No routes found.",
             backHref: "#page=places",
             addHref: "#page=routes&place=" + placeId,
             getEntryHref: function (routeObj) {
@@ -389,6 +394,7 @@ define(function (require, exports, module) {
         }
         
         var options = {
+            emptyMessage: "No places defined.",
             addHref: "#page=places&op=add",
             getEntryHref: function (placeInfo) {
                 var place = placeInfo.place;
@@ -457,6 +463,7 @@ define(function (require, exports, module) {
             deferred = $.Deferred(),
             listPromise = deferred.promise(),
             options = {
+                emptyMessage: "No routes found.",
                 backHref: "#page=places&op=arrivals",
                 getEntryHref: function (journey) {
                     var stop = journey.departure,

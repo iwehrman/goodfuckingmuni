@@ -20,6 +20,16 @@ define(function (require, exports, module) {
         entryTemplate = mustache.compile(_entryHtml),
         buttonTemplate = mustache.compile(_buttonHtml);
 
+    function makeEmptyListEntry(message, href) {
+        var entrySettings = {
+            left: "<span class=entry__empty>" + message + "</span>",
+            href: href
+        },  entryHTML = entryTemplate(entrySettings),
+            $entry = $(entryHTML);
+        
+        return $entry;
+    }
+    
     function makeListEntry(obj, index, opts) {
         var entrySettings = {
             href: opts.getEntryHref ? opts.getEntryHref(obj, index) : null,
@@ -118,14 +128,23 @@ define(function (require, exports, module) {
         listPromise.done(function (list) {
             var $entries = $container.find(".entries");
             
-            list.forEach(function (obj, index) {
-                var $entry = makeListEntry(obj, index, options);
+            if (list && list.length > 0) {
+                list.forEach(function (obj, index) {
+                    var $entry = makeListEntry(obj, index, options);
+                    $entry.css("opacity", "0.0");
+                    $entries.append($entry);
+                    $entry.animate({
+                        opacity: 1.0
+                    }, 100 + (20 * index));
+                });
+            } else if (options.emptyMessage) {
+                var $entry = makeEmptyListEntry(options.emptyMessage, options.addHref);
                 $entry.css("opacity", "0.0");
                 $entries.append($entry);
                 $entry.animate({
                     opacity: 1.0
-                }, 100 + (20 * index));
-            });
+                }, 100);
+            }
         });
         
         page.showPage($header, $container, listPromise, options.refresh, options.scroll);

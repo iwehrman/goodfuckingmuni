@@ -65,6 +65,11 @@ body {
     width: 70%;
 }
 
+.entry__empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+
 .entry.highlight .entry__left {
     font-weight: bold;
 }
