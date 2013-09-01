@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.40
+# Cache manifest version 0.0.41
 
 /css/main.css
 /css/topcoat-mobile-dark.min.css
@@ -16,8 +16,9 @@ CACHE MANIFEST
 /font/SourceSansPro-Semibold.otf
 
 NETWORK:
+*
 # All URLs that start with the following lines
 # are whitelisted.
-http://webservices.nextbus.com/
-https://maps.googleapis.com/
-https://maps.gstatic.com/
+# http://webservices.nextbus.com/
+# https://maps.googleapis.com/
+# https://maps.gstatic.com/
