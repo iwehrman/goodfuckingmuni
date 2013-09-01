@@ -8,18 +8,14 @@ define(function (require, exports, module) {
         mustache = require("mustache"),
         page = require("app/page");
     
-    var _backHtml = require("text!html/back.html"),
-        _headerHtml = require("text!html/header.html"),
+    var _buttonHtml = require("text!html/button.html"),
         _containerHtml = require("text!html/list.html"),
-        _entryHtml = require("text!html/entry.html"),
-        _buttonHtml = require("text!html/button.html");
-
-    var backTemplate = mustache.compile(_backHtml),
-        headerTemplate = mustache.compile(_headerHtml),
+        _entryHtml = require("text!html/entry.html");
+        
+    var buttonTemplate = mustache.compile(_buttonHtml),
         containerHtml = mustache.render(_containerHtml),
-        entryTemplate = mustache.compile(_entryHtml),
-        buttonTemplate = mustache.compile(_buttonHtml);
-
+        entryTemplate = mustache.compile(_entryHtml);
+        
     function makeEmptyListEntry(message, href) {
         var entrySettings = {
             left: "<span class=entry__empty>" + message + "</span>",
@@ -81,49 +77,11 @@ define(function (require, exports, module) {
         return $entry;
     }
     
-    function makeHeader(title, opts) {
-        var left;
-        if (opts.backHref) {
-            var backSettings = {
-                title: "&lsaquo;",
-                href: opts.backHref
-            };
-            left = backTemplate(backSettings);
-        } else {
-            left = null;
-        }
-        
-        var right;
-        if (opts.addHref) {
-            var addSettings = {
-                title: "+",
-                href: opts.addHref
-            };
-            right = buttonTemplate(addSettings);
-        } else {
-            right = null;
-        }
-        
-        var headerSettings = {
-            left: left,
-            center: title,
-            right: right
-        },  headerHTML = headerTemplate(headerSettings),
-            $header = $(headerHTML);
-            
-        return $header;
-    }
-    
-    function makeListContainer() {
-        return $(containerHtml);
-    }
-    
     function showList(title, listPromise, options) {
         options = options || {};
         
         var finishedLoading = false,
-            $container = makeListContainer(title, options),
-            $header = makeHeader(title, options);
+            $container = $(containerHtml);
         
         listPromise.done(function (list) {
             var $entries = $container.find(".entries");
@@ -147,7 +105,7 @@ define(function (require, exports, module) {
             }
         });
         
-        page.showPage($header, $container, listPromise, options.refresh, options.scroll);
+        page.showPage(title, $container, listPromise, options);
     }
 
     exports.showList = showList;

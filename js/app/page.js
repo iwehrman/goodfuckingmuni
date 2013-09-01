@@ -4,9 +4,18 @@
 define(function (require, exports, module) {
     "use strict";
     
-    var $ = require("jquery");
+    var $ = require("jquery"),
+        mustache = require("mustache");
 
     var REFRESH_INTERVAL = 5000;
+    
+    var _backHtml = require("text!html/back.html"),
+        _headerHtml = require("text!html/header.html"),
+        _buttonHtml = require("text!html/button.html");
+    
+    var backTemplate = mustache.compile(_backHtml),
+        headerTemplate = mustache.compile(_headerHtml),
+        buttonTemplate = mustache.compile(_buttonHtml);
     
     var $body = $("body"),
         $content = $body.find(".content"),
@@ -14,9 +23,47 @@ define(function (require, exports, module) {
     
     var refreshTimer = null,
         handleRefresh;
+    
+    function makeHeader(title, opts) {
+        var left;
+        if (opts.backHref) {
+            var backSettings = {
+                title: "&lsaquo;",
+                href: opts.backHref
+            };
+            left = backTemplate(backSettings);
+        } else {
+            left = null;
+        }
+        
+        var right;
+        if (opts.addHref) {
+            var addSettings = {
+                title: "+",
+                href: opts.addHref
+            };
+            right = buttonTemplate(addSettings);
+        } else {
+            right = null;
+        }
+        
+        var headerSettings = {
+            left: left,
+            center: title,
+            right: right
+        },  headerHTML = headerTemplate(headerSettings),
+            $header = $(headerHTML);
+            
+        return $header;
+    }
 
-    function showPage($header, $container, loadPromise, refresh, scroll) {
-        var finishedLoading = false;
+    function showPage(title, $container, loadPromise, options) {
+        if (options === undefined) {
+            options = {};
+        }
+        
+        var finishedLoading = false,
+            $header = makeHeader(title, options);
         
         if (refreshTimer) {
             window.clearInterval(refreshTimer);
@@ -32,12 +79,12 @@ define(function (require, exports, module) {
             finishedLoading = true;
             $loading.stop().fadeOut();
             
-            if (refresh) {
-                handleRefresh = refresh;
+            if (options.refresh) {
+                handleRefresh = options.refresh;
                 refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
             }
             
-            if (scroll) {
+            if (options.scroll) {
                 var $elem = $container.find(".highlight");
                 $body.animate({
                     scrollTop: $elem.offset().top - $container.scrollTop()

@@ -1,5 +1,5 @@
 /*jslint vars: true, plusplus: true, browser: true, nomen: true, indent: 4, maxerr: 50 */
-/*global define, console */
+/*global define, console, google */
 
 define(function (require, exports, module) {
     "use strict";
@@ -14,12 +14,13 @@ define(function (require, exports, module) {
         journeys = require("app/journeys"),
         page = require("app/page"),
         list = require("app/list");
-
+    
     var NEARBY_IN_KM = 0.5;
     
     var _distanceHtml = require("text!html/distance.html"),
         _predictionsHtml = require("text!html/predictions.html"),
-        _titleHtml = require("text!html/title.html");
+        _titleHtml = require("text!html/title.html"),
+        searchHtml = require("text!html/search.html");
     
     var distanceTemplate = mustache.compile(_distanceHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
@@ -507,6 +508,70 @@ define(function (require, exports, module) {
         });
     }
 
+    function showSearch() {
+        require(["rasync!https://maps.googleapis.com/maps/api/js?key=AIzaSyDFwHG4xaTRwELJ5hk033t1cFoed7EyAy0&v=3.exp&sensor=true&libraries=places"], function () {
+            var $container = $(searchHtml),
+                $loadPromise = $.Deferred().resolve(),
+                $search = $container.find(".search__input"),
+                search = $search[0],
+                $title = $container.find(".search__title"),
+                $add = $container.find(".search__add"),
+                swPos = new google.maps.LatLng(37.604942, -122.521322),
+                nePos = new google.maps.LatLng(37.813911, -122.352528),
+                settings = {
+                    types: [],
+                    bounds: new google.maps.LatLngBounds(swPos, nePos),
+                    componentRestrictions: {country: "us"}
+                },
+                autocomplete = new google.maps.places.Autocomplete(search, settings),
+                position = null;
+                                
+            google.maps.event.addListener(autocomplete, "place_changed", function () {
+                var place = autocomplete.getPlace();
+                
+                position = {
+                    lat: place.geometry.location.lat(),
+                    lon: place.geometry.location.lng()
+                };
+                
+                console.log(place);
+                $title.val(place.name);
+                $title.focus();
+                $add.removeAttr("disabled");
+            });
+            
+            function handleAddPlace(event) {
+                var title = $title.val();
+                    
+                places.addPlace(title, position).done(function (place) {
+                    location.hash = "#page=place&op=arrivals&place=" + place.id;
+                });
+            }
+            
+            $add.on("click", handleAddPlace)
+                .on("keydown", function (event) {
+                    switch (event.keyCode) {
+                    case 13: // enter
+                    case 14: // return
+                    case 32: // space
+                        handleAddPlace(event);
+                        break;
+                    }
+                });
+            $title.on("keydown", function (event) {
+                switch (event.keyCode) {
+                case 13: // enter
+                case 14: // return
+                    handleAddPlace(event);
+                    break;
+                }
+            });
+            
+            page.showPage("Add Place", $container, $loadPromise);
+        });
+    }
+    
+    exports.showSearch = showSearch;
     exports.showJourneys = showJourneys;
     exports.showPlaces = showPlaces;
     exports.showPlace = showPlace;

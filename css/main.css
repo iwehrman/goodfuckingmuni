@@ -114,3 +114,27 @@ body {
     font-size: 16px;
     content: " min";
 }
+
+.search {
+    padding: 1em 0;
+    text-align: center;   
+}
+
+.search__input {
+    padding-right: 1.3em ! important;
+}
+
+.search input {
+    margin-bottom: 1em ! important;   
+}
+
+.pac-container {
+    font-size: 20px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    overflow: hidden;
+    width: 100%;
+    border-radius: 10px;
+    padding: 1em;
+    margin-left: -1em;
+}

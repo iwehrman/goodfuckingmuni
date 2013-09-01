@@ -98,21 +98,6 @@ define(function (require, exports, module) {
             }
         }
     }
-        
-//    window.onpopstate = function (event) {
-//        var state = event.state;
-//
-//        if (state) {
-//            if (state.place !== null) {
-//                view.showPlace(state.place);
-//                return;
-//            } else if (state.route !== null && state.dir !== null && state.stop !== null) {
-//                view.showPredictions(state.route, state.dir, state.stop);
-//                return;
-//            }
-//        }
-//        view.showPlaces();
-//    };
     
     function loadPageFromState(state) {
         switch (state.page) {
@@ -162,6 +147,9 @@ define(function (require, exports, module) {
             break;
         case "stops":
             view.showStops(state.place, state.route, state.direction, true);
+            break;
+        case "search":
+            view.showSearch();
             break;
         default:
             view.showPlaces(false);
