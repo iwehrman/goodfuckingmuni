@@ -78,35 +78,12 @@ define(function (require, exports, module) {
         return hash;
     }
     
-    function loadFromHashParams() {
-        var params = getStateFromHash();
-        if (params.p) {
-            view.showPlace(parseInt(params.p, 10));
-        } else {
-            if (params.r) {
-                if (params.d) {
-                    if (params.s) {
-                        view.showPredictions(params.r, params.d, params.s);
-                    } else {
-                        view.showStops(params.r, params.d, true);
-                    }
-                } else {
-                    view.showDirections(params.r);
-                }
-            } else {
-                view.showPlaces();
-            }
-        }
-    }
-    
     function loadPageFromState(state) {
         switch (state.page) {
         case "places":
             switch (state.op) {
             case "add":
-                addPlace().done(function (place) {
-                    location.hash = "#page=place&place=" + place.id;
-                });
+                view.showSearch();
                 break;
             case "remove":
                 removePlace(state.place);
@@ -130,7 +107,7 @@ define(function (require, exports, module) {
                 location.hash = "#page=place&place=" + state.place;
                 break;
             case "arrivals":
-                view.showJourneys(state.place);
+                view.showJourneys(state.place, state.lat, state.lon, decodeURIComponent(state.title));
                 break;
             default:
                 view.showPlace(state.place);

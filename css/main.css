@@ -82,7 +82,7 @@ body {
 
 .remove {
     display: none;
-    padding: 30px 40px;
+    padding: 0 40px;
 }
 
 .entry__title {
@@ -126,6 +126,11 @@ body {
 
 .search input {
     margin-bottom: 1em ! important;   
+}
+
+.search__add,
+.search__quick {
+    margin: 0 1em ! important;   
 }
 
 .pac-container {

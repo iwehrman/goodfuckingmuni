@@ -458,14 +458,14 @@ define(function (require, exports, module) {
         });
     }
     
-    function showJourneys(placeId) {
+    function showJourneys(placeId, lat, lon, title) {
         var locationPromise = geo.getLocation(),
-            place = places.getPlace(placeId),
+            place = placeId ? places.getPlace(placeId) : { lat: lat, lon: lon, title: title },
             deferred = $.Deferred(),
             listPromise = deferred.promise(),
             options = {
                 emptyMessage: "No routes found.",
-                backHref: "#page=places&op=arrivals",
+                backHref: placeId ? "#page=places&op=arrivals" : "#page=places&op=add",
                 getEntryHref: function (journey) {
                     var stop = journey.departure,
                         direction = stop._direction,
@@ -516,6 +516,7 @@ define(function (require, exports, module) {
                 search = $search[0],
                 $title = $container.find(".search__title"),
                 $add = $container.find(".search__add"),
+                $quick = $container.find(".search__quick"),
                 swPos = new google.maps.LatLng(37.604942, -122.521322),
                 nePos = new google.maps.LatLng(37.813911, -122.352528),
                 settings = {
@@ -537,6 +538,7 @@ define(function (require, exports, module) {
                 console.log(place);
                 $title.val(place.name);
                 $title.focus();
+                $quick.removeAttr("disabled");
                 $add.removeAttr("disabled");
             });
             
@@ -544,8 +546,14 @@ define(function (require, exports, module) {
                 var title = $title.val();
                     
                 places.addPlace(title, position).done(function (place) {
-                    location.hash = "#page=place&op=arrivals&place=" + place.id;
+                    location.hash = "#page=place&place=" + place.id;
                 });
+            }
+            
+            function handleQuickRoute() {
+                var title = $title.val();
+                location.hash = "#page=place&op=arrivals&lat=" + position.lat + "&lon=" +
+                    position.lon + "&title=" + encodeURIComponent(title);
             }
             
             $add.on("click", handleAddPlace)
@@ -567,7 +575,21 @@ define(function (require, exports, module) {
                 }
             });
             
-            page.showPage("Add Place", $container, $loadPromise);
+            $quick.on("click", handleQuickRoute)
+                .on("keydown", function (event) {
+                    switch (event.keyCode) {
+                    case 13: // enter
+                    case 14: // return
+                        handleQuickRoute(event);
+                        break;
+                    }
+                });
+            
+            var options = {
+                backHref: "#page=places"
+            };
+            
+            page.showPage("Add Place", $container, $loadPromise, options);
         });
     }
     
