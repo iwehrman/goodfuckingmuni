@@ -1,11 +1,12 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.39
+# Cache manifest version 0.0.40
 
 /css/main.css
 /css/topcoat-mobile-dark.min.css
 /css/topcoat-mobile-light.min.css
 /js/lib/require.js
 /js/app-built.js
+/img/search.svg
 /img/bus-57.png
 /img/bus-72.png
 /img/bus-114.png
@@ -18,3 +19,5 @@ NETWORK:
 # All URLs that start with the following lines
 # are whitelisted.
 http://webservices.nextbus.com/
+https://maps.googleapis.com/
+https://maps.gstatic.com/
