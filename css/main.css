@@ -28,8 +28,8 @@ body {
 
 .nav__center {
     position: absolute ! important;
-    left: 0;
-    width: 100%;
+    left: 50px;
+    right: 50px;
 }
 
 .nav__title {
