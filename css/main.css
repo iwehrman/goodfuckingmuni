@@ -116,16 +116,30 @@ body {
 }
 
 .search {
-    padding: 1em 0;
+    width: 100%;
     text-align: center;   
 }
 
+.search__results {
+    
+}
+
+.search__controls {
+    display: none;   
+}
+
+.search__map {
+    display: none;   
+}
+
 .search__input {
+    width: 100%;
+    max-width: 470px;
     padding-right: 1.3em ! important;
 }
 
 .search input {
-    margin-bottom: 1em ! important;   
+    margin: 0.5em 0 ! important;   
 }
 
 .search__add,

@@ -510,37 +510,100 @@ define(function (require, exports, module) {
 
     function showSearch() {
         require(["rasync!https://maps.googleapis.com/maps/api/js?key=AIzaSyDFwHG4xaTRwELJ5hk033t1cFoed7EyAy0&v=3.exp&sensor=true&libraries=places"], function () {
-            var $container = $(searchHtml),
-                $loadPromise = $.Deferred().resolve(),
+            var $loadPromise = $.Deferred().resolve(),
+                $container = $(searchHtml),
+                $searchResults = $container.find(".search__results"),
+                $searchControls = $container.find(".search__controls"),
+                $searchMap = $container.find(".search__map"),
                 $search = $container.find(".search__input"),
-                search = $search[0],
                 $title = $container.find(".search__title"),
                 $add = $container.find(".search__add"),
                 $quick = $container.find(".search__quick"),
                 swPos = new google.maps.LatLng(37.604942, -122.521322),
                 nePos = new google.maps.LatLng(37.813911, -122.352528),
+                bounds = new google.maps.LatLngBounds(swPos, nePos),
+                componentRestrictions = {country: "us"},
                 settings = {
                     types: [],
-                    bounds: new google.maps.LatLngBounds(swPos, nePos),
-                    componentRestrictions: {country: "us"}
+                    bounds: bounds,
+                    componentRestrictions: componentRestrictions
                 },
-                autocomplete = new google.maps.places.Autocomplete(search, settings),
+                autocompleteService = new google.maps.places.AutocompleteService(),
+                placesService = new google.maps.places.PlacesService($searchMap[0]),
                 position = null;
-                                
-            google.maps.event.addListener(autocomplete, "place_changed", function () {
-                var place = autocomplete.getPlace();
+
+            function handlePlaceDetails(result, status) {
+                if (status === "OK") {
+                    if (result) {
+                        position = {
+                            lat: result.geometry.location.lat(),
+                            lon: result.geometry.location.lng()
+                        };
+                        $quick.removeAttr("disabled");
+                        $add.removeAttr("disabled");
+                    }
+                }
+            }
+            
+            function handleResultClick(event) {
+                var $target = $(event.target),
+                    reference = $target.data("reference"),
+                    text = $target.text(),
+                    title = text.substring(0, text.indexOf(","));
+
+                if (reference) {
+                    $search.val(text);
+                    $title.val(title);
+                    $searchResults.hide();
+                    $searchControls.fadeIn();
+                    $title.focus();
+    
+                    placesService.getDetails({
+                        reference: reference
+                    }, handlePlaceDetails);
+                }
+            }
+            
+            function hightlightEntryName(entry) {
+                var index = 0,
+                    description = "";
                 
-                position = {
-                    lat: place.geometry.location.lat(),
-                    lon: place.geometry.location.lng()
-                };
+                entry.matched_substrings.forEach(function (match) {
+                    description += entry.description.substring(index, match.offset);
+                    index = match.offset;
+                    
+                    var part = entry.description.substring(index, index + match.length);
+                    
+                    description += "<b>" + part + "</b>";
+                    index += match.length;
+                });
                 
-                console.log(place);
-                $title.val(place.name);
-                $title.focus();
-                $quick.removeAttr("disabled");
-                $add.removeAttr("disabled");
-            });
+                description += entry.description.substring(index);
+                
+                return description;
+            }
+            
+            function handleAutocompleteResults(results, status) {
+                if (status === "OK") {
+                    var $entries = $("ul");
+                    $entries.empty();
+                    if (results) {
+                        results.forEach(function (entry) {
+                            var description = hightlightEntryName(entry),
+                                $anchor = $("<a>")
+                                    .append(description)
+                                    .data("reference", entry.reference)
+                                    .on("click", handleResultClick),
+                                $entry = $("<li class='topcoat-list__item'>")
+                                    .append($anchor);
+                            
+                            $entries.append($entry);
+                        });
+                    }
+    
+                    $("body").animate({scrollTop: $search.parent().offset().top});
+                }
+            }
             
             function handleAddPlace(event) {
                 var title = $title.val();
@@ -555,6 +618,26 @@ define(function (require, exports, module) {
                 location.hash = "#page=place&op=arrivals&lat=" + position.lat + "&lon=" +
                     position.lon + "&title=" + encodeURIComponent(title);
             }
+            
+            $search.on("keyup paste", function () {
+                var input = $search.val(),
+                    offset = $search[0].selectionEnd;
+
+                $searchControls.hide();
+                if ($searchResults.css("display") === "none") {
+                    $searchResults.fadeIn();
+                }
+                
+                if (input && input.length > 0) {
+                    autocompleteService.getPlacePredictions({
+                        input: input,
+                        offset: offset,
+                        types: [],
+                        bounds: bounds,
+                        componentRestrictions: componentRestrictions
+                    }, handleAutocompleteResults);
+                }
+            });
             
             $add.on("click", handleAddPlace)
                 .on("keydown", function (event) {

@@ -1,6 +1,15 @@
 <div class="search">
-    <input type="search" value="" placeholder="Search" class="topcoat-search-input--large search__input" size="38" autofocus><br/>
-    <input type="text" value="" placeholder="Place name" class="topcoat-text-input--large search__title" size="38"><br/>
-    <button class="topcoat-button search__quick" disabled="disabled">Quick Route</button>
-    <button class="topcoat-button--cta search__add" disabled="disabled">Add Place</button>
+    <input type="search" value="" placeholder="Search" class="topcoat-search-input--large search__input" autofocus><br/>
+    <div class="search__results">
+        <div class="topcoat-list__container">
+            <ul class="topcoat-list"></ul>
+        </div>
+    </div>
+    
+    <div class="search__controls">
+        <input type="text" value="" placeholder="Place name" class="topcoat-text-input--large search__title" size="38"><br/>
+        <button class="topcoat-button search__quick" disabled="disabled">Quick Route</button>
+        <button class="topcoat-button--cta search__add" disabled="disabled">Add Place</button>
+    </div>
+    <div class="search__map"></div>
 </div>
