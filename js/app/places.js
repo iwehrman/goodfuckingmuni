@@ -98,6 +98,7 @@ define(function (require, exports, module) {
         allPlaces.some(function (place) {
             if (place.id === id) {
                 _place = place;
+                return true;
             }
         });
         return _place;

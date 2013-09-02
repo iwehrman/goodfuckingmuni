@@ -25,21 +25,6 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
-    function removePlace(placeId) {
-        var place = places.getPlace(placeId);
-        places.removePlace(place);
-    }
-    
-    function addStop(placeId, routeTag, dirTag, stopTag) {
-        var place = places.getPlace(placeId);
-        place.addStop(routeTag, dirTag, stopTag);
-    }
-    
-    function removeStop(placeId, stopTag) {
-        var place = places.getPlace(placeId);
-        place.removeStop(stopTag);
-    }
-    
     function getStateFromHash() {
         var hash = window.location.hash,
             params;
@@ -48,34 +33,35 @@ define(function (require, exports, module) {
             params = hash.substring(1).split("&").reduce(function (obj, eq) {
                 var terms = eq.split("="),
                     key = terms[0],
-                    val = terms[1],
-                    castVal = key === "place" ? util.castInt(val) : val;
+                    val = terms[1];
                     
-                obj[key] = castVal;
+                obj[key] = val;
                 return obj;
             }, {});
         } else {
             params = {};
         }
         
-        return params;
-    }
-    
-    function getHashFromState(state) {
-        var hash = "#",
-            key;
-        
-        if (state.page) {
-            hash += "page=" + state.page;
+        if (params.place !== undefined) {
+            var placeId = util.castInt(params.place);
+            params.place = places.getPlace(placeId);
+        } else if (params.lat && params.lon && params.title) {
+            var lat = parseFloat(params.lat, 10),
+                lon = parseFloat(params.lon, 10),
+                title = decodeURIComponent(params.title);
             
-            for (key in state) {
-                if (state.hasOwnProperty(key) && key !== "page") {
-                    hash += "&" + key + "=" + state[key];
-                }
-            }
+            params.place = {
+                lat: lat,
+                lon: lon,
+                title: title
+            };
+            
+            delete params.lat;
+            delete params.lon;
+            delete params.title;
         }
         
-        return hash;
+        return params;
     }
     
     function loadPageFromState(state) {
@@ -86,7 +72,7 @@ define(function (require, exports, module) {
                 view.showSearch();
                 break;
             case "remove":
-                removePlace(state.place);
+                places.removePlace(state.place);
                 location.hash = "#page=places";
                 break;
             case "arrivals":
@@ -99,15 +85,15 @@ define(function (require, exports, module) {
         case "place":
             switch (state.op) {
             case "add":
-                addStop(state.place, state.route, state.direction, state.stop);
-                location.hash = "#page=place&place=" + state.place;
+                state.place.addStop(state.route, state.direction, state.stop);
+                location.hash = "#page=place&place=" + state.place.id;
                 break;
             case "remove":
-                removeStop(state.place, state.stop);
-                location.hash = "#page=place&place=" + state.place;
+                state.place.removeStop(state.stop);
+                location.hash = "#page=place&place=" + state.place.id;
                 break;
             case "arrivals":
-                view.showJourneys(state.place, state.lat, state.lon, decodeURIComponent(state.title));
+                view.showJourneys(state.place);
                 break;
             default:
                 view.showPlace(state.place);
@@ -124,9 +110,6 @@ define(function (require, exports, module) {
             break;
         case "stops":
             view.showStops(state.place, state.route, state.direction, true);
-            break;
-        case "search":
-            view.showSearch();
             break;
         default:
             view.showPlaces(false);

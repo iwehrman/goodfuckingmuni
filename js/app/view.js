@@ -29,7 +29,7 @@ define(function (require, exports, module) {
     var $body = $("body"),
         $content = $body.find(".content");
     
-    function showPredictions(placeId, routeTag, stopTag) {
+    function showPredictions(place, routeTag, stopTag) {
         var deferred = $.Deferred(),
             listPromise = deferred.promise();
         
@@ -55,7 +55,9 @@ define(function (require, exports, module) {
                 title = stop.title,
                 options = {
                     emptyMessage: "No predictions found.",
-                    backHref: "#page=place&place=" + placeId,
+                    backHref: "#page=place&" + (place.id !== undefined ? "place=" + place.id :
+                            "op=arrivals&lat=" + place.lat + "&lon=" + place.lon +
+                            "&title=" + encodeURIComponent(place.title)),
                     getLeft: function (prediction) {
                         return predictionsTemplate({predictions: prediction});
                     },
@@ -76,9 +78,8 @@ define(function (require, exports, module) {
         });
     }
     
-    function showStops(placeId, routeTag, dirTag, scroll) {
+    function showStops(place, routeTag, dirTag, scroll) {
         var locationPromise = geo.getLocation(),
-            place = places.getPlace(placeId),
             deferred = $.Deferred(),
             listPromise = deferred.promise();
     
@@ -87,14 +88,14 @@ define(function (require, exports, module) {
                 title = route.title + ": " + direction.name,
                 options = {
                     emptyMessage: "No stops found.",
-                    backHref: "#page=directions&place=" + placeId + "&route=" + routeTag,
+                    backHref: "#page=directions&place=" + place.id + "&route=" + routeTag,
                     getHighlight: function (stopInfo, index) {
                         return stopInfo.isClosest;
                     },
                     getEntryHref: function (stopInfo) {
                         var stop = stopInfo.stop;
                         
-                        return "#page=place&op=add&place=" + placeId +
+                        return "#page=place&op=add&place=" + place.id +
                             "&route=" + routeTag + "&direction=" + dirTag +
                             "&stop=" + stop.tag;
                     },
@@ -133,9 +134,8 @@ define(function (require, exports, module) {
         });
     }
     
-    function showDirections(placeId, routeTag) {
-        var place = places.getPlace(placeId),
-            deferred = $.Deferred(),
+    function showDirections(place, routeTag) {
+        var deferred = $.Deferred(),
             listPromise = deferred.promise();
         
         routes.getRoute(routeTag).done(function (route) {
@@ -156,10 +156,10 @@ define(function (require, exports, module) {
 
             var options = {
                 emptyMessage: "No directions found.",
-                backHref: "#page=routes&place=" + placeId,
+                backHref: "#page=routes&place=" + place.id,
                 getEntryHref: function (direction) {
                     var routeTag = route.tag;
-                    return "#page=stops&place=" + placeId +
+                    return "#page=stops&place=" + place.id +
                         "&route=" + routeTag + "&direction=" + direction.tag;
                 },
                 getLeft: function (direction) {
@@ -188,13 +188,13 @@ define(function (require, exports, module) {
         });
     }
     
-    function showRoutes(placeId) {
+    function showRoutes(place) {
         var options = {
             emptyMessage: "No routes found.",
-            backHref: "#page=place&place=" + placeId,
+            backHref: "#page=place&place=" + place.id,
             getEntryHref: function (route) {
                 var routeTag = route.tag;
-                return "#page=directions&place=" + placeId +
+                return "#page=directions&place=" + place.id +
                     "&route=" + routeTag;
             },
             getLeft: function (route) {
@@ -205,9 +205,8 @@ define(function (require, exports, module) {
         list.showList("Routes", routes.getRoutes(), options);
     }
     
-    function showPlace(placeId) {
-        var place = places.getPlace(placeId),
-            predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
+    function showPlace(place) {
+        var predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
             title = place.title,
             routeObjMap = {},
             deferred = $.Deferred(),
@@ -249,12 +248,12 @@ define(function (require, exports, module) {
         var options = {
             emptyMessage: "No routes found.",
             backHref: "#page=places",
-            addHref: "#page=routes&place=" + placeId,
+            addHref: "#page=routes&place=" + place.id,
             getEntryHref: function (routeObj) {
                 var routeTag = routeObj.route.tag,
                     stopTag = routeObj.stopTag;
                 
-                return "#page=predictions&place=" + placeId +
+                return "#page=predictions&place=" + place.id +
                     "&route=" + routeTag + "&stop=" + stopTag;
             },
             getTags: function (routeObj) {
@@ -300,7 +299,7 @@ define(function (require, exports, module) {
                     routeTag = route.tag,
                     stopTag = routeObj.stopTag;
 
-                return "#page=place&op=remove&place=" + placeId +
+                return "#page=place&op=remove&place=" + place.id +
                     "&route=" + routeTag + "&stop=" + stopTag;
             },
             confirmRemove: function (routeObj) {
@@ -437,7 +436,7 @@ define(function (require, exports, module) {
                         geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
                 
                 deferred.reject();
-                return showPlace(placeList[0].id);
+                return showPlace(placeList[0]);
             }
             
             var placeInfoList = placeList.map(function (place) {
@@ -458,22 +457,23 @@ define(function (require, exports, module) {
         });
     }
     
-    function showJourneys(placeId, lat, lon, title) {
+    function showJourneys(place) {
         var locationPromise = geo.getLocation(),
-            place = placeId ? places.getPlace(placeId) : { lat: lat, lon: lon, title: title },
             deferred = $.Deferred(),
             listPromise = deferred.promise(),
             options = {
                 emptyMessage: "No routes found.",
-                backHref: placeId ? "#page=places&op=arrivals" : "#page=places&op=add",
+                backHref: place.id !== undefined ? "#page=places&op=arrivals" : "#page=places&op=add",
                 getEntryHref: function (journey) {
                     var stop = journey.departure,
                         direction = stop._direction,
-                        route = direction._route;
-                    
-                    return "#page=predictions&place=" + placeId +
-                        "&route=" + route.tag + "&direction=" + direction.tag +
-                        "&stop=" + stop.tag;
+                        route = direction._route,
+                        placeFrag = place.id !== undefined ? "place=" + place.id :
+                                "lat=" + place.lat + "&lon=" + place.lon + "&title=" +
+                                encodeURIComponent(place.title);
+                
+                    return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
+                        "&stop=" + stop.tag + "&" + placeFrag;
                 },
                 getLeft: function (journey) {
                     var stop = journey.departure,
