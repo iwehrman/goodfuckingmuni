@@ -29,6 +29,53 @@ define(function (require, exports, module) {
     var $body = $("body"),
         $content = $body.find(".content");
     
+    var RECENT_PLACE_TIMEOUT = 1000 * 60 * 10, // 10 minutes
+        RECENT_PLACE_KEY = "org.wehrman.muni.view.recent_place";
+    
+    var firstLoad = true,
+        recentPlace = null,
+        recentPlaceTimer = null;
+    
+    function getRecentPlace() {
+        return recentPlace;
+    }
+    
+    function setRecentPlace(place, timeout) {
+        var placeObj = {
+            place: place.id,
+            time: Date.now()
+        };
+        
+        localStorage.setItem(RECENT_PLACE_KEY, JSON.stringify(placeObj));
+        recentPlace = place;
+        
+        if (recentPlaceTimer) {
+            clearTimeout(recentPlaceTimer);
+        }
+        
+        recentPlaceTimer = setTimeout(function () {
+            recentPlace = null;
+            recentPlaceTimer = null;
+        }, timeout || RECENT_PLACE_TIMEOUT);
+    }
+
+    function loadRecentPlace() {
+        var placeObjJson = localStorage.getItem(RECENT_PLACE_KEY);
+        if (placeObjJson) {
+            try {
+                var placeObj = JSON.parse(placeObjJson),
+                    timeLeft = Date.now() - placeObj.time;
+                
+                if (timeLeft < RECENT_PLACE_TIMEOUT) {
+                    var place = places.getPlace(placeObj.place);
+                    setRecentPlace(place, timeLeft);
+                }
+            } catch (err) {
+                localStorage.removeItem(RECENT_PLACE_KEY);
+            }
+        }
+    }
+    
     function showPredictions(place, routeTag, stopTag) {
         var deferred = $.Deferred(),
             listPromise = deferred.promise();
@@ -313,6 +360,7 @@ define(function (require, exports, module) {
             refresh: refreshPredictions
         };
         
+        setRecentPlace(place);
         list.showList(title, listPromise, options);
 
         async.map(place.stops, function (stopObj, callback) {
@@ -364,6 +412,58 @@ define(function (require, exports, module) {
                 console.error("[showPlace] failed to get predictions: " + err);
                 deferred.reject(err);
             });
+        });
+    }
+    
+    function showJourneys(place) {
+        var locationPromise = geo.getLocation(),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise(),
+            options = {
+                emptyMessage: "No routes found.",
+                backHref: place.id !== undefined ? "#page=places&op=arrivals&first=0" : "#page=places&op=add",
+                getEntryHref: function (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route,
+                        placeFrag = place.id !== undefined ? "place=" + place.id :
+                                "lat=" + place.lat + "&lon=" + place.lon + "&title=" +
+                                encodeURIComponent(place.title);
+                
+                    return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
+                        "&stop=" + stop.tag + "&" + placeFrag;
+                },
+                getLeft: function (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route,
+                        title = route.getTitleWithColor(),
+                        subtitles = [direction.title, stop.title];
+                    
+                    return titleTemplate({title: title, subtitles: subtitles});
+                },
+                getRight: function (journey) {
+                    var stop = journey.arrival,
+                        pred = journey.departurePredictions[0],
+                        title = predictionsTemplate({predictions: pred}),
+                        subtitles = [stop.title],
+                        titleHtml = titleTemplate({title: title, subtitles: subtitles});
+    
+                    return titleHtml;
+                }
+            };
+        
+        setRecentPlace(place);
+        list.showList(place.title, listPromise, options);
+        
+        locationPromise.done(function (position) {
+            journeys.getJourneys(position, place).done(function (journeys) {
+                deferred.resolve(journeys);
+            }).fail(function (err) {
+                deferred.reject(err);
+            });
+        }).fail(function (err) {
+            deferred.reject(err);
         });
     }
     
@@ -430,13 +530,22 @@ define(function (require, exports, module) {
         list.showList("Places", listPromise, options);
         
         geo.sortByCurrentLocation(placeList).done(function (position) {
-            if (!showAll && placeList.length >= 1 &&
-                    geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
-                    (placeList.length < 2 ||
-                        geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
-                
-                deferred.reject();
-                return showPlace(placeList[0]);
+            if (placeList.length >= 1) {
+                if (entryOp === "arrivals") {
+                    var recentPlace = getRecentPlace();
+                    if (firstLoad &&
+                            placeList.some(function (p) { return p === recentPlace; })) {
+                        deferred.reject();
+                        return showJourneys(recentPlace);
+                    }
+                } else if (!showAll) {
+                    if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
+                            (placeList.length < 2 ||
+                            geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
+                        deferred.reject();
+                        return showPlace(placeList[0]);
+                    }
+                }
             }
             
             var placeInfoList = placeList.map(function (place) {
@@ -451,59 +560,10 @@ define(function (require, exports, module) {
             // warm up cache
             preloadRoutes();
             preloadPredictions();
+        }).always(function () {
+            firstLoad = false;
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
-            deferred.reject(err);
-        });
-    }
-    
-    function showJourneys(place) {
-        var locationPromise = geo.getLocation(),
-            deferred = $.Deferred(),
-            listPromise = deferred.promise(),
-            options = {
-                emptyMessage: "No routes found.",
-                backHref: place.id !== undefined ? "#page=places&op=arrivals" : "#page=places&op=add",
-                getEntryHref: function (journey) {
-                    var stop = journey.departure,
-                        direction = stop._direction,
-                        route = direction._route,
-                        placeFrag = place.id !== undefined ? "place=" + place.id :
-                                "lat=" + place.lat + "&lon=" + place.lon + "&title=" +
-                                encodeURIComponent(place.title);
-                
-                    return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
-                        "&stop=" + stop.tag + "&" + placeFrag;
-                },
-                getLeft: function (journey) {
-                    var stop = journey.departure,
-                        direction = stop._direction,
-                        route = direction._route,
-                        title = route.getTitleWithColor(),
-                        subtitles = [direction.title, stop.title];
-                    
-                    return titleTemplate({title: title, subtitles: subtitles});
-                },
-                getRight: function (journey) {
-                    var stop = journey.arrival,
-                        pred = journey.departurePredictions[0],
-                        title = predictionsTemplate({predictions: pred}),
-                        subtitles = [stop.title],
-                        titleHtml = titleTemplate({title: title, subtitles: subtitles});
-    
-                    return titleHtml;
-                }
-            };
-        
-        list.showList(place.title, listPromise, options);
-        
-        locationPromise.done(function (position) {
-            journeys.getJourneys(position, place).done(function (journeys) {
-                deferred.resolve(journeys);
-            }).fail(function (err) {
-                deferred.reject(err);
-            });
-        }).fail(function (err) {
             deferred.reject(err);
         });
     }
@@ -675,6 +735,8 @@ define(function (require, exports, module) {
             page.showPage("Add Place", $container, $loadPromise, options);
         });
     }
+    
+    loadRecentPlace();
     
     exports.showSearch = showSearch;
     exports.showJourneys = showJourneys;
