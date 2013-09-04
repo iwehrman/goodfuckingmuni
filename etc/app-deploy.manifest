@@ -1,6 +1,7 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.45
+# Cache manifest version 0.0.46
 
+favicon.ico
 /css/main.css
 /css/topcoat-mobile-dark.min.css
 /css/topcoat-mobile-light.min.css
