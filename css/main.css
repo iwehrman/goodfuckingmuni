@@ -53,6 +53,11 @@ body {
     margin-left: -32px;
 }
 
+.entry {
+    padding-top: 0 ! important;
+    padding-bottom: 18px ! important;
+}
+
 .entry__content {
     overflow-y: auto;
     font-size: 44px;
@@ -145,15 +150,4 @@ body {
 .search__add,
 .search__quick {
     margin: 0 1em ! important;   
-}
-
-.pac-container {
-    font-size: 20px;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    overflow: hidden;
-    width: 100%;
-    border-radius: 10px;
-    padding: 1em;
-    margin-left: -1em;
 }
