@@ -76,7 +76,7 @@ define(function (require, exports, module) {
                 location.hash = "#page=places";
                 break;
             case "arrivals":
-                view.showPlaces(true, "arrivals");
+                view.showAllJourneys(true);
                 break;
             default:
                 view.showPlaces(true);

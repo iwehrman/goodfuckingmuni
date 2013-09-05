@@ -467,6 +467,119 @@ define(function (require, exports, module) {
         });
     }
     
+    function showAllJourneys(showAll) {
+        var placeList = places.getAllPlaces(),
+            deferred = $.Deferred(),
+            listPromise = deferred.promise();
+        
+        var options = {
+            emptyMessage: "No places found.",
+            addHref: "#page=places&op=add",
+            getEntryHref: function (journeyObj) {
+                var place = journeyObj.place;
+                
+                return "#page=place&place=" + place.id + "&op=arrivals";
+            },
+            getLeft: function (journeyObj) {
+                var place = journeyObj.place,
+                    title = place.title,
+                    subtitles;
+                
+                if (journeyObj.journey) {
+                    var journey = journeyObj.journey,
+                        stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route;
+                    subtitles = [route.getTitleWithColor(), direction.title];
+                } else {
+                    subtitles = [];
+                }
+                
+                return titleTemplate({title: title, subtitles: subtitles});
+            },
+            getRight: function (journeyObj) {
+                var place = journeyObj.place,
+                    position = journeyObj.position,
+                    meters = geo.distance(position, place),
+                    miles = geo.kilometersToMiles(meters),
+                    distance = distanceTemplate({miles: miles}),
+                    subtitles;
+                
+                if (journeyObj.journey) {
+                    var journey = journeyObj.journey,
+                        pred = journey.departurePredictions[0],
+                        subtitle = predictionsTemplate({predictions: pred});
+                    subtitles = [subtitle];
+                }
+                
+                return titleTemplate({title: distance, subtitles: subtitles});
+            },
+            getRemoveHref: function (journeyObj) {
+                var place = journeyObj.place;
+                
+                return "#page=places&op=remove&place=" + place.id;
+            },
+            confirmRemove: function (journeyObj) {
+                var place = journeyObj.place;
+                
+                return window.confirm("Remove place " + place.title + "?");
+            }
+        };
+        
+        list.showList("Places", listPromise, options);
+        
+        geo.sortByCurrentLocation(placeList).done(function (position) {
+            if (placeList.length >= 1) {
+                var recentPlace = getRecentPlace();
+                if (firstLoad &&
+                        placeList.some(function (p) { return p === recentPlace; })) {
+                    deferred.reject();
+                    return showJourneys(recentPlace);
+                }
+            }
+            
+            async.map(placeList, function (place, callback) {
+                journeys.getJourneys(position, place).done(function (journeys) {
+                    callback(null, {
+                        place: place,
+                        journeys: journeys
+                    });
+                }).fail(function (err) {
+                    callback(err);
+                });
+            }, function (err, journeyObjs) {
+                var bestJourneyList = journeyObjs
+                    .map(function (journeyObj) {
+                        var bestJourneyObj = {
+                            position: position,
+                            place: journeyObj.place
+                        };
+                        
+                        if (journeyObj.journeys.length > 0) {
+                            bestJourneyObj.journey = journeyObj.journeys[0];
+                        }
+                        
+                        return bestJourneyObj;
+                    })
+                    .sort(function (journeyObj1, journeyObj2) {
+                        if (journeyObj1.journey) {
+                            return journeyObj2.journey ? 0 : -1;
+                        } else {
+                            return journeyObj2.journey ? 1 : 0;
+                        }
+                    });
+
+                deferred.resolve(bestJourneyList);
+            });
+            
+        }).always(function () {
+            firstLoad = false;
+        }).fail(function (err) {
+            console.error("[showAllJourneys] failed to geolocate: " + err);
+            deferred.reject(err);
+        });
+    }
+    
     function showPlaces(showAll, entryOp) {
         var placeList = places.getAllPlaces(),
             deferred = $.Deferred(),
@@ -740,6 +853,7 @@ define(function (require, exports, module) {
     
     exports.showSearch = showSearch;
     exports.showJourneys = showJourneys;
+    exports.showAllJourneys = showAllJourneys;
     exports.showPlaces = showPlaces;
     exports.showPlace = showPlace;
     exports.showRoutes = showRoutes;
