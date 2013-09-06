@@ -76,7 +76,7 @@ define(function (require, exports, module) {
         }
     }
     
-    function showPredictions(place, routeTag, stopTag) {
+    function showPredictions(place, routeTag, stopTag, entryOp) {
         var deferred = $.Deferred(),
             listPromise = deferred.promise();
         
@@ -102,7 +102,8 @@ define(function (require, exports, module) {
                 title = stop.title,
                 options = {
                     emptyMessage: "No predictions found.",
-                    backHref: "#page=place&" + (place.id !== undefined ? "place=" + place.id :
+                    backHref: "#page=place&" + (place.id !== undefined ? "place=" + place.id +
+                                                (entryOp === "arrivals" ? "&op=arrivals" : "") :
                             "op=arrivals&lat=" + place.lat + "&lon=" + place.lon +
                             "&title=" + encodeURIComponent(place.title)),
                     getLeft: function (prediction) {
@@ -431,7 +432,7 @@ define(function (require, exports, module) {
                                 encodeURIComponent(place.title);
                 
                     return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
-                        "&stop=" + stop.tag + "&" + placeFrag;
+                        "&stop=" + stop.tag + "&" + placeFrag + "&op=arrivals";
                 },
                 getLeft: function (journey) {
                     var stop = journey.departure,
@@ -453,10 +454,15 @@ define(function (require, exports, module) {
                 }
             };
         
-        setRecentPlace(place);
-        list.showList(place.title, listPromise, options);
-        
         locationPromise.done(function (position) {
+            var meters = geo.distance(position, place),
+                miles = geo.kilometersToMiles(meters),
+                distance = distanceTemplate({miles: miles}),
+                title = place.title + " -" + distance;
+            
+            setRecentPlace(place);
+            list.showList(title, listPromise, options);
+            
             journeys.getJourneys(position, place).done(function (journeys) {
                 deferred.resolve(journeys);
             }).fail(function (err) {
@@ -490,7 +496,7 @@ define(function (require, exports, module) {
                         stop = journey.departure,
                         direction = stop._direction,
                         route = direction._route;
-                    subtitles = [route.getTitleWithColor(), direction.title];
+                    subtitles = [route.getTitleWithColor() + " - " + direction.name];
                 } else {
                     subtitles = [];
                 }
@@ -499,20 +505,20 @@ define(function (require, exports, module) {
             },
             getRight: function (journeyObj) {
                 var place = journeyObj.place,
-                    position = journeyObj.position,
-                    meters = geo.distance(position, place),
-                    miles = geo.kilometersToMiles(meters),
-                    distance = distanceTemplate({miles: miles}),
+                    title,
                     subtitles;
                 
                 if (journeyObj.journey) {
-                    var journey = journeyObj.journey,
-                        pred = journey.departurePredictions[0],
-                        subtitle = predictionsTemplate({predictions: pred});
-                    subtitles = [subtitle];
+                    var journey = journeyObj.journey;
+
+                    title = predictionsTemplate({predictions: journey.departurePredictions[0]});
+                    subtitles = ["&rarr; " + predictionsTemplate({predictions: journey.feasibleArrivalPredictions[0]})];
+                } else {
+                    title = null;
+                    subtitles = null;
                 }
                 
-                return titleTemplate({title: distance, subtitles: subtitles});
+                return titleTemplate({title: title, subtitles: subtitles});
             },
             getRemoveHref: function (journeyObj) {
                 var place = journeyObj.place;

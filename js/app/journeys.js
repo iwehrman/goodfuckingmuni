@@ -176,6 +176,7 @@ define(function (require, exports, module) {
                         
                         if (feasibleArrivals.length > 0) {
                             feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
+                            journey.feasibleArrivalPredictions = feasibleArrivals;
                             console.log("Best arrival for " + journey.departure._direction._route.tag,
                                         (feasibleArrivals[0].seconds / 60).toFixed(2));
                             return true;

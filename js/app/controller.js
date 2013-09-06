@@ -100,7 +100,7 @@ define(function (require, exports, module) {
             }
             break;
         case "predictions":
-            view.showPredictions(state.place, state.route, state.stop);
+            view.showPredictions(state.place, state.route, state.stop, state.op);
             break;
         case "routes":
             view.showRoutes(state.place);
