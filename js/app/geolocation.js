@@ -20,8 +20,8 @@ define(function (require, exports, module) {
             deferred.reject(error);
         }, {
             enableHighAccuracy: true,
-            //timeout: 1000 * 60 * 1,
-            maximumAge: 1000 * 60 * 10
+            timeout: 1000 * 10,
+            maximumAge: 1000 * 60
         });
         
         return deferred.promise();
