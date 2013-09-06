@@ -14,6 +14,22 @@ define(function (require, exports, module) {
     var cmdPredictions = command.defineCommand("predictions", ["r", "s"]),
         cmdPredictionsForMultiStops = command.defineCommand("predictionsForMultiStops", ["stops"]);
     
+    function Prediction(dirTag, epochTime, seconds, minutes, isDeparture, affectedByLayover, vehicle) {
+        this.dirTag = dirTag;
+        this.epochTime = epochTime;
+        this.seconds = seconds;
+        this.minutes = minutes;
+        this.isDeparture = isDeparture;
+        this.affectedByLayover = affectedByLayover;
+        this.vehicle = vehicle;
+    }
+    
+    Prediction.prototype.clone = function () {
+        return new Prediction(this.dirTag, this.epochTime, this.seconds,
+                              this.minutes, this.isDeparture,
+                              this.affectedByLayover, this.vehicle);
+    };
+    
     function handlePredictionData(data) {
         var predictions = [];
                 
@@ -25,17 +41,11 @@ define(function (require, exports, module) {
                 minutes = parseInt($prediction.attr("minutes"), 10),
                 isDeparture = $prediction.attr("isDeparture") === "true",
                 affectedByLayover = $prediction.attr("affectedByLayover") === "true",
-                vehicle = parseInt($prediction.attr("vehicle"), 10);
-                
-            predictions.push({
-                dirTag: dirTag,
-                epochTime: epochTime,
-                seconds: seconds,
-                minutes: minutes,
-                isDeparture: isDeparture,
-                affectedByLayover: affectedByLayover,
-                vehicle: vehicle
-            });
+                vehicle = parseInt($prediction.attr("vehicle"), 10),
+                prediction = new Prediction(dirTag, epochTime, seconds, minutes,
+                                            isDeparture, affectedByLayover, vehicle);
+            
+            predictions.push(prediction);
         });
         
         return predictions.sort(function (a, b) {
@@ -72,7 +82,7 @@ define(function (require, exports, module) {
         }
         
         if (cachedPredictions[routeTag][stopTag]) {
-            deferred.resolve(cachedPredictions[routeTag][stopTag].predictions);
+            deferred.resolve(cachedPredictions[routeTag][stopTag].predictions.slice(0));
         } else {
             cmdPredictions(routeTag, stopTag).done(function (data) {
                 var predictions = handlePredictionData(data);
@@ -107,7 +117,7 @@ define(function (require, exports, module) {
                 if (!predictionsForMultiStops[routeTag]) {
                     predictionsForMultiStops[routeTag] = {};
                 }
-                predictionsForMultiStops[routeTag][stopTag] = cachedPredictions[routeTag][stopTag].predictions;
+                predictionsForMultiStops[routeTag][stopTag] = cachedPredictions[routeTag][stopTag].predictions.slice(0);
             }
         });
 
