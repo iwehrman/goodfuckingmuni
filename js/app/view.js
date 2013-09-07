@@ -25,9 +25,6 @@ define(function (require, exports, module) {
     var distanceTemplate = mustache.compile(_distanceHtml),
         predictionsTemplate = mustache.compile(_predictionsHtml),
         titleTemplate = mustache.compile(_titleHtml);
-
-    var $body = $("body"),
-        $content = $body.find(".content");
     
     var RECENT_PLACE_TIMEOUT = 1000 * 60 * 10, // 10 minutes
         RECENT_PLACE_KEY = "org.wehrman.muni.view.recent_place";
@@ -81,23 +78,6 @@ define(function (require, exports, module) {
             listPromise = deferred.promise();
         
         routes.getRoute(routeTag).done(function (route) {
-            function refreshPredictions(force) {
-                preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
-                    $content.find(".entry").each(function (index, entry) {
-                        var $entry = $(entry);
-                        
-                        $entry.find(".entry__minutes").each(function (_index, minutes) {
-                            if (index < newPredictions.length) {
-                                $(minutes).text(newPredictions[index].minutes);
-                                return true;
-                            } else {
-                                return false;
-                            }
-                        });
-                    });
-                });
-            }
-            
             var stop = route.stops[stopTag],
                 title = stop.title,
                 options = {
@@ -109,9 +89,31 @@ define(function (require, exports, module) {
                     getLeft: function (prediction) {
                         return predictionsTemplate({predictions: prediction});
                     },
-                    refresh: refreshPredictions
+                    refresh: function (force, $container) {
+                        var deferred = $.Deferred();
+                        
+                        preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
+                            var $entries = $container.find(".entry");
+                            if ($entries.length === newPredictions.length) {
+                                $entries.each(function (index, entry) {
+                                    $(entry).find(".entry__minutes").each(function (_index, minutes) {
+                                        $(minutes).text(newPredictions[index].minutes);
+                                    });
+                                });
+                                deferred.resolve();
+                            } else {
+                                var listPromise = $.Deferred().resolve(newPredictions).promise();
+                                list.showList(title, listPromise, options);
+                                deferred.reject();
+                            }
+                        }).fail(function () {
+                            deferred.resolve();
+                        });
+                        
+                        return deferred.promise();
+                    }
                 };
-
+            
             list.showList(title, listPromise, options);
         
             preds.getPredictions(routeTag, stopTag).done(function (predictions) {
@@ -260,9 +262,11 @@ define(function (require, exports, module) {
             deferred = $.Deferred(),
             listPromise = deferred.promise();
         
-        function refreshPredictions(force) {
+        function refreshPredictions(force, $container) {
+            var deferred = $.Deferred();
+            
             function updateEntries(predictionObjects) {
-                $content.find(".entry").each(function (index, entry) {
+                $container.find(".entry").each(function (index, entry) {
                     var $entry = $(entry),
                         data = entry.dataset,
                         routeTag = data.route,
@@ -285,12 +289,16 @@ define(function (require, exports, module) {
                         $entry.find(".entry__right").animate({opacity: 0.5});
                     }
                 });
+                
+                return deferred.promise();
             }
             
             preds.getPredictionsForMultiStops(place.stops, force)
                 .progress(updateEntries)
                 .done(updateEntries)
                 .fail(updateEntries.bind(null, {}));
+            
+            return deferred.promise();
         }
         
         var options = {
@@ -604,12 +612,17 @@ define(function (require, exports, module) {
         }
         
         function preloadPredictions(force) {
-            var stopObjs = [];
+            var stopObjs = [],
+                deferred = $.Deferred();
             
             placeList.forEach(function (place) {
                 stopObjs = stopObjs.concat(place.stops);
             });
-            preds.getPredictionsForMultiStops(stopObjs, force);
+            preds.getPredictionsForMultiStops(stopObjs, force).always(function () {
+                deferred.resolve();
+            });
+            
+            return deferred.promise();
         }
         
         var options = {

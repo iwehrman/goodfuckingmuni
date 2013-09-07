@@ -22,7 +22,22 @@ define(function (require, exports, module) {
         $loading = $body.find(".loading");
     
     var refreshTimer = null,
+        refreshInProgress = false,
         handleRefresh;
+           
+    function refreshPage(force) {
+        window.clearTimeout(refreshTimer);
+        
+        if (handleRefresh && !refreshInProgress) {
+            refreshInProgress = true;
+            handleRefresh(force).done(function () {
+                refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
+            }).always(function () {
+                refreshInProgress = false;
+            });
+
+        }
+    }
     
     function makeHeader(title, opts) {
         var left;
@@ -65,11 +80,10 @@ define(function (require, exports, module) {
         var finishedLoading = false,
             $header = makeHeader(title, options);
         
-        if (refreshTimer) {
-            window.clearInterval(refreshTimer);
-            refreshTimer = null;
-            handleRefresh = null;
-        }
+        window.clearInterval(refreshTimer);
+        refreshTimer = null;
+        refreshInProgress = false;
+        handleRefresh = null;
         
         $content.empty();
         $content.append($header);
@@ -80,8 +94,10 @@ define(function (require, exports, module) {
             $loading.stop().fadeOut();
             
             if (options.refresh) {
-                handleRefresh = options.refresh;
-                refreshTimer = window.setInterval(handleRefresh, REFRESH_INTERVAL);
+                handleRefresh = function (force) {
+                    return options.refresh(force, $container);
+                };
+                refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
             }
             
             if (options.scroll) {
@@ -101,12 +117,6 @@ define(function (require, exports, module) {
                 $loading.fadeIn();
             }
         }, 25);
-    }
-       
-    function refreshPage(force) {
-        if (handleRefresh) {
-            handleRefresh(force);
-        }
     }
 
     exports.showPage = showPage;
