@@ -12,7 +12,7 @@ define(function (require, exports, module) {
     
     var MUNI_TOLERANCE = 0.71;
     
-    function getJourneys(begin, end) {
+    function getJourneys(begin, end, force) {
         var deferred = $.Deferred();
         
         routes.getRoutes().done(function (routeList) {
@@ -91,7 +91,7 @@ define(function (require, exports, module) {
                     });
                 });
                 
-                preds.getPredictionsForMultiStops(stopObjs).done(function (predictions) {
+                preds.getPredictionsForMultiStops(stopObjs, force).done(function (predictions) {
                     journeys.forEach(function (journey) {
                         var departure = journey.departure,
                             arrival = journey.arrival,

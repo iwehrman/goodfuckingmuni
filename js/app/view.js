@@ -442,6 +442,16 @@ define(function (require, exports, module) {
                     return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
                         "&stop=" + stop.tag + "&" + placeFrag + "&op=arrivals";
                 },
+                getTags: function (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route;
+                
+                    return [{tag: "place", value: place.id},
+                            {tag: "route", value: route.tag},
+                            {tag: "direction", value: direction.tag},
+                            {tag: "stop", value: stop.tag}];
+                },
                 getLeft: function (journey) {
                     var departure = journey.departure,
                         arrival = journey.arrival,
@@ -460,6 +470,62 @@ define(function (require, exports, module) {
                         titleHtml = titleTemplate({title: title, subtitles: subtitles});
     
                     return titleHtml;
+                },
+                refresh: function (force, $container) {
+                    var deferred = $.Deferred();
+                    
+                    geo.getLocation().done(function (position) {
+                        var meters = geo.distance(position, place),
+                            miles = geo.kilometersToMiles(meters),
+                            distance = distanceTemplate({miles: miles}),
+                            title = place.title + " -" + distance;
+                        
+                        journeys.getJourneys(position, place, force).done(function (journeys) {
+                            var $entries = $container.find(".entry");
+                            if ($entries.length !== journeys.length) {
+                                deferred.reject();
+                                list.showList(title, $.Deferred().resolve(journeys), options);
+                            } else {
+                                try {
+                                    $entries.each(function (index, entry) {
+                                        var journey = journeys[index],
+                                            stop = journey.departure,
+                                            direction = stop._direction,
+                                            route = direction._route,
+                                            $entry = $(entry),
+                                            routeTag = $entry.attr("data-route"),
+                                            dirTag = $entry.attr("data-direction"),
+                                            stopTag = $entry.attr("data-stop");
+                                        
+                                        if (routeTag !== route.tag ||
+                                                dirTag !== direction.tag ||
+                                                stopTag !== stop.tag) {
+                                            throw "Refresh";
+                                        } else {
+                                            var departurePrediction = journey.departurePredictions[0],
+                                                arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                                $departurePred = $entry.find(".entry__title .entry__minutes"),
+                                                $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                            
+                                            $departurePred.text(departurePrediction.minutes);
+                                            $arrivalPred.text(arrivalPrediction.minutes);
+                                        }
+                                    });
+                                    deferred.resolve();
+                                } catch (err) {
+                                    deferred.reject();
+                                    list.showList(title, $.Deferred().resolve(journeys), options);
+                                }
+                            }
+                            
+                        }).fail(function () {
+                            deferred.resolve();
+                        });
+                    }).fail(function () {
+                        deferred.resolve();
+                    });
+                    
+                    return deferred.promise();
                 }
             };
         
@@ -487,11 +553,11 @@ define(function (require, exports, module) {
             deferred = $.Deferred(),
             listPromise = deferred.promise();
         
-        function getBestJourneys(position) {
+        function getBestJourneys(position, force) {
             var deferred = $.Deferred();
             
             async.map(placeList, function (place, callback) {
-                journeys.getJourneys(position, place).done(function (journeys) {
+                journeys.getJourneys(position, place, force).done(function (journeys) {
                     callback(null, {
                         place: place,
                         journeys: journeys
@@ -608,7 +674,7 @@ define(function (require, exports, module) {
                 var deferred = $.Deferred();
                 
                 geo.getLocation()
-                    .then(getBestJourneys)
+                    .then(function (position) { return getBestJourneys(position, force); })
                     .then(function (bestJourneysList) {
                         var $entries = $container.find(".entry");
                         if ($entries.length === bestJourneysList.length) {
