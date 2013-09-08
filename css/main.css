@@ -33,7 +33,7 @@ body {
 }
 
 .nav__title {
-    font-size: 38px ! important;
+    font-size: 40px ! important;
     font-weight: 100 ! important;
 }
 
@@ -73,6 +73,9 @@ body {
 .entry__empty {
     opacity: 0.6;
     font-style: italic;
+    /* hack so the italic text isn't clipped */
+    overflow-x: visible;
+    padding-right: 10px;
 }
 
 .entry.highlight .entry__left {
@@ -85,6 +88,10 @@ body {
     text-align: right;
 }
 
+.entry__right > .entry__title {
+    height: 56px;   
+}
+
 .remove {
     display: none;
     padding: 0 40px;
@@ -93,12 +100,18 @@ body {
 .entry__title {
     float: none;
     line-height: 56px;
+    white-space: nowrap;
+    overflow:hidden;
+    text-overflow: ellipsis;
 }
 
 .entry__subtitle {
     float: none;
     font-size: 22px;
     line-height: 26px;
+    white-space: nowrap;
+    overflow:hidden;
+    text-overflow: ellipsis;
 }
 
 .entry__miles:after {

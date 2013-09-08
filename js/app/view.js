@@ -443,19 +443,20 @@ define(function (require, exports, module) {
                         "&stop=" + stop.tag + "&" + placeFrag + "&op=arrivals";
                 },
                 getLeft: function (journey) {
-                    var stop = journey.departure,
-                        direction = stop._direction,
+                    var departure = journey.departure,
+                        arrival = journey.arrival,
+                        direction = arrival._direction,
                         route = direction._route,
                         title = route.getTitleWithColor(),
-                        subtitles = [direction.title, stop.title];
+                        subtitles = [direction.title, "@ " + departure.title, "↪ " + arrival.title];
                     
                     return titleTemplate({title: title, subtitles: subtitles});
                 },
                 getRight: function (journey) {
-                    var stop = journey.arrival,
-                        pred = journey.departurePredictions[0],
-                        title = predictionsTemplate({predictions: pred}),
-                        subtitles = [stop.title],
+                    var departurePred = journey.departurePredictions[0],
+                        arrivalPred = journey.feasibleArrivalPredictions[0],
+                        title = predictionsTemplate({predictions: departurePred}),
+                        subtitles = ["↪" + predictionsTemplate({predictions: arrivalPred})],
                         titleHtml = titleTemplate({title: title, subtitles: subtitles});
     
                     return titleHtml;
@@ -486,6 +487,50 @@ define(function (require, exports, module) {
             deferred = $.Deferred(),
             listPromise = deferred.promise();
         
+        function getBestJourneys(position) {
+            var deferred = $.Deferred();
+            
+            async.map(placeList, function (place, callback) {
+                journeys.getJourneys(position, place).done(function (journeys) {
+                    callback(null, {
+                        place: place,
+                        journeys: journeys
+                    });
+                }).fail(function (err) {
+                    callback(err);
+                });
+            }, function (err, journeyObjs) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    var bestJourneyList = journeyObjs
+                        .map(function (journeyObj) {
+                            var bestJourneyObj = {
+                                position: position,
+                                place: journeyObj.place
+                            };
+                            
+                            if (journeyObj.journeys.length > 0) {
+                                bestJourneyObj.journey = journeyObj.journeys[0];
+                            }
+                            
+                            return bestJourneyObj;
+                        })
+                        .sort(function (journeyObj1, journeyObj2) {
+                            if (journeyObj1.journey) {
+                                return journeyObj2.journey ? 0 : -1;
+                            } else {
+                                return journeyObj2.journey ? 1 : 0;
+                            }
+                        });
+    
+                    deferred.resolve(bestJourneyList);
+                }
+            });
+            
+            return deferred.promise();
+        }
+        
         var options = {
             emptyMessage: "No places found.",
             addHref: "#page=places&op=add",
@@ -494,6 +539,23 @@ define(function (require, exports, module) {
                 
                 return "#page=place&place=" + place.id + "&op=arrivals";
             },
+            getTags: function (journeyObj) {
+                var place = journeyObj.place,
+                    journey = journeyObj.journey;
+                
+                if (journey) {
+                    var stop = journey.departure,
+                        direction = stop._direction,
+                        route = direction._route;
+                
+                    return [{tag: "place", value: place.id},
+                            {tag: "route", value: route.tag},
+                            {tag: "dir", value: direction.tag},
+                            {tag: "stop", value: stop.Tag}];
+                } else {
+                    return [{tag: "place", value: place.id}];
+                }
+            },
             getLeft: function (journeyObj) {
                 var place = journeyObj.place,
                     title = place.title,
@@ -501,11 +563,13 @@ define(function (require, exports, module) {
                 
                 if (journeyObj.journey) {
                     var journey = journeyObj.journey,
-                        stop = journey.departure,
-                        direction = stop._direction,
+                        departure = journey.departure,
+                        direction = departure._direction,
                         route = direction._route;
-                    subtitles = [route.getTitleWithColor() + " - " + direction.name];
+                    
+                    subtitles = [route.getTitleWithColor() + " - " + direction.name, "@ " + departure.title];
                 } else {
+                    title = "<span class='entry__empty'>" + title + "</span>";
                     subtitles = [];
                 }
                 
@@ -517,10 +581,12 @@ define(function (require, exports, module) {
                     subtitles;
                 
                 if (journeyObj.journey) {
-                    var journey = journeyObj.journey;
+                    var journey = journeyObj.journey,
+                        departurePred = journey.departurePredictions[0],
+                        arrivalPred = journey.feasibleArrivalPredictions[0];
 
-                    title = predictionsTemplate({predictions: journey.departurePredictions[0]});
-                    subtitles = ["&rarr; " + predictionsTemplate({predictions: journey.feasibleArrivalPredictions[0]})];
+                    title = predictionsTemplate({predictions: departurePred});
+                    subtitles = ["↪ " + predictionsTemplate({predictions: arrivalPred})];
                 } else {
                     title = null;
                     subtitles = null;
@@ -537,12 +603,16 @@ define(function (require, exports, module) {
                 var place = journeyObj.place;
                 
                 return window.confirm("Remove place " + place.title + "?");
+            },
+            refresh: function (force, $container) {
+                var deferred = $.Deferred();
+                return deferred.promise();
             }
         };
         
         list.showList("Places", listPromise, options);
         
-        geo.sortByCurrentLocation(placeList).done(function (position) {
+        geo.getLocation().done(function (position) {
             if (placeList.length >= 1) {
                 var recentPlace = getRecentPlace();
                 if (firstLoad &&
@@ -552,39 +622,7 @@ define(function (require, exports, module) {
                 }
             }
             
-            async.map(placeList, function (place, callback) {
-                journeys.getJourneys(position, place).done(function (journeys) {
-                    callback(null, {
-                        place: place,
-                        journeys: journeys
-                    });
-                }).fail(function (err) {
-                    callback(err);
-                });
-            }, function (err, journeyObjs) {
-                var bestJourneyList = journeyObjs
-                    .map(function (journeyObj) {
-                        var bestJourneyObj = {
-                            position: position,
-                            place: journeyObj.place
-                        };
-                        
-                        if (journeyObj.journeys.length > 0) {
-                            bestJourneyObj.journey = journeyObj.journeys[0];
-                        }
-                        
-                        return bestJourneyObj;
-                    })
-                    .sort(function (journeyObj1, journeyObj2) {
-                        if (journeyObj1.journey) {
-                            return journeyObj2.journey ? 0 : -1;
-                        } else {
-                            return journeyObj2.journey ? 1 : 0;
-                        }
-                    });
-
-                deferred.resolve(bestJourneyList);
-            });
+            getBestJourneys(position).done(deferred.resolve, deferred.reject);
             
         }).always(function () {
             firstLoad = false;
