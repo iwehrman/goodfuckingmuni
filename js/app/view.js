@@ -550,8 +550,8 @@ define(function (require, exports, module) {
                 
                     return [{tag: "place", value: place.id},
                             {tag: "route", value: route.tag},
-                            {tag: "dir", value: direction.tag},
-                            {tag: "stop", value: stop.Tag}];
+                            {tag: "direction", value: direction.tag},
+                            {tag: "stop", value: stop.tag}];
                 } else {
                     return [{tag: "place", value: place.id}];
                 }
@@ -606,6 +606,64 @@ define(function (require, exports, module) {
             },
             refresh: function (force, $container) {
                 var deferred = $.Deferred();
+                
+                geo.getLocation()
+                    .then(getBestJourneys)
+                    .then(function (bestJourneysList) {
+                        var $entries = $container.find(".entry");
+                        if ($entries.length === bestJourneysList.length) {
+                            try {
+                                $entries.each(function (index, entry) {
+                                    var journeyObj = bestJourneysList[index],
+                                        journey = journeyObj.journey,
+                                        place = journeyObj.place,
+                                        $entry = $(entry),
+                                        placeId = $entry.data("place"),
+                                        routeTag = $entry.attr("data-route"),
+                                        dirTag = $entry.attr("data-direction"),
+                                        stopTag = $entry.attr("data-stop");
+                                    
+                                    if (placeId !== place.id) {
+                                        throw "Refresh";
+                                    }
+                                    
+                                    if (journey) {
+                                        var departure = journey.departure,
+                                            direction = departure._direction,
+                                            route = direction._route;
+                                        
+                                        if (route.tag !== routeTag ||
+                                                direction.tag !== dirTag ||
+                                                departure.tag !== stopTag) {
+                                            throw "Refresh";
+                                        }
+                                    } else {
+                                        if (routeTag || dirTag || stopTag) {
+                                            throw "Refresh";
+                                        }
+                                    }
+                                    
+                                    if (journey) {
+                                        var departurePrediction = journey.departurePredictions[0],
+                                            arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                            $departurePred = $entry.find(".entry__title .entry__minutes"),
+                                            $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                        
+                                        $departurePred.text(departurePrediction.minutes);
+                                        $arrivalPred.text(arrivalPrediction.minutes);
+                                    }
+                                });
+                                deferred.resolve();
+                            } catch (e) {
+                                deferred.reject();
+                                list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
+                            }
+                        } else {
+                            deferred.reject();
+                            list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
+                        }
+                    });
+                                
                 return deferred.promise();
             }
         };
