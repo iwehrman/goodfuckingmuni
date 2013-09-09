@@ -252,7 +252,7 @@ define(function (require, exports, module) {
             }
         };
     
-        list.showList("Routes", routes.getRoutes(), options);
+        list.showList("Routes", routes.getRouteList(), options);
     }
     
     function showPlace(place) {

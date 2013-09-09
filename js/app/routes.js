@@ -5,6 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
+        async = require("async"),
         geo = require("app/geolocation"),
         command = require("app/command"),
         util = require("app/util");
@@ -394,7 +395,7 @@ define(function (require, exports, module) {
         updateCachedRoutes();
     }
     
-    function getRoutes() {
+    function getRouteList() {
         var deferred = $.Deferred();
         
         if (cachedRouteList) {
@@ -473,9 +474,34 @@ define(function (require, exports, module) {
         return deferred.promise();
     }
     
+    function getAllRoutes() {
+        var deferred = $.Deferred();
+        
+        getRouteList().done(function (routeList) {
+            async.map(routeList, function (routeObj, callback) {
+                getRoute(routeObj.tag).done(function (route) {
+                    callback(null, route);
+                }).fail(function (err) {
+                    callback(err);
+                });
+            }, function (err, allRoutes) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(allRoutes);
+                }
+            });
+        }).fail(function (err) {
+            deferred.reject(err);
+        });
+        
+        return deferred.promise();
+    }
+    
     loadSavedRouteList();
     loadSavedRoutes();
     
-    exports.getRoutes = getRoutes;
+    exports.getRouteList = getRouteList;
     exports.getRoute = getRoute;
+    exports.getAllRoutes = getAllRoutes;
 });
