@@ -13,7 +13,8 @@ define(function (require, exports, module) {
         preds = require("app/predictions"),
         journeys = require("app/journeys"),
         page = require("app/page"),
-        list = require("app/list");
+        list = require("app/list"),
+        util = require("app/util");
     
     var NEARBY_IN_KM = 0.5;
     
@@ -810,7 +811,22 @@ define(function (require, exports, module) {
     }
 
     function showSearch() {
-        require(["rasync!https://maps.googleapis.com/maps/api/js?key=AIzaSyDFwHG4xaTRwELJ5hk033t1cFoed7EyAy0&v=3.exp&sensor=true&libraries=places"], function () {
+        var GMAPS_SERVER = "https://maps.googleapis.com/maps/api/js",
+            GMAPS_PROPS = {
+                key: "AIzaSyDFwHG4xaTRwELJ5hk033t1cFoed7EyAy0",
+                v: "3.exp",
+                sensor: true,
+                libraries: "places"
+            },
+            GMAPS_URL = util.makeURL(GMAPS_SERVER, GMAPS_PROPS);
+        
+        var SF_LAT_SOUTH = 37.604942,
+            SF_LAT_NORTH = 37.813911,
+            SF_LON_WEST = -122.521322,
+            SF_LON_EAST = -122.352528,
+            SF_COUNTRY = "us";
+        
+        require(["rasync!" + GMAPS_URL], function () {
             var $loadPromise = $.Deferred().resolve(),
                 $container = $(searchHtml),
                 $searchResults = $container.find(".search__results"),
@@ -820,10 +836,10 @@ define(function (require, exports, module) {
                 $title = $container.find(".search__title"),
                 $add = $container.find(".search__add"),
                 $quick = $container.find(".search__quick"),
-                swPos = new google.maps.LatLng(37.604942, -122.521322),
-                nePos = new google.maps.LatLng(37.813911, -122.352528),
+                swPos = new google.maps.LatLng(SF_LAT_SOUTH, SF_LON_WEST),
+                nePos = new google.maps.LatLng(SF_LAT_NORTH, SF_LON_EAST),
                 bounds = new google.maps.LatLngBounds(swPos, nePos),
-                componentRestrictions = {country: "us"},
+                componentRestrictions = {country: SF_COUNTRY},
                 settings = {
                     types: [],
                     bounds: bounds,

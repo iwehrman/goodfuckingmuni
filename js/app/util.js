@@ -17,6 +17,24 @@ define(function (require, exports, module) {
         return isNaN(filter) ? value : filter;
     }
     
+    function zip(list1, list2) {
+        return list1.map(function (e, i) {
+            return [e, list2[i]];
+        });
+    }
+    
+    function makeURL(server, props) {
+        var keys = Object.keys(props),
+            values = keys.map(function (k) { return encodeURIComponent(props[k]); }),
+            pairs = zip(keys, values),
+            terms = pairs.map(function (ar) { return ar.join("="); }),
+            query = terms.join("&"),
+            url = [server, query].join("?");
+        
+        return url;
+    }
+    
     exports.filterInt = filterInt;
     exports.castInt = castInt;
+    exports.makeURL = makeURL;
 });
