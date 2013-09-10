@@ -105,6 +105,11 @@ body {
     text-overflow: ellipsis;
 }
 
+.entry__title .route-dot {
+    font-size: 48px;
+    padding-right: 5px;
+}
+
 .entry__subtitle {
     float: none;
     font-size: 22px;
@@ -112,6 +117,11 @@ body {
     white-space: nowrap;
     overflow:hidden;
     text-overflow: ellipsis;
+}
+
+.entry__subtitle .route-dot {
+    font-size: 30px;
+    padding: 0 5px;
 }
 
 .entry__miles:after {

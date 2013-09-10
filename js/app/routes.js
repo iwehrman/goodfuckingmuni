@@ -295,7 +295,8 @@ define(function (require, exports, module) {
     };
     
     Route.prototype.getTitleWithColor = function () {
-        return "<span style='color: #" + this.color + ";'> • </span>" + this.title;
+        return "<span class='route-dot' style='color: #" +
+            this.color + ";'> • </span>" + this.title;
     };
     
     function saveRouteList(routes) {
