@@ -29,8 +29,7 @@ define(function (require, exports, module) {
     var RECENT_PLACE_TIMEOUT = 1000 * 60 * 10, // 10 minutes
         RECENT_PLACE_KEY = "org.wehrman.muni.view.recent_place";
     
-    var firstLoad = true,
-        recentPlace = null,
+    var recentPlace = null,
         recentPlaceTimer = null;
     
     function getRecentPlace() {
@@ -82,10 +81,10 @@ define(function (require, exports, module) {
                 title = stop.title,
                 options = {
                     emptyMessage: "No predictions found.",
-                    backHref: "#page=place&" + (place.id !== undefined ? "place=" + place.id +
-                                                (entryOp === "arrivals" ? "&op=arrivals" : "") :
-                            "op=arrivals&lat=" + place.lat + "&lon=" + place.lon +
-                            "&title=" + encodeURIComponent(place.title)),
+                    backHref: "#page=place&" +
+                                (place.id !== undefined ? "place=" + place.id :
+                                "lat=" + place.lat + "&lon=" + place.lon +
+                                "&title=" + encodeURIComponent(place.title)),
                     getLeft: function (prediction) {
                         return predictionsTemplate({predictions: prediction});
                     },
@@ -430,7 +429,7 @@ define(function (require, exports, module) {
             listPromise = deferred.promise(),
             options = {
                 emptyMessage: "No routes found.",
-                backHref: place.id !== undefined ? "#page=places&op=arrivals&first=0" : "#page=places&op=add",
+                backHref: place.id !== undefined ? "#page=places" : "#page=places&op=add",
                 getEntryHref: function (journey) {
                     var stop = journey.departure,
                         direction = stop._direction,
@@ -439,8 +438,9 @@ define(function (require, exports, module) {
                                 "lat=" + place.lat + "&lon=" + place.lon + "&title=" +
                                 encodeURIComponent(place.title);
                 
-                    return "#page=predictions&route=" + route.tag + "&direction=" + direction.tag +
-                        "&stop=" + stop.tag + "&" + placeFrag + "&op=arrivals";
+                    return "#page=predictions&route=" + route.tag +
+                        "&direction=" + direction.tag +
+                        "&stop=" + stop.tag + "&" + placeFrag;
                 },
                 getTags: function (journey) {
                     var stop = journey.departure,
@@ -553,57 +553,13 @@ define(function (require, exports, module) {
             deferred = $.Deferred(),
             listPromise = deferred.promise();
         
-        function getBestJourneys(position, force) {
-            var deferred = $.Deferred();
-            
-            async.map(placeList, function (place, callback) {
-                journeys.getJourneys(position, place, force).done(function (journeys) {
-                    callback(null, {
-                        place: place,
-                        journeys: journeys
-                    });
-                }).fail(function (err) {
-                    callback(err);
-                });
-            }, function (err, journeyObjs) {
-                if (err) {
-                    deferred.reject(err);
-                } else {
-                    var bestJourneyList = journeyObjs
-                        .map(function (journeyObj) {
-                            var bestJourneyObj = {
-                                position: position,
-                                place: journeyObj.place
-                            };
-                            
-                            if (journeyObj.journeys.length > 0) {
-                                bestJourneyObj.journey = journeyObj.journeys[0];
-                            }
-                            
-                            return bestJourneyObj;
-                        })
-                        .sort(function (journeyObj1, journeyObj2) {
-                            if (journeyObj1.journey) {
-                                return journeyObj2.journey ? 0 : -1;
-                            } else {
-                                return journeyObj2.journey ? 1 : 0;
-                            }
-                        });
-    
-                    deferred.resolve(bestJourneyList);
-                }
-            });
-            
-            return deferred.promise();
-        }
-        
         var options = {
             emptyMessage: "No places found.",
             addHref: "#page=places&op=add",
             getEntryHref: function (journeyObj) {
                 var place = journeyObj.place;
                 
-                return "#page=place&place=" + place.id + "&op=arrivals";
+                return "#page=place&place=" + place.id;
             },
             getTags: function (journeyObj) {
                 var place = journeyObj.place,
@@ -674,7 +630,9 @@ define(function (require, exports, module) {
                 var deferred = $.Deferred();
                 
                 geo.getLocation()
-                    .then(function (position) { return getBestJourneys(position, force); })
+                    .then(function (position) {
+                        return journeys.getBestJourneys(position, placeList, force);
+                    })
                     .then(function (bestJourneysList) {
                         var $entries = $container.find(".entry");
                         if ($entries.length === bestJourneysList.length) {
@@ -737,19 +695,17 @@ define(function (require, exports, module) {
         list.showList("Places", listPromise, options);
         
         geo.getLocation().done(function (position) {
-            if (placeList.length >= 1) {
+            if (!showAll && placeList.length >= 1) {
                 var recentPlace = getRecentPlace();
-                if (firstLoad &&
-                        placeList.some(function (p) { return p === recentPlace; })) {
+                if (placeList.some(function (p) { return p === recentPlace; })) {
                     deferred.reject();
                     return showJourneys(recentPlace);
                 }
             }
             
-            getBestJourneys(position).done(deferred.resolve, deferred.reject);
+            journeys.getBestJourneys(position, placeList)
+                .then(deferred.resolve, deferred.reject);
             
-        }).always(function () {
-            firstLoad = false;
         }).fail(function (err) {
             console.error("[showAllJourneys] failed to geolocate: " + err);
             deferred.reject(err);
@@ -793,7 +749,7 @@ define(function (require, exports, module) {
             getEntryHref: function (placeInfo) {
                 var place = placeInfo.place;
                 
-                return "#page=place&place=" + place.id + (entryOp ? "&op=" + entryOp : "");
+                return "#page=place&place=" + place.id;
             },
             getLeft: function (placeInfo) {
                 var place = placeInfo.place;
@@ -825,14 +781,7 @@ define(function (require, exports, module) {
         
         geo.sortByCurrentLocation(placeList).done(function (position) {
             if (placeList.length >= 1) {
-                if (entryOp === "arrivals") {
-                    var recentPlace = getRecentPlace();
-                    if (firstLoad &&
-                            placeList.some(function (p) { return p === recentPlace; })) {
-                        deferred.reject();
-                        return showJourneys(recentPlace);
-                    }
-                } else if (!showAll) {
+                if (!showAll) {
                     if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
                             (placeList.length < 2 ||
                             geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
@@ -854,8 +803,6 @@ define(function (require, exports, module) {
             // warm up cache
             preloadRoutes();
             preloadPredictions();
-        }).always(function () {
-            firstLoad = false;
         }).fail(function (err) {
             console.error("[showPlaces] failed to geolocate: " + err);
             deferred.reject(err);
@@ -969,7 +916,7 @@ define(function (require, exports, module) {
             
             function handleQuickRoute() {
                 var title = $title.val();
-                location.hash = "#page=place&op=arrivals&lat=" + position.lat + "&lon=" +
+                location.hash = "#page=place&lat=" + position.lat + "&lon=" +
                     position.lon + "&title=" + encodeURIComponent(title);
             }
             

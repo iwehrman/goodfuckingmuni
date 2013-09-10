@@ -213,6 +213,51 @@ define(function (require, exports, module) {
         
         return deferred.promise();
     }
+    
+    function getBestJourneys(position, placeList, force) {
+        var deferred = $.Deferred();
+        
+        async.map(placeList, function (place, callback) {
+            getJourneys(position, place, force).done(function (journeys) {
+                callback(null, {
+                    place: place,
+                    journeys: journeys
+                });
+            }).fail(function (err) {
+                callback(err);
+            });
+        }, function (err, journeyObjs) {
+            if (err) {
+                deferred.reject(err);
+            } else {
+                var bestJourneyList = journeyObjs
+                    .map(function (journeyObj) {
+                        var bestJourneyObj = {
+                            position: position,
+                            place: journeyObj.place
+                        };
+                        
+                        if (journeyObj.journeys.length > 0) {
+                            bestJourneyObj.journey = journeyObj.journeys[0];
+                        }
+                        
+                        return bestJourneyObj;
+                    })
+                    .sort(function (journeyObj1, journeyObj2) {
+                        if (journeyObj1.journey) {
+                            return journeyObj2.journey ? 0 : -1;
+                        } else {
+                            return journeyObj2.journey ? 1 : 0;
+                        }
+                    });
+
+                deferred.resolve(bestJourneyList);
+            }
+        });
+        
+        return deferred.promise();
+    }
 
     exports.getJourneys = getJourneys;
+    exports.getBestJourneys = getBestJourneys;
 });

@@ -75,11 +75,11 @@ define(function (require, exports, module) {
                 places.removePlace(state.place);
                 location.hash = "#page=places";
                 break;
-            case "arrivals":
-                view.showAllJourneys(true);
+            case "departures":
+                view.showPlaces(true);
                 break;
             default:
-                view.showPlaces(true);
+                view.showAllJourneys(true);
             }
             break;
         case "place":
@@ -92,11 +92,11 @@ define(function (require, exports, module) {
                 state.place.removeStop(state.stop);
                 location.hash = "#page=place&place=" + state.place.id;
                 break;
-            case "arrivals":
-                view.showJourneys(state.place);
+            case "departures":
+                view.showPlace(state.place);
                 break;
             default:
-                view.showPlace(state.place);
+                view.showJourneys(state.place);
             }
             break;
         case "predictions":
@@ -112,7 +112,7 @@ define(function (require, exports, module) {
             view.showStops(state.place, state.route, state.direction, true);
             break;
         default:
-            view.showPlaces(false);
+            view.showAllJourneys(false);
         }
     }
     
