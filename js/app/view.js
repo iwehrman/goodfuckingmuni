@@ -555,7 +555,7 @@ define(function (require, exports, module) {
             listPromise = deferred.promise();
         
         var options = {
-            emptyMessage: "No places found.",
+            emptyMessage: "No places.",
             addHref: "#page=places&op=add",
             getEntryHref: function (journeyObj) {
                 var place = journeyObj.place;
@@ -628,14 +628,20 @@ define(function (require, exports, module) {
                 return window.confirm("Remove place " + place.title + "?");
             },
             refresh: function (force, $container) {
-                var deferred = $.Deferred();
+                var deferred = $.Deferred(),
+                    $entries = $container.find(".entry");
+                
+                if ($entries.length === 1 && $entries.first().data("empty")) {
+                    deferred.reject();
+                    return;
+                }
                 
                 geo.getLocation()
                     .then(function (position) {
                         return journeys.getBestJourneys(position, placeList, force);
                     })
                     .then(function (bestJourneysList) {
-                        var $entries = $container.find(".entry");
+                        
                         if ($entries.length === bestJourneysList.length) {
                             try {
                                 $entries.each(function (index, entry) {

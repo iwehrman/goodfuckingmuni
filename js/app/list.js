@@ -18,11 +18,12 @@ define(function (require, exports, module) {
         
     function makeEmptyListEntry(message, href) {
         var entrySettings = {
-            left: "<span class=entry__empty>" + message + "</span>",
+            left: "<span class='entry__empty'>" + message + "</span>",
             href: href
         },  entryHTML = entryTemplate(entrySettings),
             $entry = $(entryHTML);
-        
+
+        $entry.attr("data-empty", true);
         return $entry;
     }
     
