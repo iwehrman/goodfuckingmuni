@@ -3,13 +3,13 @@
     paths: {
         data: "../data",
         html: "../html",
-        jquery: "lib/jquery-2.0.3.min",
-        "jquery.event.move": "lib/jquery.event.move",
-        "jquery.event.swipe": "lib/jquery.event.swipe",
-        async: "lib/async",
-        rasync: "lib/rasync",
-        text: "lib/text",
-        mustache: "lib/mustache"
+        jquery: "components/jquery/jquery.min",
+        "jquery.event.move": "components/jquery.event.move/js/jquery.event.move",
+        "jquery.event.swipe": "components/jquery.event.swipe/js/jquery.event.swipe",
+        async: "components/async/lib/async",
+        rasync: "components/requirejs-plugins/src/async",
+        text: "components/requirejs-text/text",
+        mustache: "components/mustache/mustache"
     },
     include: ["rasync"],
     name: "app.js",
