@@ -414,10 +414,7 @@ define(function (require, exports, module) {
 //    }
     
     function showJourneys(place) {
-        var locationPromise = geo.getLocation(),
-            deferred = $.Deferred(),
-            listPromise = deferred.promise(),
-            options = {
+        var options = {
                 emptyMessage: "No routes found.",
                 backHref: place.id !== undefined ? "#page=places" : "#page=places&op=add",
                 getEntryHref: function (journey) {
@@ -462,21 +459,23 @@ define(function (require, exports, module) {
                     return titleHtml;
                 },
                 refresh: function (force, $container) {
-                    var deferred = $.Deferred();
+                    function getJourneysAtPlace(position) {
+                        return Q.all(position, [journeys.getJourneys(position, place, force)]);
+                    }
                     
-                    geo.getLocation().done(function (position) {
-                        var meters = geo.distance(position, place),
-                            miles = geo.kilometersToMiles(meters),
-                            distance = distanceTemplate({miles: miles}),
-                            title = place.title + " -" + distance;
-                        
-                        journeys.getJourneys(position, place, force).done(function (journeys) {
-                            var $entries = $container.find(".entry");
-                            if ($entries.length !== journeys.length) {
-                                deferred.reject();
-                                list.showList(title, $.Deferred().resolve(journeys), options);
-                            } else {
-                                try {
+                    return geo.getLocation()
+                        .then(getJourneysAtPlace)
+                        .spread(function (position, journeys) {
+                            var meters = geo.distance(position, place),
+                                miles = geo.kilometersToMiles(meters),
+                                distance = distanceTemplate({miles: miles}),
+                                title = place.title + " -" + distance,
+                                $entries = $container.find(".entry");
+
+                            try {
+                                if ($entries.length !== journeys.length) {
+                                    throw new Error("No refresh");
+                                } else {
                                     $entries.each(function (index, entry) {
                                         var journey = journeys[index],
                                             stop = journey.departure,
@@ -490,7 +489,7 @@ define(function (require, exports, module) {
                                         if (routeTag !== route.tag ||
                                                 dirTag !== direction.tag ||
                                                 stopTag !== stop.tag) {
-                                            throw "Refresh";
+                                            throw "No refresh";
                                         } else {
                                             var departurePrediction = journey.departurePredictions[0],
                                                 arrivalPrediction = journey.feasibleArrivalPredictions[0],
@@ -501,211 +500,184 @@ define(function (require, exports, module) {
                                             $arrivalPred.text(arrivalPrediction.minutes);
                                         }
                                     });
-                                    deferred.resolve();
-                                } catch (err) {
-                                    deferred.reject();
-                                    list.showList(title, $.Deferred().resolve(journeys), options);
                                 }
+                            } catch (err) {
+                                list.showList(title, $.Deferred().resolve(journeys), options);
+                                throw err;
                             }
-                            
-                        }).fail(function () {
-                            deferred.resolve();
                         });
-                    }).fail(function () {
-                        deferred.resolve();
-                    });
-                    
-                    return deferred.promise();
                 }
             };
         
-        locationPromise.done(function (position) {
+        geo.getLocation().then(function (position) {
             var meters = geo.distance(position, place),
                 miles = geo.kilometersToMiles(meters),
                 distance = distanceTemplate({miles: miles}),
-                title = place.title + " -" + distance;
+                title = place.title + " -" + distance,
+                listPromise = journeys.getJourneys(position, place);
             
             setRecentPlace(place);
             list.showList(title, listPromise, options);
-            
-            journeys.getJourneys(position, place).done(function (journeys) {
-                deferred.resolve(journeys);
-            }).fail(function (err) {
-                deferred.reject(err);
-            });
-        }).fail(function (err) {
-            deferred.reject(err);
-        });
+        }).done();
     }
     
     function showAllJourneys(showAll) {
         var placeList = places.getAllPlaces(),
-            deferred = $.Deferred(),
-            listPromise = deferred.promise();
-        
-        var options = {
-            emptyMessage: "No places.",
-            addHref: "#page=places&op=add",
-            getEntryHref: function (journeyObj) {
-                var place = journeyObj.place;
-                
-                return "#page=place&place=" + place.id;
-            },
-            getTags: function (journeyObj) {
-                var place = journeyObj.place,
-                    journey = journeyObj.journey;
-                
-                if (journey) {
-                    var stop = journey.departure,
-                        direction = stop._direction,
-                        route = direction._route;
-                
-                    return [{tag: "place", value: place.id},
-                            {tag: "route", value: route.tag},
-                            {tag: "direction", value: direction.tag},
-                            {tag: "stop", value: stop.tag}];
-                } else {
-                    return [{tag: "place", value: place.id}];
-                }
-            },
-            getLeft: function (journeyObj) {
-                var place = journeyObj.place,
-                    title = place.title,
-                    subtitles;
-                
-                if (journeyObj.journey) {
-                    var journey = journeyObj.journey,
-                        departure = journey.departure,
-                        direction = departure._direction,
-                        route = direction._route;
+            options = {
+                emptyMessage: "No places.",
+                addHref: "#page=places&op=add",
+                getEntryHref: function (journeyObj) {
+                    var place = journeyObj.place;
                     
-                    subtitles = [route.getTitleWithColor() + " - " + direction.name, "@ " + departure.title];
-                } else {
-                    title = "<span class='entry__empty'>" + title + "</span>";
-                    subtitles = [];
-                }
-                
-                return titleTemplate({title: title, subtitles: subtitles});
-            },
-            getRight: function (journeyObj) {
-                var place = journeyObj.place,
-                    title,
-                    subtitles;
-                
-                if (journeyObj.journey) {
-                    var journey = journeyObj.journey,
-                        departurePred = journey.departurePredictions[0],
-                        arrivalPred = journey.feasibleArrivalPredictions[0];
-
-                    title = predictionsTemplate({predictions: departurePred});
-                    subtitles = ["↪ " + predictionsTemplate({predictions: arrivalPred})];
-                } else {
-                    title = null;
-                    subtitles = null;
-                }
-                
-                return titleTemplate({title: title, subtitles: subtitles});
-            },
-            getRemoveHref: function (journeyObj) {
-                var place = journeyObj.place;
-                
-                return "#page=places&op=remove&place=" + place.id;
-            },
-            confirmRemove: function (journeyObj) {
-                var place = journeyObj.place;
-                
-                return window.confirm("Remove place " + place.title + "?");
-            },
-            refresh: function (force, $container) {
-                var deferred = $.Deferred(),
-                    $entries = $container.find(".entry");
-                
-                if ($entries.length === 1 && $entries.first().data("empty")) {
-                    deferred.reject();
-                    return;
-                }
-                
-                geo.getLocation()
-                    .then(function (position) {
-                        return journeys.getBestJourneys(position, placeList, force);
-                    })
-                    .then(function (bestJourneysList) {
+                    return "#page=place&place=" + place.id;
+                },
+                getTags: function (journeyObj) {
+                    var place = journeyObj.place,
+                        journey = journeyObj.journey;
+                    
+                    if (journey) {
+                        var stop = journey.departure,
+                            direction = stop._direction,
+                            route = direction._route;
+                    
+                        return [{tag: "place", value: place.id},
+                                {tag: "route", value: route.tag},
+                                {tag: "direction", value: direction.tag},
+                                {tag: "stop", value: stop.tag}];
+                    } else {
+                        return [{tag: "place", value: place.id}];
+                    }
+                },
+                getLeft: function (journeyObj) {
+                    var place = journeyObj.place,
+                        title = place.title,
+                        subtitles;
+                    
+                    if (journeyObj.journey) {
+                        var journey = journeyObj.journey,
+                            departure = journey.departure,
+                            direction = departure._direction,
+                            route = direction._route;
                         
-                        if ($entries.length === bestJourneysList.length) {
-                            try {
-                                $entries.each(function (index, entry) {
-                                    var journeyObj = bestJourneysList[index],
-                                        journey = journeyObj.journey,
-                                        place = journeyObj.place,
-                                        $entry = $(entry),
-                                        placeId = $entry.data("place"),
-                                        routeTag = $entry.attr("data-route"),
-                                        dirTag = $entry.attr("data-direction"),
-                                        stopTag = $entry.attr("data-stop");
-                                    
-                                    if (placeId !== place.id) {
-                                        throw "Refresh";
-                                    }
-                                    
-                                    if (journey) {
-                                        var departure = journey.departure,
-                                            direction = departure._direction,
-                                            route = direction._route;
-                                        
-                                        if (route.tag !== routeTag ||
-                                                direction.tag !== dirTag ||
-                                                departure.tag !== stopTag) {
-                                            throw "Refresh";
-                                        }
-                                    } else {
-                                        if (routeTag || dirTag || stopTag) {
-                                            throw "Refresh";
-                                        }
-                                    }
-                                    
-                                    if (journey) {
-                                        var departurePrediction = journey.departurePredictions[0],
-                                            arrivalPrediction = journey.feasibleArrivalPredictions[0],
-                                            $departurePred = $entry.find(".entry__title .entry__minutes"),
-                                            $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
-                                        
-                                        $departurePred.text(departurePrediction.minutes);
-                                        $arrivalPred.text(arrivalPrediction.minutes);
-                                    }
-                                });
-                                deferred.resolve();
-                            } catch (e) {
-                                deferred.reject();
-                                list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
+                        subtitles = [route.getTitleWithColor() + " - " + direction.name, "@ " + departure.title];
+                    } else {
+                        title = "<span class='entry__empty'>" + title + "</span>";
+                        subtitles = [];
+                    }
+                    
+                    return titleTemplate({title: title, subtitles: subtitles});
+                },
+                getRight: function (journeyObj) {
+                    var place = journeyObj.place,
+                        title,
+                        subtitles;
+                    
+                    if (journeyObj.journey) {
+                        var journey = journeyObj.journey,
+                            departurePred = journey.departurePredictions[0],
+                            arrivalPred = journey.feasibleArrivalPredictions[0];
+    
+                        title = predictionsTemplate({predictions: departurePred});
+                        subtitles = ["↪ " + predictionsTemplate({predictions: arrivalPred})];
+                    } else {
+                        title = null;
+                        subtitles = null;
+                    }
+                    
+                    return titleTemplate({title: title, subtitles: subtitles});
+                },
+                getRemoveHref: function (journeyObj) {
+                    var place = journeyObj.place;
+                    
+                    return "#page=places&op=remove&place=" + place.id;
+                },
+                confirmRemove: function (journeyObj) {
+                    var place = journeyObj.place;
+                    
+                    return window.confirm("Remove place " + place.title + "?");
+                },
+                refresh: function (force, $container) {
+                    var $entries = $container.find(".entry");
+                    
+                    
+                    
+                    return geo.getLocation()
+                        .then(function (position) {
+                            if ($entries.length === 1 && $entries.first().data("empty")) {
+                                throw new Error("No refresh");
+                            } else {
+                                return journeys.getBestJourneys(position, placeList, force);
                             }
-                        } else {
-                            deferred.reject();
-                            list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
-                        }
-                    });
-                                
-                return deferred.promise();
-            }
-        };
+                            
+                        })
+                        .then(function (bestJourneysList) {
+                            
+                            try {
+                                if ($entries.length === bestJourneysList.length) {
+                                    $entries.each(function (index, entry) {
+                                        var journeyObj = bestJourneysList[index],
+                                            journey = journeyObj.journey,
+                                            place = journeyObj.place,
+                                            $entry = $(entry),
+                                            placeId = $entry.data("place"),
+                                            routeTag = $entry.attr("data-route"),
+                                            dirTag = $entry.attr("data-direction"),
+                                            stopTag = $entry.attr("data-stop");
+                                        
+                                        if (placeId !== place.id) {
+                                            throw new Error("Refresh");
+                                        }
+                                        
+                                        if (journey) {
+                                            var departure = journey.departure,
+                                                direction = departure._direction,
+                                                route = direction._route;
+                                            
+                                            if (route.tag !== routeTag ||
+                                                    direction.tag !== dirTag ||
+                                                    departure.tag !== stopTag) {
+                                                throw "Refresh";
+                                            }
+                                        } else {
+                                            if (routeTag || dirTag || stopTag) {
+                                                throw "Refresh";
+                                            }
+                                        }
+                                        
+                                        if (journey) {
+                                            var departurePrediction = journey.departurePredictions[0],
+                                                arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                                $departurePred = $entry.find(".entry__title .entry__minutes"),
+                                                $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                            
+                                            $departurePred.text(departurePrediction.minutes);
+                                            $arrivalPred.text(arrivalPrediction.minutes);
+                                        }
+                                    });
+                                } else {
+                                    throw new Error("Refresh");
+                                }
+                            } catch (err) {
+                                list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
+                                throw err;
+                            }
+                        });
+                }
+            };
         
-        list.showList("Places", listPromise, options);
-        
-        geo.getLocation().done(function (position) {
+        var listPromise = geo.getLocation().then(function (position) {
             if (!showAll && placeList.length >= 1) {
                 var recentPlace = getRecentPlace();
                 if (placeList.some(function (p) { return p === recentPlace; })) {
-                    deferred.reject();
-                    return showJourneys(recentPlace);
+                    showJourneys(recentPlace);
+                    throw new Error("Redirect");
                 }
             }
             
-            journeys.getBestJourneys(position, placeList)
-                .then(deferred.resolve, deferred.reject);
-            
-        }).fail(function (err) {
-            console.error("[showAllJourneys] failed to geolocate: " + err);
-            deferred.reject(err);
+            return journeys.getBestJourneys(position, placeList);
         });
+        
+        list.showList("Places", listPromise, options);
     }
     
 //    function showPlaces(showAll, entryOp) {

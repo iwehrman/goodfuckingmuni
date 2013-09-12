@@ -234,7 +234,7 @@ define(function (require, exports, module) {
                     journeys = journeyObj[1],
                     bestJourneyObj = {
                         position: position,
-                        place: journeyObj.place
+                        place: place
                     };
                     
                 if (journeys.length > 0) {
