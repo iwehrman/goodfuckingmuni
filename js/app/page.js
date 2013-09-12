@@ -88,35 +88,33 @@ define(function (require, exports, module) {
         $content.append($header);
         $content.append($container);
         
-        try {
-            loadPromise
-                .then(function () {
-                    if (options.refresh) {
-                        handleRefresh = function (force) {
-                            return options.refresh(force, $container);
-                        };
-                        refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
-                    }
-                    
-                    if (options.scroll) {
-                        var $elem = $container.find(".highlight");
-                        $body.animate({
-                            scrollTop: $elem.offset().top - $container.scrollTop()
-                        });
-                    } else {
-                        $body.animate({
-                            scrollTop: 0
-                        });
-                    }
-                })
-                .fin(function () {
-                    finishedLoading = true;
-                    $loading.stop().fadeOut();
-                })
-                .done();
-        } catch (err) {
-            console.error("Failed to show page " + title, err);
-        }
+        loadPromise
+            .then(function () {
+                if (options.refresh) {
+                    handleRefresh = function (force) {
+                        return options.refresh(force, $container);
+                    };
+                    refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
+                }
+                
+                if (options.scroll) {
+                    var $elem = $container.find(".highlight");
+                    $body.animate({
+                        scrollTop: $elem.offset().top - $container.scrollTop()
+                    });
+                } else {
+                    $body.animate({
+                        scrollTop: 0
+                    });
+                }
+            }, function (err) {
+                console.log("Canceled load of page '" + title + "': ", err.message);
+            })
+            .fin(function () {
+                finishedLoading = true;
+                $loading.stop().fadeOut();
+            })
+            .done();
         
         setTimeout(function () {
             if (!finishedLoading) {

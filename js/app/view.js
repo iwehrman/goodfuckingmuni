@@ -611,7 +611,6 @@ define(function (require, exports, module) {
                             
                         })
                         .then(function (bestJourneysList) {
-                            
                             try {
                                 if ($entries.length === bestJourneysList.length) {
                                     $entries.each(function (index, entry) {
