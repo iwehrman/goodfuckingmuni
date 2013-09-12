@@ -97,8 +97,10 @@ define(function (require, exports, module) {
                                     });
                                 });
                             } else {
-                                var listPromise = Q.when(newPredictions);
-                                list.showList(title, listPromise, options);
+                                Q.nextTick(function () {
+                                    var listPromise = Q.when(newPredictions);
+                                    list.showList(title, listPromise, options);
+                                });
                                 throw new Error("No refresh");
                             }
                         });
@@ -502,7 +504,9 @@ define(function (require, exports, module) {
                                     });
                                 }
                             } catch (err) {
-                                list.showList(title, Q.when(journeys), options);
+                                Q.nextTick(function () {
+                                    list.showList(title, Q.when(journeys), options);
+                                });
                                 throw err;
                             }
                         });
@@ -599,8 +603,6 @@ define(function (require, exports, module) {
                 refresh: function (force, $container) {
                     var $entries = $container.find(".entry");
                     
-                    
-                    
                     return geo.getLocation()
                         .then(function (position) {
                             if ($entries.length === 1 && $entries.first().data("empty")) {
@@ -611,55 +613,61 @@ define(function (require, exports, module) {
                             
                         })
                         .then(function (bestJourneysList) {
-                            try {
-                                if ($entries.length === bestJourneysList.length) {
-                                    $entries.each(function (index, entry) {
-                                        var journeyObj = bestJourneysList[index],
-                                            journey = journeyObj.journey,
-                                            place = journeyObj.place,
-                                            $entry = $(entry),
-                                            placeId = $entry.data("place"),
-                                            routeTag = $entry.attr("data-route"),
-                                            dirTag = $entry.attr("data-direction"),
-                                            stopTag = $entry.attr("data-stop");
+                            var refreshError = new Error("Refresh");
+                            refreshError.bestJourneyList = bestJourneysList;
+                            
+                            if ($entries.length === bestJourneysList.length) {
+                                $entries.each(function (index, entry) {
+                                    var journeyObj = bestJourneysList[index],
+                                        journey = journeyObj.journey,
+                                        place = journeyObj.place,
+                                        $entry = $(entry),
+                                        placeId = $entry.data("place"),
+                                        routeTag = $entry.attr("data-route"),
+                                        dirTag = $entry.attr("data-direction"),
+                                        stopTag = $entry.attr("data-stop");
+                                    
+                                    if (placeId !== place.id) {
+                                        throw refreshError;
+                                    }
+                                    
+                                    if (journey) {
+                                        var departure = journey.departure,
+                                            direction = departure._direction,
+                                            route = direction._route;
                                         
-                                        if (placeId !== place.id) {
-                                            throw new Error("Refresh");
+                                        if (route.tag !== routeTag ||
+                                                direction.tag !== dirTag ||
+                                                departure.tag !== stopTag) {
+                                            throw refreshError;
                                         }
+                                    } else {
+                                        if (routeTag || dirTag || stopTag) {
+                                            throw refreshError;
+                                        }
+                                    }
+                                    
+                                    if (journey) {
+                                        var departurePrediction = journey.departurePredictions[0],
+                                            arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                            $departurePred = $entry.find(".entry__title .entry__minutes"),
+                                            $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
                                         
-                                        if (journey) {
-                                            var departure = journey.departure,
-                                                direction = departure._direction,
-                                                route = direction._route;
-                                            
-                                            if (route.tag !== routeTag ||
-                                                    direction.tag !== dirTag ||
-                                                    departure.tag !== stopTag) {
-                                                throw "Refresh";
-                                            }
-                                        } else {
-                                            if (routeTag || dirTag || stopTag) {
-                                                throw "Refresh";
-                                            }
-                                        }
-                                        
-                                        if (journey) {
-                                            var departurePrediction = journey.departurePredictions[0],
-                                                arrivalPrediction = journey.feasibleArrivalPredictions[0],
-                                                $departurePred = $entry.find(".entry__title .entry__minutes"),
-                                                $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
-                                            
-                                            $departurePred.text(departurePrediction.minutes);
-                                            $arrivalPred.text(arrivalPrediction.minutes);
-                                        }
-                                    });
-                                } else {
-                                    throw new Error("Refresh");
-                                }
-                            } catch (err) {
-                                list.showList("Places", Q.when(bestJourneysList), options);
-                                throw err;
+                                        $departurePred.text(departurePrediction.minutes);
+                                        $arrivalPred.text(arrivalPrediction.minutes);
+                                    }
+                                });
+                            } else {
+                                throw new Error("Refresh");
                             }
+                        })
+                        .fail(function (err) {
+                            if (err.message === "Refresh") {
+                                Q.nextTick(function () {
+                                    list.showList("Places", Q.when(err.bestJourneysList), options);
+                                });
+                            }
+                            throw err;
                         });
                 }
             };
