@@ -502,7 +502,7 @@ define(function (require, exports, module) {
                                     });
                                 }
                             } catch (err) {
-                                list.showList(title, $.Deferred().resolve(journeys), options);
+                                list.showList(title, Q.when(journeys), options);
                                 throw err;
                             }
                         });
@@ -658,7 +658,7 @@ define(function (require, exports, module) {
                                     throw new Error("Refresh");
                                 }
                             } catch (err) {
-                                list.showList("Places", $.Deferred().resolve(bestJourneysList), options);
+                                list.showList("Places", Q.when(bestJourneysList), options);
                                 throw err;
                             }
                         });
@@ -794,8 +794,7 @@ define(function (require, exports, module) {
             SF_COUNTRY = "us";
         
         require(["rasync!" + GMAPS_URL], function () {
-            var $loadPromise = $.Deferred().resolve(),
-                $container = $(searchHtml),
+            var $container = $(searchHtml),
                 $searchResults = $container.find(".search__results"),
                 $searchControls = $container.find(".search__controls"),
                 $searchMap = $container.find(".search__map"),
@@ -956,7 +955,11 @@ define(function (require, exports, module) {
                 backHref: "#page=places"
             };
             
-            page.showPage("Add Place", $container, $loadPromise, options);
+            var deferred = Q.defer(),
+                loadPromise = deferred.promise;
+            
+            deferred.resolve();
+            page.showPage("Add Place", $container, loadPromise, options);
         });
     }
     

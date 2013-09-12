@@ -90,10 +90,7 @@ define(function (require, exports, module) {
         
         try {
             loadPromise
-                .fin(function () {
-                    finishedLoading = true;
-                    $loading.stop().fadeOut();
-                    
+                .then(function () {
                     if (options.refresh) {
                         handleRefresh = function (force) {
                             return options.refresh(force, $container);
@@ -111,6 +108,10 @@ define(function (require, exports, module) {
                             scrollTop: 0
                         });
                     }
+                })
+                .fin(function () {
+                    finishedLoading = true;
+                    $loading.stop().fadeOut();
                 })
                 .done();
         } catch (err) {

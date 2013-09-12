@@ -6,7 +6,6 @@
     "requirejs": "~2.1.8",
     "requirejs-text": "~2.0.10",
     "requirejs-plugins": "~1.0.2",
-    "async": "~0.2.5",
     "jquery.event.move": "~1.3.5",
     "jquery.event.swipe": "~0.5.2",
     "mustache": "~0.7.2",
