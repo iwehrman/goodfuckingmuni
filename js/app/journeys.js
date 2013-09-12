@@ -5,18 +5,42 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        async = require("async"),
+        Q = require("q"),
         routes = require("app/routes"),
         preds = require("app/predictions"),
         geo = require("app/geolocation");
     
     var MUNI_TOLERANCE = 0.71;
     
-    function getJourneys(begin, end, force) {
-        var deferred = $.Deferred();
+    function filterArrivalsByDepartures(departures, arrivals) {
+        var feasibleArrivals = [],
+            departureIndex = 0,
+            arrivalIndex = 0,
+            departure,
+            arrival,
+            vehicle;
+
+        while (departureIndex < departures.length) {
+            departure = departures[departureIndex++];
+            vehicle = departure.vehicle;
+            
+            while (arrivalIndex < arrivals.length) {
+                arrival = arrivals[arrivalIndex++];
+                if (arrival.vehicle === vehicle) {
+                    feasibleArrivals.push(arrival);
+                    break;
+                }
+            }
+        }
         
-        routes.getAllRoutes().done(function (allRoutes) {
+        return feasibleArrivals;
+    }
+    
+    function getJourneys(begin, end, force) {
+        
+        function getJourneysForRoutes(allRoutes) {
             var journeys = [];
+            
             allRoutes.map(function (route) {
                 var directions = [],
                     bestJourney = null,
@@ -61,6 +85,26 @@ define(function (require, exports, module) {
                 }
             });
             
+            return journeys;
+        }
+        
+        function getPredictionsForJourneys(journeys) {
+            
+            function annotateJourneysWithPredictions(predictions) {
+                journeys.forEach(function (journey) {
+                    var departure = journey.departure,
+                        arrival = journey.arrival,
+                        direction = departure._direction,
+                        route = direction._route,
+                        preds = predictions[route.tag];
+                    
+                    journey.departurePredictions = preds[departure.tag];
+                    journey.arrivalPredictions = preds[arrival.tag];
+                });
+                
+                return journeys;
+            }
+            
             var stopObjs = [];
             journeys.map(function (journey) {
                 var departure = journey.departure,
@@ -78,184 +122,134 @@ define(function (require, exports, module) {
                 });
             });
             
-            preds.getPredictionsForMultiStops(stopObjs, force).done(function (predictions) {
-                journeys.forEach(function (journey) {
-                    var departure = journey.departure,
-                        arrival = journey.arrival,
-                        direction = departure._direction,
-                        route = direction._route,
-                        preds = predictions[route.tag];
-                    
-                    journey.departurePredictions = preds[departure.tag];
-                    journey.arrivalPredictions = preds[arrival.tag];
-                });
+            return preds.getPredictionsForMultiStops(stopObjs, force)
+                .then(annotateJourneysWithPredictions);
+        }
+        
+        function filterJourneysWithPredictions(journeys) {
+            journeys = journeys.filter(function (journey) {
+                var preds = journey.departurePredictions;
                 
-                function filterArrivalsByDepartures(departures, arrivals) {
-                    var feasibleArrivals = [],
-                        departureIndex = 0,
-                        arrivalIndex = 0,
-                        departure,
-                        arrival,
-                        vehicle;
-
-                    while (departureIndex < departures.length) {
-                        departure = departures[departureIndex++];
-                        vehicle = departure.vehicle;
-                        
-                        while (arrivalIndex < arrivals.length) {
-                            arrival = arrivals[arrivalIndex++];
-                            if (arrival.vehicle === vehicle) {
-                                feasibleArrivals.push(arrival);
-                                break;
-                            }
-                        }
-                    }
-                    return feasibleArrivals;
+                if (preds.length === 0) {
+                    console.log("No departures for route " +
+                                journey.departure._direction._route.tag);
                 }
                 
-                journeys = journeys.filter(function (journey) {
-                    var preds = journey.departurePredictions;
-                    
-                    if (preds.length === 0) {
-                        console.log("No departures for route " +
-                                    journey.departure._direction._route.tag);
-                    }
-                    
-                    return preds.length > 0;
-                });
-                
-                journeys.forEach(function (journey) {
-                    var preds = journey.departurePredictions,
-                        departure = journey.departure,
-                        secondsAway = departure.secondsFromWalking(begin),
-                        index;
-                    
-                    for (index = 0; index < preds.length; index++) {
-                        if (preds[index].seconds > secondsAway) {
-                            break;
-                        } else {
-                            console.log("Infeasible departure " +
-                                        journey.departure._direction._route.tag,
-                                        preds[index].minutes,
-                                        (secondsAway / 60).toFixed(2));
-                        }
-                    }
-                    
-                    preds.splice(0, index);
-                });
-                
-                journeys = journeys.filter(function (journey) {
-                    var preds = journey.departurePredictions;
-                    
-                    if (preds.length === 0) {
-                        console.log("No feasible departures for route " +
-                                    journey.departure._direction._route.tag);
-                    }
-                    
-                    return preds.length > 0;
-                });
-                
-                var feasibleArrivalsForRoute = {};
-                journeys = journeys.filter(function (journey) {
-                    var departures = journey.departurePredictions,
-                        arrivals = journey.arrivalPredictions,
-                        feasibleArrivals = filterArrivalsByDepartures(departures, arrivals);
-                    
-                    if (feasibleArrivals.length > 0) {
-                        feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
-                        journey.feasibleArrivalPredictions = feasibleArrivals;
-                        console.log("Best arrival for " + journey.departure._direction._route.tag,
-                                    (feasibleArrivals[0].seconds / 60).toFixed(2));
-                        return true;
-                    } else {
-                        console.log("No feasible arrivals for " +
-                                    journey.departure._direction._route.tag);
-                        return false;
-                    }
-                });
-
-                journeys.sort(function (journey1, journey2) {
-                    var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
-                        pred2 = feasibleArrivalsForRoute[journey2.departure._direction._route.tag],
-                        arrival1 = pred1[0].seconds,
-                        arrival2 = pred2[0].seconds,
-                        walk1 = geo.walkTime(journey1.arrivalToDestination),
-                        walk2 = geo.walkTime(journey2.arrivalToDestination),
-                        dest1 = arrival1 + walk1,
-                        dest2 = arrival2 + walk2;
-                    
-                    return dest1 - dest2;
-                });
-                
-                journeys.forEach(function (journey1) {
-                    var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
-                        arrival1 = pred1[0].seconds,
-                        walk1 = geo.walkTime(journey1.arrivalToDestination),
-                        dest1 = arrival1 + walk1,
-                        departure = journey1.departurePredictions[0].minutes;
-                    
-                    console.log("Arrival for " + journey1.departure._direction._route.tag,
-                                journey1.departure.title + " in " + departure,
-                                journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2),
-                                (walk1 / 60).toFixed(2));
-                });
-                
-                deferred.resolve(journeys);
-                
-            }).fail(function (err) {
-                console.log("[getJourneys] Failed to get predictions", err);
-                deferred.reject(err);
+                return preds.length > 0;
             });
-        }).fail(function (err) {
-            console.log("[getJourneys] Failed to get routes", err);
-            deferred.reject(err);
-        });
+            
+            journeys.forEach(function (journey) {
+                var preds = journey.departurePredictions,
+                    departure = journey.departure,
+                    secondsAway = departure.secondsFromWalking(begin),
+                    index;
+                
+                for (index = 0; index < preds.length; index++) {
+                    if (preds[index].seconds > secondsAway) {
+                        break;
+                    } else {
+                        console.log("Infeasible departure " +
+                                    journey.departure._direction._route.tag,
+                                    preds[index].minutes,
+                                    (secondsAway / 60).toFixed(2));
+                    }
+                }
+                
+                preds.splice(0, index);
+            });
+            
+            journeys = journeys.filter(function (journey) {
+                var preds = journey.departurePredictions;
+                
+                if (preds.length === 0) {
+                    console.log("No feasible departures for route " +
+                                journey.departure._direction._route.tag);
+                }
+                
+                return preds.length > 0;
+            });
+            
+            var feasibleArrivalsForRoute = {};
+            journeys = journeys.filter(function (journey) {
+                var departures = journey.departurePredictions,
+                    arrivals = journey.arrivalPredictions,
+                    feasibleArrivals = filterArrivalsByDepartures(departures, arrivals);
+                
+                if (feasibleArrivals.length > 0) {
+                    feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
+                    journey.feasibleArrivalPredictions = feasibleArrivals;
+                    console.log("Best arrival for " + journey.departure._direction._route.tag,
+                                (feasibleArrivals[0].seconds / 60).toFixed(2));
+                    return true;
+                } else {
+                    console.log("No feasible arrivals for " +
+                                journey.departure._direction._route.tag);
+                    return false;
+                }
+            });
+
+            journeys.sort(function (journey1, journey2) {
+                var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
+                    pred2 = feasibleArrivalsForRoute[journey2.departure._direction._route.tag],
+                    arrival1 = pred1[0].seconds,
+                    arrival2 = pred2[0].seconds,
+                    walk1 = geo.walkTime(journey1.arrivalToDestination),
+                    walk2 = geo.walkTime(journey2.arrivalToDestination),
+                    dest1 = arrival1 + walk1,
+                    dest2 = arrival2 + walk2;
+                
+                return dest1 - dest2;
+            });
+            
+            journeys.forEach(function (journey1) {
+                var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
+                    arrival1 = pred1[0].seconds,
+                    walk1 = geo.walkTime(journey1.arrivalToDestination),
+                    dest1 = arrival1 + walk1,
+                    departure = journey1.departurePredictions[0].minutes;
+                
+                console.log("Arrival for " + journey1.departure._direction._route.tag,
+                            journey1.departure.title + " in " + departure,
+                            journey1.arrival.title + " in " + (arrival1 / 60).toFixed(2),
+                            (walk1 / 60).toFixed(2));
+            });
+            
+            return journeys;
+        }
         
-        return deferred.promise();
+        return routes.getAllRoutes()
+            .then(getJourneysForRoutes)
+            .then(getPredictionsForJourneys)
+            .then(filterJourneysWithPredictions);
     }
     
     function getBestJourneys(position, placeList, force) {
-        var deferred = $.Deferred();
-        
-        async.map(placeList, function (place, callback) {
-            getJourneys(position, place, force).done(function (journeys) {
-                callback(null, {
-                    place: place,
-                    journeys: journeys
-                });
-            }).fail(function (err) {
-                callback(err);
-            });
-        }, function (err, journeyObjs) {
-            if (err) {
-                deferred.reject(err);
-            } else {
-                var bestJourneyList = journeyObjs
-                    .map(function (journeyObj) {
-                        var bestJourneyObj = {
-                            position: position,
-                            place: journeyObj.place
-                        };
-                        
-                        if (journeyObj.journeys.length > 0) {
-                            bestJourneyObj.journey = journeyObj.journeys[0];
-                        }
-                        
-                        return bestJourneyObj;
-                    })
-                    .sort(function (journeyObj1, journeyObj2) {
-                        if (journeyObj1.journey) {
-                            return journeyObj2.journey ? 0 : -1;
-                        } else {
-                            return journeyObj2.journey ? 1 : 0;
-                        }
-                    });
-
-                deferred.resolve(bestJourneyList);
-            }
+        var journeyPromises = placeList.map(function (place) {
+            return Q.all([place, getJourneys(position, place, force)]);
         });
         
-        return deferred.promise();
+        return Q.all(journeyPromises).then(function (journeyObjs) {
+            return journeyObjs.map(function (journeyObj) {
+                var place = journeyObj[0],
+                    journeys = journeyObj[1],
+                    bestJourneyObj = {
+                        position: position,
+                        place: journeyObj.place
+                    };
+                    
+                if (journeys.length > 0) {
+                    bestJourneyObj.journey = journeys[0];
+                }
+                
+                return bestJourneyObj;
+            }).sort(function (journeyObj1, journeyObj2) {
+                if (journeyObj1.journey) {
+                    return journeyObj2.journey ? 0 : -1;
+                } else {
+                    return journeyObj2.journey ? 1 : 0;
+                }
+            });
+        });
     }
 
     exports.getJourneys = getJourneys;

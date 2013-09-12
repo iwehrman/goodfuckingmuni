@@ -5,6 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
+        Q = require("q"),
         geo = require("app/geolocation");
     
     var PLACES_KEY = "org.wehrman.goodfuckingmuni.places";
@@ -109,25 +110,20 @@ define(function (require, exports, module) {
     }
     
     function addPlace(title, position) {
-        var deferred = $.Deferred(),
-            geopromise,
-            place;
-        
-        if (position) {
-            geopromise = $.Deferred().resolve(position);
-        } else {
-            geopromise = geo.getLocation();
-        }
-        
-        geopromise.done(function (location) {
-            place = new Place(placeCounter++, title, location.lat, location.lon, []);
+        function addPlaceWithLocation(location) {
+            var place = new Place(placeCounter++, title, location.lat, location.lon, []);
             allPlaces.push(place);
             savePlace(place);
             savePlaces();
-            deferred.resolve(place);
-        }).fail(deferred.reject.bind(deferred));
-
-        return deferred.promise();
+            return place;
+        }
+        
+        if (position) {
+            var place = addPlaceWithLocation(position);
+            return Q.when(place);
+        } else {
+            return geo.getLocation().then(addPlaceWithLocation);
+        }
     }
     
     function removePlace(place) {

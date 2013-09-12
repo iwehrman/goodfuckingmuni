@@ -9,6 +9,7 @@
     "async": "~0.2.5",
     "jquery.event.move": "~1.3.5",
     "jquery.event.swipe": "~0.5.2",
-    "mustache": "~0.7.2"
+    "mustache": "~0.7.2",
+    "q": "~0.9.7"
   }
 }

@@ -4,7 +4,8 @@
 define(function (require, exports, module) {
     "use strict";
     
-    var $ = require("jquery");
+    var $ = require("jquery"),
+        Q = require("q");
 
     var MAX_RETRIES = 5,
         HTTP_TIMEOUT = 5000;
@@ -31,39 +32,34 @@ define(function (require, exports, module) {
         function doCommand() {
             var routeUrl    = commandURL.apply(null, arguments),
                 promise     = cachedPromises[routeUrl],
-                deferred,
                 settings,
                 retries;
             
             function ajaxHelper() {
-                $.ajax(routeUrl, settings)
-                    .done(function () {
+                return Q.invoke($, "ajax", routeUrl, settings)
+                    .then(function (data) {
                         delete cachedPromises[routeUrl];
-                        deferred.resolve.apply(deferred, arguments);
-                    })
-                    .fail(function (jqXHR, textStatus, errorThrown) {
-                        console.error("Command " + commandName + " failed: " + textStatus);
+                        return data;
+                    }, function (jqXHR) {
                         if (++retries < MAX_RETRIES) {
-                            ajaxHelper();
+                            return ajaxHelper();
                         } else {
                             delete cachedPromises[routeUrl];
-                            deferred.reject.apply(deferred, arguments);
+                            throw new Error("Unable to fetch: ", routeUrl, jqXHR);
                         }
                     });
             }
             
             
             if (!promise) {
-                deferred = $.Deferred();
                 retries = 0;
                 settings = {
                     datatype: "xml",
                     timeout: 5000
                 };
                 
-                promise = deferred.promise();
+                promise = ajaxHelper();
                 cachedPromises[routeUrl] = promise;
-                ajaxHelper();
             }
             
             return promise;

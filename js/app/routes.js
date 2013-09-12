@@ -5,7 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        async = require("async"),
+        Q = require("q"),
         geo = require("app/geolocation"),
         command = require("app/command"),
         util = require("app/util");
@@ -397,12 +397,10 @@ define(function (require, exports, module) {
     }
     
     function getRouteList() {
-        var deferred = $.Deferred();
-        
         if (cachedRouteList) {
-            deferred.resolve(cachedRouteList);
+            return Q.when(cachedRouteList);
         } else {
-            cmdRouteList().done(function (data) {
+            return cmdRouteList().then(function (data) {
                 var routes  = [];
                 
                 $(data).find("route").each(function (i, r) {
@@ -414,19 +412,16 @@ define(function (require, exports, module) {
                 });
                 
                 saveRouteList(routes);
-                deferred.resolve(routes);
-            }).fail(deferred.reject.bind(deferred));
+                return routes;
+            });
         }
-        return deferred.promise();
     }
     
     function getRoute(tag) {
-        var deferred = $.Deferred();
-        
         if (cachedRoutes[tag]) {
-            deferred.resolve(cachedRoutes[tag]);
+            return Q.when(cachedRoutes[tag]);
         } else {
-            cmdRouteConfig(tag, true).done(function (data) {
+            return cmdRouteConfig(tag, true).then(function (data) {
                 var $data       = $(data),
                     $route      = $data.find("route"),
                     tag         = $route.attr("tag"),
@@ -468,35 +463,19 @@ define(function (require, exports, module) {
                 });
                 
                 saveRoute(route);
-                deferred.resolve(route);
-            }).fail(deferred.reject.bind(deferred));
+                return route;
+            });
         }
-
-        return deferred.promise();
     }
     
     function getAllRoutes() {
-        var deferred = $.Deferred();
-        
-        getRouteList().done(function (routeList) {
-            async.map(routeList, function (routeObj, callback) {
-                getRoute(routeObj.tag).done(function (route) {
-                    callback(null, route);
-                }).fail(function (err) {
-                    callback(err);
-                });
-            }, function (err, allRoutes) {
-                if (err) {
-                    deferred.reject(err);
-                } else {
-                    deferred.resolve(allRoutes);
-                }
+        return getRouteList().then(function (routeList) {
+            var routePromises = routeList.map(function (routeObj) {
+                return getRoute(routeObj.tag);
             });
-        }).fail(function (err) {
-            deferred.reject(err);
+            
+            return Q.all(routePromises);
         });
-        
-        return deferred.promise();
     }
     
     loadSavedRouteList();

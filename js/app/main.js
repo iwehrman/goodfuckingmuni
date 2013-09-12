@@ -5,6 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
+        Q = require("q"),
         astronomy = require("app/astronomy"),
         controller = require("app/controller"),
         view = require("app/view");
@@ -23,7 +24,7 @@ define(function (require, exports, module) {
     $loading.append($spinner);
     
     function loadStylesheet() {
-        var deferred = $.Deferred(),
+        var deferred = Q.defer(),
             url;
         
         if (astronomy.isDaytime()) {
@@ -44,7 +45,7 @@ define(function (require, exports, module) {
             .error(deferred.reject)
             .appendTo($head);
         
-        return deferred.promise();
+        return deferred.promise;
     }
 
     window.addEventListener("focus", function (event) {

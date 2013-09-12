@@ -5,6 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
+        Q = require("q"),
         command = require("app/command");
 
     var PREDICTION_TIMEOUT = 1000 * 30; // 30 seconds
@@ -71,8 +72,6 @@ define(function (require, exports, module) {
     }
     
     function getPredictions(routeTag, stopTag, force) {
-        var deferred = $.Deferred();
-        
         if (!cachedPredictions[routeTag]) {
             cachedPredictions[routeTag] = {};
         }
@@ -82,20 +81,20 @@ define(function (require, exports, module) {
         }
         
         if (cachedPredictions[routeTag][stopTag]) {
-            deferred.resolve(cachedPredictions[routeTag][stopTag].predictions.slice(0));
+            var predictions = cachedPredictions[routeTag][stopTag].predictions.slice(0);
+            return Q.when(predictions);
         } else {
-            cmdPredictions(routeTag, stopTag).done(function (data) {
-                var predictions = handlePredictionData(data);
-                cachePredictions(routeTag, stopTag, predictions);
-                deferred.resolve(predictions);
-            }).fail(deferred.reject.bind(deferred));
+            return cmdPredictions(routeTag, stopTag)
+                .then(function (data) {
+                    var predictions = handlePredictionData(data);
+                    cachePredictions(routeTag, stopTag, predictions);
+                    return predictions;
+                });
         }
-        
-        return deferred.promise();
     }
     
     function getPredictionsForMultiStops(stopObjs, force) {
-        var deferred = $.Deferred(),
+        var deferred = Q.defer(),
             predictionsForMultiStops = {},
             uncachedStopObjs = [];
         
@@ -129,7 +128,7 @@ define(function (require, exports, module) {
             
             deferred.notify(predictionsForMultiStops);
             
-            cmdPredictionsForMultiStops(stopParams).done(function (data) {
+            cmdPredictionsForMultiStops(stopParams).then(function (data) {
                 $(data).find("predictions").each(function (i, d) {
                     var $data = $(d),
                         predictions = handlePredictionData(d),
@@ -144,12 +143,14 @@ define(function (require, exports, module) {
                 });
                 
                 deferred.resolve(predictionsForMultiStops);
+            }, function (err) {
+                deferred.reject(err);
             });
         } else {
             deferred.resolve(predictionsForMultiStops);
         }
 
-        return deferred.promise();
+        return deferred.promise;
     }
     
     exports.getPredictions = getPredictions;

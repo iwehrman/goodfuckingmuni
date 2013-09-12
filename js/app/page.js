@@ -30,12 +30,11 @@ define(function (require, exports, module) {
         
         if (handleRefresh && !refreshInProgress) {
             refreshInProgress = true;
-            handleRefresh(force).done(function () {
+            handleRefresh(force).then(function () {
                 refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
-            }).always(function () {
+            }).fin(function () {
                 refreshInProgress = false;
             });
-
         }
     }
     
@@ -89,28 +88,34 @@ define(function (require, exports, module) {
         $content.append($header);
         $content.append($container);
         
-        loadPromise.always(function () {
-            finishedLoading = true;
-            $loading.stop().fadeOut();
-            
-            if (options.refresh) {
-                handleRefresh = function (force) {
-                    return options.refresh(force, $container);
-                };
-                refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
-            }
-            
-            if (options.scroll) {
-                var $elem = $container.find(".highlight");
-                $body.animate({
-                    scrollTop: $elem.offset().top - $container.scrollTop()
-                });
-            } else {
-                $body.animate({
-                    scrollTop: 0
-                });
-            }
-        });
+        try {
+            loadPromise
+                .fin(function () {
+                    finishedLoading = true;
+                    $loading.stop().fadeOut();
+                    
+                    if (options.refresh) {
+                        handleRefresh = function (force) {
+                            return options.refresh(force, $container);
+                        };
+                        refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
+                    }
+                    
+                    if (options.scroll) {
+                        var $elem = $container.find(".highlight");
+                        $body.animate({
+                            scrollTop: $elem.offset().top - $container.scrollTop()
+                        });
+                    } else {
+                        $body.animate({
+                            scrollTop: 0
+                        });
+                    }
+                })
+                .done();
+        } catch (err) {
+            console.error("Failed to show page " + title, err);
+        }
         
         setTimeout(function () {
             if (!finishedLoading) {

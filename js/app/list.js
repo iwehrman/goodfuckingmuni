@@ -81,10 +81,9 @@ define(function (require, exports, module) {
     function showList(title, listPromise, options) {
         options = options || {};
         
-        var finishedLoading = false,
-            $container = $(containerHtml);
+        var $container = $(containerHtml);
         
-        listPromise.done(function (list) {
+        function renderList(list) {
             var $entries = $container.find(".entries");
             
             if (list && list.length > 0) {
@@ -104,9 +103,11 @@ define(function (require, exports, module) {
                     opacity: 1.0
                 }, 100);
             }
-        });
+        }
         
-        page.showPage(title, $container, listPromise, options);
+        var pagePromise = listPromise.then(renderList);
+        
+        page.showPage(title, $container, pagePromise, options);
     }
 
     exports.showList = showList;

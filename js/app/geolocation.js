@@ -4,27 +4,27 @@
 define(function (require, exports, module) {
     "use strict";
     
-    var $ = require("jquery");
+    var $ = require("jquery"),
+        Q = require("q");
     
     var WALKING_SPEED_IN_KM_PER_SEC = 0.0014;
         
     function getLocation() {
-        var deferred = $.Deferred();
+        var deferred = Q.defer();
         
         navigator.geolocation.getCurrentPosition(function (position) {
             position.coords.lat = position.coords.latitude;
             position.coords.lon = position.coords.longitude;
-            deferred.resolve(position.coords, position.timestamp);
+            deferred.resolve(position.coords);
         }, function (error) {
-            console.error("Unable to geolocate: " + error);
-            deferred.reject(error);
+            deferred.reject(new Error(error));
         }, {
             enableHighAccuracy: true,
             timeout: 1000 * 10,
             maximumAge: 1000 * 60
         });
         
-        return deferred.promise();
+        return deferred.promise;
     }
 
     function distance(pos1, pos2) {
@@ -71,14 +71,9 @@ define(function (require, exports, module) {
     }
     
     function sortByCurrentLocation(array) {
-        var deferred = $.Deferred();
-        
-        getLocation().done(function (coords) {
-            array.sort(positionComparator(coords));
-            deferred.resolve(coords);
-        }).fail(deferred.reject.bind(deferred));
-        
-        return deferred.promise();
+        return getLocation().then(function (coords) {
+            return array.sort(positionComparator(coords));
+        });
     }
     
     function walkTime(km) {

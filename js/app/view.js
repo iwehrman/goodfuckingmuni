@@ -5,7 +5,7 @@ define(function (require, exports, module) {
     "use strict";
     
     var $ = require("jquery"),
-        async = require("async"),
+        Q = require("q"),
         mustache = require("mustache"),
         geo = require("app/geolocation"),
         places = require("app/places"),
@@ -74,10 +74,8 @@ define(function (require, exports, module) {
     }
     
     function showPredictions(place, routeTag, stopTag, entryOp) {
-        var deferred = $.Deferred(),
-            listPromise = deferred.promise();
         
-        routes.getRoute(routeTag).done(function (route) {
+        function getParameters(route) {
             var stop = route.stops[stopTag],
                 title = stop.title,
                 options = {
@@ -90,9 +88,7 @@ define(function (require, exports, module) {
                         return predictionsTemplate({predictions: prediction});
                     },
                     refresh: function (force, $container) {
-                        var deferred = $.Deferred();
-                        
-                        preds.getPredictions(routeTag, stopTag, force).done(function (newPredictions) {
+                        return preds.getPredictions(routeTag, stopTag, force).then(function (newPredictions) {
                             var $entries = $container.find(".entry");
                             if ($entries.length === newPredictions.length) {
                                 $entries.each(function (index, entry) {
@@ -100,329 +96,322 @@ define(function (require, exports, module) {
                                         $(minutes).text(newPredictions[index].minutes);
                                     });
                                 });
-                                deferred.resolve();
                             } else {
-                                var listPromise = $.Deferred().resolve(newPredictions).promise();
+                                var listPromise = Q.when(newPredictions);
                                 list.showList(title, listPromise, options);
-                                deferred.reject();
-                            }
-                        }).fail(function () {
-                            deferred.resolve();
-                        });
-                        
-                        return deferred.promise();
-                    }
-                };
-            
-            list.showList(title, listPromise, options);
-        
-            preds.getPredictions(routeTag, stopTag).done(function (predictions) {
-                deferred.resolve(predictions);
-            }).fail(function (err) {
-                deferred.reject(err);
-            });
-        
-        }).fail(function (err) {
-            console.error("[showPredictions] failed to get route: " + err);
-            deferred.reject();
-        });
-    }
-    
-    function showStops(place, routeTag, dirTag, scroll) {
-        var locationPromise = geo.getLocation(),
-            deferred = $.Deferred(),
-            listPromise = deferred.promise();
-    
-        routes.getRoute(routeTag).done(function (route) {
-            var direction = route.directions[dirTag],
-                title = route.title + ": " + direction.name,
-                options = {
-                    emptyMessage: "No stops found.",
-                    backHref: "#page=directions&place=" + place.id + "&route=" + routeTag,
-                    getHighlight: function (stopInfo, index) {
-                        return stopInfo.isClosest;
-                    },
-                    getEntryHref: function (stopInfo) {
-                        var stop = stopInfo.stop;
-                        
-                        return "#page=place&op=add&place=" + place.id +
-                            "&route=" + routeTag + "&direction=" + dirTag +
-                            "&stop=" + stop.tag;
-                    },
-                    getLeft: function (stopInfo) {
-                        var stop = stopInfo.stop;
-                        
-                        return stop.title;
-                    },
-                    getRight: function (stopInfo) {
-                        var stop = stopInfo.stop;
-                        
-                        return stop.isApproaching(place) ? "&ensp;&rarr;" : "&larr;&ensp;";
-                    },
-                    scroll: scroll
-                };
-            
-            list.showList(title, listPromise, options);
-    
-            locationPromise.done(function (position) {
-                var closestStop = direction.getClosestStop(position),
-                    stopInfoList = direction.stops.map(function (stop) {
-                        return {
-                            stop: stop,
-                            isClosest: stop === closestStop
-                        };
-                    });
-                
-                deferred.resolve(stopInfoList);
-            }).fail(function (err) {
-                deferred.reject(err);
-            });
-            
-        }).fail(function (err) {
-            console.error("[showStops] failed to get route: " + err);
-            deferred.reject(err);
-        });
-    }
-    
-    function showDirections(place, routeTag) {
-        var deferred = $.Deferred(),
-            listPromise = deferred.promise();
-        
-        routes.getRoute(routeTag).done(function (route) {
-            var directions = [],
-                dirTag;
-
-            for (dirTag in route.directions) {
-                if (route.directions.hasOwnProperty(dirTag)) {
-                    directions.push(route.directions[dirTag]);
-                }
-            }
-            
-            directions.sort(function (a, b) {
-                return a.title > b.title;
-            });
-
-            deferred.resolve(directions);
-
-            var options = {
-                emptyMessage: "No directions found.",
-                backHref: "#page=routes&place=" + place.id,
-                getEntryHref: function (direction) {
-                    var routeTag = route.tag;
-                    return "#page=stops&place=" + place.id +
-                        "&route=" + routeTag + "&direction=" + direction.tag;
-                },
-                getLeft: function (direction) {
-                    var title = direction.title,
-                        stop = direction.getClosestStop(place),
-                        subtitles = [stop.title];
-                    
-                    return titleTemplate({title: title, subtitles: subtitles});
-                },
-                getRight: function (direction) {
-                    var stop = direction.getClosestStop(place),
-                        kilometers = stop.distanceFrom(place),
-                        miles = geo.kilometersToMiles(kilometers),
-                        title = distanceTemplate({miles: miles}),
-                        titleHtml = titleTemplate({title: title});
-                        
-                    return titleHtml;
-                }
-            };
-                
-            list.showList(route.title, listPromise, options);
-
-        }).fail(function (err) {
-            console.error("[showDirections] failed to get route: " + err);
-            deferred.reject(err);
-        });
-    }
-    
-    function showRoutes(place) {
-        var options = {
-            emptyMessage: "No routes found.",
-            backHref: "#page=place&place=" + place.id,
-            getEntryHref: function (route) {
-                var routeTag = route.tag;
-                return "#page=directions&place=" + place.id +
-                    "&route=" + routeTag;
-            },
-            getLeft: function (route) {
-                return route.title;
-            }
-        };
-    
-        list.showList("Routes", routes.getRouteList(), options);
-    }
-    
-    function showPlace(place) {
-        var predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
-            title = place.title,
-            routeObjMap = {},
-            deferred = $.Deferred(),
-            listPromise = deferred.promise();
-        
-        function refreshPredictions(force, $container) {
-            var deferred = $.Deferred();
-            
-            function updateEntries(predictionObjects) {
-                $container.find(".entry").each(function (index, entry) {
-                    var $entry = $(entry),
-                        data = entry.dataset,
-                        routeTag = data.route,
-                        stopTag = data.stop,
-                        predictionRoute = predictionObjects[routeTag],
-                        predictions;
-                    
-                    if (predictionRoute && predictionRoute[stopTag]) {
-                        predictions = predictionRoute[stopTag];
-                        $entry.find(".entry__right").animate({opacity: 1.0});
-                        $entry.find(".entry__minutes").each(function (index, minutes) {
-                            if (index < 3 && predictions.length > index) {
-                                $(minutes).text(predictions[index].minutes);
-                                return true;
-                            } else {
-                                return false;
+                                throw new Error("No refresh");
                             }
                         });
-                    } else {
-                        $entry.find(".entry__right").animate({opacity: 0.5});
                     }
-                });
-                
-                return deferred.promise();
-            }
-            
-            preds.getPredictionsForMultiStops(place.stops, force)
-                .progress(updateEntries)
-                .done(updateEntries)
-                .fail(updateEntries.bind(null, {}));
-            
-            return deferred.promise();
+                };
+            return [title, options];
         }
         
-        var options = {
-            emptyMessage: "No routes found.",
-            backHref: "#page=places",
-            addHref: "#page=routes&place=" + place.id,
-            getEntryHref: function (routeObj) {
-                var routeTag = routeObj.route.tag,
-                    stopTag = routeObj.stopTag;
+        routes.getRoute(routeTag)
+            .then(getParameters)
+            .spread(function (title, options) {
+                var listPromise = preds.getPredictions(routeTag, stopTag);
                 
-                return "#page=predictions&place=" + place.id +
-                    "&route=" + routeTag + "&stop=" + stopTag;
-            },
-            getTags: function (routeObj) {
-                return [{tag: "route", value: routeObj.route.tag},
-                        {tag: "dir", value: routeObj.dirTag},
-                        {tag: "stop", value: routeObj.stopTag}];
-            },
-            getLeft: function (routeObj) {
-                var route = routeObj.route,
-                    routeTag = route.tag,
-                    dirTag = routeObj.dirTag,
-                    stopTag = routeObj.stopTag,
-                    stop = route.stops[stopTag],
-                    stopTitle = "@ " + stop.title,
-                    routeTitle = route.getTitleWithColor(),
-                    subtitles = [route.directions[dirTag].title, stopTitle];
-                
-                return titleTemplate({title: routeTitle, subtitles: subtitles});
-            },
-            getRight: function (routeObj) {
-                var predictions = routeObj.predictions;
-                
-                if (predictions.length) {
-                    var firstPrediction = predictions[0],
-                        firstPredictionString = predictionsTemplate({
-                            predictions: firstPrediction
-                        }),
-                        lastIndex = Math.min(3, predictions.length),
-                        laterPredictions = predictions.slice(1, lastIndex),
-                        laterPredictionsString = predictionsTemplate({
-                            predictions: laterPredictions
-                        });
-                    return titleTemplate({
-                        title: firstPredictionString,
-                        subtitles: [laterPredictionsString]
-                    });
-                } else {
-                    return titleTemplate();
-                }
-            },
-            getRemoveHref: function (routeObj) {
-                var route = routeObj.route,
-                    routeTag = route.tag,
-                    stopTag = routeObj.stopTag;
-
-                return "#page=place&op=remove&place=" + place.id +
-                    "&route=" + routeTag + "&stop=" + stopTag;
-            },
-            confirmRemove: function (routeObj) {
-                var route = routeObj.route,
-                    dirTag = routeObj.dirTag,
-                    stopTag = routeObj.stopTag,
-                    stop = route.stops[stopTag];
-
-                return window.confirm("Remove stop " + stop.title + "?");
-            },
-            refresh: refreshPredictions
-        };
-        
-        setRecentPlace(place);
-        list.showList(title, listPromise, options);
-
-        async.map(place.stops, function (stopObj, callback) {
-            routes.getRoute(stopObj.routeTag).done(function (route) {
-                routeObjMap[route.tag] = route;
-                callback(null, {
-                    route: route,
-                    dirTag: stopObj.dirTag,
-                    stopTag: stopObj.stopTag
-                });
-            }).fail(function (err) {
-                callback(err);
-            });
-        }, function (err, routeObjs) {
-            if (err) {
-                console.error("[showPlace] failed to get routes: " + err);
-                deferred.reject(err);
-                return;
-            }
-            
-            predictionsPromise.done(function (predictionObjs) {
-                function predictionComparator(a, b) {
-                    if (a.predictions.length === 0) {
-                        if (b.predictions.length === 0) {
-                            return 0;
-                        } else {
-                            return 1;
-                        }
-                    } else {
-                        if (b.predictions.length === 0) {
-                            return -1;
-                        } else {
-                            return a.predictions[0].seconds - b.predictions[0].seconds;
-                        }
-                    }
-                }
-                
-                routeObjs.forEach(function (routeObj, index) {
-                    var routeTag = routeObj.route.tag,
-                        stopTag = routeObj.stopTag;
-                    
-                    routeObj.predictions = predictionObjs[routeTag][stopTag];
-                });
-                
-                routeObjs.sort(predictionComparator);
-                
-                deferred.resolve(routeObjs);
-            }).fail(function (err) {
-                console.error("[showPlace] failed to get predictions: " + err);
-                deferred.reject(err);
-            });
-        });
+                list.showList(title, listPromise, options);
+            })
+            .done();
     }
+    
+//    function showStops(place, routeTag, dirTag, scroll) {
+//        var locationPromise = geo.getLocation(),
+//            deferred = $.Deferred(),
+//            listPromise = deferred.promise();
+//    
+//        routes.getRoute(routeTag).done(function (route) {
+//            var direction = route.directions[dirTag],
+//                title = route.title + ": " + direction.name,
+//                options = {
+//                    emptyMessage: "No stops found.",
+//                    backHref: "#page=directions&place=" + place.id + "&route=" + routeTag,
+//                    getHighlight: function (stopInfo, index) {
+//                        return stopInfo.isClosest;
+//                    },
+//                    getEntryHref: function (stopInfo) {
+//                        var stop = stopInfo.stop;
+//                        
+//                        return "#page=place&op=add&place=" + place.id +
+//                            "&route=" + routeTag + "&direction=" + dirTag +
+//                            "&stop=" + stop.tag;
+//                    },
+//                    getLeft: function (stopInfo) {
+//                        var stop = stopInfo.stop;
+//                        
+//                        return stop.title;
+//                    },
+//                    getRight: function (stopInfo) {
+//                        var stop = stopInfo.stop;
+//                        
+//                        return stop.isApproaching(place) ? "&ensp;&rarr;" : "&larr;&ensp;";
+//                    },
+//                    scroll: scroll
+//                };
+//            
+//            list.showList(title, listPromise, options);
+//    
+//            locationPromise.done(function (position) {
+//                var closestStop = direction.getClosestStop(position),
+//                    stopInfoList = direction.stops.map(function (stop) {
+//                        return {
+//                            stop: stop,
+//                            isClosest: stop === closestStop
+//                        };
+//                    });
+//                
+//                deferred.resolve(stopInfoList);
+//            }).fail(function (err) {
+//                deferred.reject(err);
+//            });
+//            
+//        }).fail(function (err) {
+//            console.error("[showStops] failed to get route: " + err);
+//            deferred.reject(err);
+//        });
+//    }
+//    
+//    function showDirections(place, routeTag) {
+//        var deferred = $.Deferred(),
+//            listPromise = deferred.promise();
+//        
+//        routes.getRoute(routeTag).done(function (route) {
+//            var directions = [],
+//                dirTag;
+//
+//            for (dirTag in route.directions) {
+//                if (route.directions.hasOwnProperty(dirTag)) {
+//                    directions.push(route.directions[dirTag]);
+//                }
+//            }
+//            
+//            directions.sort(function (a, b) {
+//                return a.title > b.title;
+//            });
+//
+//            deferred.resolve(directions);
+//
+//            var options = {
+//                emptyMessage: "No directions found.",
+//                backHref: "#page=routes&place=" + place.id,
+//                getEntryHref: function (direction) {
+//                    var routeTag = route.tag;
+//                    return "#page=stops&place=" + place.id +
+//                        "&route=" + routeTag + "&direction=" + direction.tag;
+//                },
+//                getLeft: function (direction) {
+//                    var title = direction.title,
+//                        stop = direction.getClosestStop(place),
+//                        subtitles = [stop.title];
+//                    
+//                    return titleTemplate({title: title, subtitles: subtitles});
+//                },
+//                getRight: function (direction) {
+//                    var stop = direction.getClosestStop(place),
+//                        kilometers = stop.distanceFrom(place),
+//                        miles = geo.kilometersToMiles(kilometers),
+//                        title = distanceTemplate({miles: miles}),
+//                        titleHtml = titleTemplate({title: title});
+//                        
+//                    return titleHtml;
+//                }
+//            };
+//                
+//            list.showList(route.title, listPromise, options);
+//
+//        }).fail(function (err) {
+//            console.error("[showDirections] failed to get route: " + err);
+//            deferred.reject(err);
+//        });
+//    }
+//    
+//    function showRoutes(place) {
+//        var options = {
+//            emptyMessage: "No routes found.",
+//            backHref: "#page=place&place=" + place.id,
+//            getEntryHref: function (route) {
+//                var routeTag = route.tag;
+//                return "#page=directions&place=" + place.id +
+//                    "&route=" + routeTag;
+//            },
+//            getLeft: function (route) {
+//                return route.title;
+//            }
+//        };
+//    
+//        list.showList("Routes", routes.getRouteList(), options);
+//    }
+//    
+//    function showPlace(place) {
+//        var predictionsPromise = preds.getPredictionsForMultiStops(place.stops),
+//            title = place.title,
+//            routeObjMap = {},
+//            deferred = $.Deferred(),
+//            listPromise = deferred.promise();
+//        
+//        function refreshPredictions(force, $container) {
+//            var deferred = $.Deferred();
+//            
+//            function updateEntries(predictionObjects) {
+//                $container.find(".entry").each(function (index, entry) {
+//                    var $entry = $(entry),
+//                        data = entry.dataset,
+//                        routeTag = data.route,
+//                        stopTag = data.stop,
+//                        predictionRoute = predictionObjects[routeTag],
+//                        predictions;
+//                    
+//                    if (predictionRoute && predictionRoute[stopTag]) {
+//                        predictions = predictionRoute[stopTag];
+//                        $entry.find(".entry__right").animate({opacity: 1.0});
+//                        $entry.find(".entry__minutes").each(function (index, minutes) {
+//                            if (index < 3 && predictions.length > index) {
+//                                $(minutes).text(predictions[index].minutes);
+//                                return true;
+//                            } else {
+//                                return false;
+//                            }
+//                        });
+//                    } else {
+//                        $entry.find(".entry__right").animate({opacity: 0.5});
+//                    }
+//                });
+//                
+//                return deferred.promise();
+//            }
+//            
+//            preds.getPredictionsForMultiStops(place.stops, force)
+//                .progress(updateEntries)
+//                .done(updateEntries)
+//                .fail(updateEntries.bind(null, {}));
+//            
+//            return deferred.promise();
+//        }
+//        
+//        var options = {
+//            emptyMessage: "No routes found.",
+//            backHref: "#page=places",
+//            addHref: "#page=routes&place=" + place.id,
+//            getEntryHref: function (routeObj) {
+//                var routeTag = routeObj.route.tag,
+//                    stopTag = routeObj.stopTag;
+//                
+//                return "#page=predictions&place=" + place.id +
+//                    "&route=" + routeTag + "&stop=" + stopTag;
+//            },
+//            getTags: function (routeObj) {
+//                return [{tag: "route", value: routeObj.route.tag},
+//                        {tag: "dir", value: routeObj.dirTag},
+//                        {tag: "stop", value: routeObj.stopTag}];
+//            },
+//            getLeft: function (routeObj) {
+//                var route = routeObj.route,
+//                    routeTag = route.tag,
+//                    dirTag = routeObj.dirTag,
+//                    stopTag = routeObj.stopTag,
+//                    stop = route.stops[stopTag],
+//                    stopTitle = "@ " + stop.title,
+//                    routeTitle = route.getTitleWithColor(),
+//                    subtitles = [route.directions[dirTag].title, stopTitle];
+//                
+//                return titleTemplate({title: routeTitle, subtitles: subtitles});
+//            },
+//            getRight: function (routeObj) {
+//                var predictions = routeObj.predictions;
+//                
+//                if (predictions.length) {
+//                    var firstPrediction = predictions[0],
+//                        firstPredictionString = predictionsTemplate({
+//                            predictions: firstPrediction
+//                        }),
+//                        lastIndex = Math.min(3, predictions.length),
+//                        laterPredictions = predictions.slice(1, lastIndex),
+//                        laterPredictionsString = predictionsTemplate({
+//                            predictions: laterPredictions
+//                        });
+//                    return titleTemplate({
+//                        title: firstPredictionString,
+//                        subtitles: [laterPredictionsString]
+//                    });
+//                } else {
+//                    return titleTemplate();
+//                }
+//            },
+//            getRemoveHref: function (routeObj) {
+//                var route = routeObj.route,
+//                    routeTag = route.tag,
+//                    stopTag = routeObj.stopTag;
+//
+//                return "#page=place&op=remove&place=" + place.id +
+//                    "&route=" + routeTag + "&stop=" + stopTag;
+//            },
+//            confirmRemove: function (routeObj) {
+//                var route = routeObj.route,
+//                    dirTag = routeObj.dirTag,
+//                    stopTag = routeObj.stopTag,
+//                    stop = route.stops[stopTag];
+//
+//                return window.confirm("Remove stop " + stop.title + "?");
+//            },
+//            refresh: refreshPredictions
+//        };
+//        
+//        setRecentPlace(place);
+//        list.showList(title, listPromise, options);
+//
+//        async.map(place.stops, function (stopObj, callback) {
+//            routes.getRoute(stopObj.routeTag).done(function (route) {
+//                routeObjMap[route.tag] = route;
+//                callback(null, {
+//                    route: route,
+//                    dirTag: stopObj.dirTag,
+//                    stopTag: stopObj.stopTag
+//                });
+//            }).fail(function (err) {
+//                callback(err);
+//            });
+//        }, function (err, routeObjs) {
+//            if (err) {
+//                console.error("[showPlace] failed to get routes: " + err);
+//                deferred.reject(err);
+//                return;
+//            }
+//            
+//            predictionsPromise.done(function (predictionObjs) {
+//                function predictionComparator(a, b) {
+//                    if (a.predictions.length === 0) {
+//                        if (b.predictions.length === 0) {
+//                            return 0;
+//                        } else {
+//                            return 1;
+//                        }
+//                    } else {
+//                        if (b.predictions.length === 0) {
+//                            return -1;
+//                        } else {
+//                            return a.predictions[0].seconds - b.predictions[0].seconds;
+//                        }
+//                    }
+//                }
+//                
+//                routeObjs.forEach(function (routeObj, index) {
+//                    var routeTag = routeObj.route.tag,
+//                        stopTag = routeObj.stopTag;
+//                    
+//                    routeObj.predictions = predictionObjs[routeTag][stopTag];
+//                });
+//                
+//                routeObjs.sort(predictionComparator);
+//                
+//                deferred.resolve(routeObjs);
+//            }).fail(function (err) {
+//                console.error("[showPlace] failed to get predictions: " + err);
+//                deferred.reject(err);
+//            });
+//        });
+//    }
     
     function showJourneys(place) {
         var locationPromise = geo.getLocation(),
@@ -719,102 +708,102 @@ define(function (require, exports, module) {
         });
     }
     
-    function showPlaces(showAll, entryOp) {
-        var placeList = places.getAllPlaces(),
-            deferred = $.Deferred(),
-            listPromise = deferred.promise();
-        
-        function preloadRoutes() {
-            var routeList = [];
-            placeList.forEach(function (place) {
-                place.stops.forEach(function (stopObj) {
-                    routeList.push(stopObj.routeTag);
-                });
-            });
-            routeList.forEach(function (routeTag) {
-                routes.getRoute(routeTag);
-            });
-        }
-        
-        function preloadPredictions(force) {
-            var stopObjs = [],
-                deferred = $.Deferred();
-            
-            placeList.forEach(function (place) {
-                stopObjs = stopObjs.concat(place.stops);
-            });
-            preds.getPredictionsForMultiStops(stopObjs, force).always(function () {
-                deferred.resolve();
-            });
-            
-            return deferred.promise();
-        }
-        
-        var options = {
-            emptyMessage: "No places defined.",
-            addHref: "#page=places&op=add",
-            getEntryHref: function (placeInfo) {
-                var place = placeInfo.place;
-                
-                return "#page=place&place=" + place.id;
-            },
-            getLeft: function (placeInfo) {
-                var place = placeInfo.place;
-                
-                return titleTemplate(place);
-            },
-            getRight: function (placeInfo) {
-                var place = placeInfo.place,
-                    position = placeInfo.position,
-                    meters = geo.distance(position, place),
-                    miles = geo.kilometersToMiles(meters),
-                    distance = distanceTemplate({miles: miles});
-                return titleTemplate({title: distance});
-            },
-            getRemoveHref: function (placeInfo) {
-                var place = placeInfo.place;
-                
-                return "#page=places&op=remove&place=" + place.id;
-            },
-            confirmRemove: function (placeInfo) {
-                var place = placeInfo.place;
-                
-                return window.confirm("Remove place " + place.title + "?");
-            },
-            refresh: preloadPredictions
-        };
-        
-        list.showList("Places", listPromise, options);
-        
-        geo.sortByCurrentLocation(placeList).done(function (position) {
-            if (placeList.length >= 1) {
-                if (!showAll) {
-                    if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
-                            (placeList.length < 2 ||
-                            geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
-                        deferred.reject();
-                        return showPlace(placeList[0]);
-                    }
-                }
-            }
-            
-            var placeInfoList = placeList.map(function (place) {
-                return {
-                    place: place,
-                    position: position
-                };
-            });
-            
-            deferred.resolve(placeInfoList);
-            
-            // warm up cache
-            preloadRoutes();
-            preloadPredictions();
-        }).fail(function (err) {
-            console.error("[showPlaces] failed to geolocate: " + err);
-            deferred.reject(err);
-        });
-    }
+//    function showPlaces(showAll, entryOp) {
+//        var placeList = places.getAllPlaces(),
+//            deferred = $.Deferred(),
+//            listPromise = deferred.promise();
+//        
+//        function preloadRoutes() {
+//            var routeList = [];
+//            placeList.forEach(function (place) {
+//                place.stops.forEach(function (stopObj) {
+//                    routeList.push(stopObj.routeTag);
+//                });
+//            });
+//            routeList.forEach(function (routeTag) {
+//                routes.getRoute(routeTag);
+//            });
+//        }
+//        
+//        function preloadPredictions(force) {
+//            var stopObjs = [],
+//                deferred = $.Deferred();
+//            
+//            placeList.forEach(function (place) {
+//                stopObjs = stopObjs.concat(place.stops);
+//            });
+//            preds.getPredictionsForMultiStops(stopObjs, force).always(function () {
+//                deferred.resolve();
+//            });
+//            
+//            return deferred.promise();
+//        }
+//        
+//        var options = {
+//            emptyMessage: "No places defined.",
+//            addHref: "#page=places&op=add",
+//            getEntryHref: function (placeInfo) {
+//                var place = placeInfo.place;
+//                
+//                return "#page=place&place=" + place.id;
+//            },
+//            getLeft: function (placeInfo) {
+//                var place = placeInfo.place;
+//                
+//                return titleTemplate(place);
+//            },
+//            getRight: function (placeInfo) {
+//                var place = placeInfo.place,
+//                    position = placeInfo.position,
+//                    meters = geo.distance(position, place),
+//                    miles = geo.kilometersToMiles(meters),
+//                    distance = distanceTemplate({miles: miles});
+//                return titleTemplate({title: distance});
+//            },
+//            getRemoveHref: function (placeInfo) {
+//                var place = placeInfo.place;
+//                
+//                return "#page=places&op=remove&place=" + place.id;
+//            },
+//            confirmRemove: function (placeInfo) {
+//                var place = placeInfo.place;
+//                
+//                return window.confirm("Remove place " + place.title + "?");
+//            },
+//            refresh: preloadPredictions
+//        };
+//        
+//        list.showList("Places", listPromise, options);
+//        
+//        geo.sortByCurrentLocation(placeList).done(function (position) {
+//            if (placeList.length >= 1) {
+//                if (!showAll) {
+//                    if (geo.distance(position, placeList[0]) < NEARBY_IN_KM &&
+//                            (placeList.length < 2 ||
+//                            geo.distance(position, placeList[1]) >= NEARBY_IN_KM)) {
+//                        deferred.reject();
+//                        return showPlace(placeList[0]);
+//                    }
+//                }
+//            }
+//            
+//            var placeInfoList = placeList.map(function (place) {
+//                return {
+//                    place: place,
+//                    position: position
+//                };
+//            });
+//            
+//            deferred.resolve(placeInfoList);
+//            
+//            // warm up cache
+//            preloadRoutes();
+//            preloadPredictions();
+//        }).fail(function (err) {
+//            console.error("[showPlaces] failed to geolocate: " + err);
+//            deferred.reject(err);
+//        });
+//    }
 
     function showSearch() {
         var GMAPS_SERVER = "https://maps.googleapis.com/maps/api/js",
@@ -1004,11 +993,11 @@ define(function (require, exports, module) {
     exports.showSearch = showSearch;
     exports.showJourneys = showJourneys;
     exports.showAllJourneys = showAllJourneys;
-    exports.showPlaces = showPlaces;
-    exports.showPlace = showPlace;
-    exports.showRoutes = showRoutes;
-    exports.showDirections = showDirections;
-    exports.showStops = showStops;
+//    exports.showPlaces = showPlaces;
+//    exports.showPlace = showPlace;
+//    exports.showRoutes = showRoutes;
+//    exports.showDirections = showDirections;
+//    exports.showStops = showStops;
     exports.showPredictions = showPredictions;
     exports.refreshPage = page.refreshPage;
 });
