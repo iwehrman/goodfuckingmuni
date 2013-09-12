@@ -8,23 +8,6 @@ define(function (require, exports, module) {
         places = require("app/places"),
         util = require("app/util");
         
-//    function addPlace() {
-//        var deferred = $.Deferred(),
-//            name = window.prompt("Place name: ", "");
-//        
-//        if (name) {
-//            places.addPlace(name).done(function (place) {
-//                deferred.resolve(place);
-//            }).fail(function (err) {
-//                deferred.reject(err);
-//            });
-//        } else {
-//            deferred.reject();
-//        }
-//        
-//        return deferred.promise();
-//    }
-    
     function getStateFromHash() {
         var hash = window.location.hash,
             params;
@@ -75,42 +58,16 @@ define(function (require, exports, module) {
                 places.removePlace(state.place);
                 location.hash = "#page=places";
                 break;
-//            case "departures":
-//                view.showPlaces(true);
-//                break;
             default:
                 view.showAllJourneys(true);
             }
             break;
         case "place":
-            switch (state.op) {
-            case "add":
-                state.place.addStop(state.route, state.direction, state.stop);
-                location.hash = "#page=place&place=" + state.place.id;
-                break;
-            case "remove":
-                state.place.removeStop(state.stop);
-                location.hash = "#page=place&place=" + state.place.id;
-                break;
-//            case "departures":
-//                view.showPlace(state.place);
-//                break;
-            default:
-                view.showJourneys(state.place);
-            }
+            view.showJourneys(state.place);
             break;
         case "predictions":
             view.showPredictions(state.place, state.route, state.stop, state.op);
             break;
-//        case "routes":
-//            view.showRoutes(state.place);
-//            break;
-//        case "directions":
-//            view.showDirections(state.place, state.route);
-//            break;
-//        case "stops":
-//            view.showStops(state.place, state.route, state.direction, true);
-//            break;
         default:
             view.showAllJourneys(false);
         }
