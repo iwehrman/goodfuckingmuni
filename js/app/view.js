@@ -99,7 +99,7 @@ define(function (require, exports, module) {
                                     var listPromise = Q.when(newPredictions);
                                     list.showList(title, listPromise, options);
                                 });
-                                throw new Error("No refresh");
+                                throw new Error("Reload");
                             }
                         });
                     }
@@ -164,54 +164,67 @@ define(function (require, exports, module) {
                 },
                 refresh: function (force, $container) {
                     function getJourneysAtPlace(position) {
-                        return Q.all(position, [journeys.getJourneys(position, place, force)]);
+                        var journeysPromise = journeys.getJourneys(position, place, force);
+                        return Q.all([position, journeysPromise]);
                     }
                     
-                    return geo.getLocation()
-                        .then(getJourneysAtPlace)
-                        .spread(function (position, journeys) {
-                            var meters = geo.distance(position, place),
-                                miles = geo.kilometersToMiles(meters),
-                                distance = distanceTemplate({miles: miles}),
-                                title = place.title + " -" + distance,
-                                $entries = $container.find(".entry");
+                    function refreshJourneysAtPosition(position, journeys) {
+                        var meters = geo.distance(position, place),
+                            miles = geo.kilometersToMiles(meters),
+                            distance = distanceTemplate({miles: miles}),
+                            title = place.title + " -" + distance,
+                            $entries = $container.find(".entry");
 
-                            try {
-                                if ($entries.length !== journeys.length) {
-                                    throw new Error("No refresh");
+                        function getReloadError() {
+                            var reloadError = new Error("Reload");
+                            reloadError.title = title;
+                            reloadError.journeys = journeys;
+                            return reloadError;
+                        }
+                        
+                        if (journeys.length === 0 && $entries.length === 1 &&
+                                $entries.first().data("empty")) {
+                            return;
+                        } else if ($entries.length !== journeys.length) {
+                            throw getReloadError();
+                        } else {
+                            $entries.each(function (index, entry) {
+                                var journey = journeys[index],
+                                    stop = journey.departure,
+                                    direction = stop._direction,
+                                    route = direction._route,
+                                    $entry = $(entry),
+                                    routeTag = $entry.attr("data-route"),
+                                    dirTag = $entry.attr("data-direction"),
+                                    stopTag = $entry.attr("data-stop");
+                                
+                                if (routeTag !== route.tag ||
+                                        dirTag !== direction.tag ||
+                                        stopTag !== stop.tag) {
+                                    throw getReloadError();
                                 } else {
-                                    $entries.each(function (index, entry) {
-                                        var journey = journeys[index],
-                                            stop = journey.departure,
-                                            direction = stop._direction,
-                                            route = direction._route,
-                                            $entry = $(entry),
-                                            routeTag = $entry.attr("data-route"),
-                                            dirTag = $entry.attr("data-direction"),
-                                            stopTag = $entry.attr("data-stop");
-                                        
-                                        if (routeTag !== route.tag ||
-                                                dirTag !== direction.tag ||
-                                                stopTag !== stop.tag) {
-                                            throw "No refresh";
-                                        } else {
-                                            var departurePrediction = journey.departurePredictions[0],
-                                                arrivalPrediction = journey.feasibleArrivalPredictions[0],
-                                                $departurePred = $entry.find(".entry__title .entry__minutes"),
-                                                $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
-                                            
-                                            $departurePred.text(departurePrediction.minutes);
-                                            $arrivalPred.text(arrivalPrediction.minutes);
-                                        }
-                                    });
+                                    var departurePrediction = journey.departurePredictions[0],
+                                        arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                        $departurePred = $entry.find(".entry__title .entry__minutes"),
+                                        $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                    
+                                    $departurePred.text(departurePrediction.minutes);
+                                    $arrivalPred.text(arrivalPrediction.minutes);
                                 }
-                            } catch (err) {
-                                Q.nextTick(function () {
-                                    list.showList(title, Q.when(journeys), options);
-                                });
-                                throw err;
-                            }
-                        });
+                            });
+                        }
+                    }
+                    
+                    function reloadJourneys(err) {
+                        list.showList(err.title, Q.when(err.journeys), options);
+                    }
+                    
+                    var refreshPromise = geo.getLocation()
+                        .then(getJourneysAtPlace)
+                        .spread(refreshJourneysAtPosition)
+                        .fail(reloadJourneys);
+                    
+                    return refreshPromise;
                 }
             };
         

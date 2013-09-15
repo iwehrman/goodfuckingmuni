@@ -12,36 +12,35 @@ define(function (require, exports, module) {
     
     var MUNI_TOLERANCE = 0.71;
     
-    function filterArrivalsByDepartures(departures, arrivals) {
-        var feasibleArrivals = [],
-            departureIndex = 0,
-            arrivalIndex = 0,
-            departure,
-            arrival,
-            vehicle;
-
-        while (departureIndex < departures.length) {
-            departure = departures[departureIndex++];
-            vehicle = departure.vehicle;
-            
-            while (arrivalIndex < arrivals.length) {
-                arrival = arrivals[arrivalIndex++];
-                if (arrival.vehicle === vehicle) {
-                    feasibleArrivals.push(arrival);
-                    break;
+    function getJourneys(begin, end, force) {
+        function filterArrivalsByDepartures(departures, arrivals) {
+            var feasibleArrivals = [],
+                departureIndex = 0,
+                arrivalIndex = 0,
+                departure,
+                arrival,
+                vehicle;
+    
+            while (departureIndex < departures.length) {
+                departure = departures[departureIndex++];
+                vehicle = departure.vehicle;
+                
+                while (arrivalIndex < arrivals.length) {
+                    arrival = arrivals[arrivalIndex++];
+                    if (arrival.vehicle === vehicle) {
+                        feasibleArrivals.push(arrival);
+                        break;
+                    }
                 }
             }
+            
+            return feasibleArrivals;
         }
-        
-        return feasibleArrivals;
-    }
-    
-    function getJourneys(begin, end, force) {
         
         function getJourneysForRoutes(allRoutes) {
             var journeys = [];
             
-            allRoutes.map(function (route) {
+            allRoutes.forEach(function (route) {
                 var directions = [],
                     bestJourney = null,
                     dirTag;
