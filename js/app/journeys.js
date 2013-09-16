@@ -12,6 +12,16 @@ define(function (require, exports, module) {
     
     var MUNI_TOLERANCE = 0.71;
     
+    var cachedBegin             = null,
+        cachedEnd               = null,
+        cachedJourneys          = null;
+    
+    function samePosition(pos1, pos2) {
+        return pos1 && pos2 &&
+            pos1.lat === pos2.lat &&
+            pos1.lon === pos2.lon;
+    }
+    
     function getJourneys(begin, end, force) {
         function filterArrivalsByDepartures(departures, arrivals) {
             var feasibleArrivals = [],
@@ -38,51 +48,61 @@ define(function (require, exports, module) {
         }
         
         function getJourneysForRoutes(allRoutes) {
-            var journeys = [];
+            var journeys;
             
-            allRoutes.forEach(function (route) {
-                var directions = [],
-                    bestJourney = null,
-                    dirTag;
-    
-                for (dirTag in route.directions) {
-                    if (route.directions.hasOwnProperty(dirTag)) {
-                        directions.push(route.directions[dirTag]);
-                    }
-                }
+            if (samePosition(begin, cachedBegin) && samePosition(end, cachedEnd) && cachedJourneys) {
+                journeys = cachedJourneys.slice(0);
+            } else {
+                journeys = [];
                 
-                directions.forEach(function (direction) {
-                    var journey = direction.getJourney(end, begin);
-                    
-                    if (journey && (!bestJourney || journey.totalLength < bestJourney.totalLength)) {
-                        if (journey.arrival !== journey.departure) {
-                            bestJourney = journey;
+                allRoutes.forEach(function (route) {
+                    var directions = [],
+                        bestJourney = null,
+                        dirTag;
+        
+                    for (dirTag in route.directions) {
+                        if (route.directions.hasOwnProperty(dirTag)) {
+                            directions.push(route.directions[dirTag]);
                         }
+                    }
+                    
+                    directions.forEach(function (direction) {
+                        var journey = direction.getJourney(end, begin);
+                        
+                        if (journey && (!bestJourney || journey.totalLength < bestJourney.totalLength)) {
+                            if (journey.arrival !== journey.departure) {
+                                bestJourney = journey;
+                            }
+                        }
+                    });
+                    
+                    if (bestJourney) {
+                        journeys.push(bestJourney);
                     }
                 });
                 
-                if (bestJourney) {
-                    journeys.push(bestJourney);
-                }
-            });
-            
-            var totalDistance = geo.distance(begin, end);
-            console.log("Total distance " + totalDistance);
-            journeys = journeys.filter(function (journey) {
-                console.log("Walk length " + journey.departure._direction._route.tag,
-                            journey.currentToDeparture.toFixed(2),
-                            journey.arrivalToDestination.toFixed(2),
-                            journey.walkingLength.toFixed(2));
-                if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
-                    console.log("Long walk " + journey.departure._direction._route.tag,
-                                journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
-                    return false;
-                } else {
-                    console.log("Riding fraction for " + journey.departure._direction._route.tag,
-                                ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
-                    return true;
-                }
-            });
+                var totalDistance = geo.distance(begin, end);
+                console.log("Total distance " + totalDistance);
+                journeys = journeys.filter(function (journey) {
+                    console.log("Walk length " + journey.departure._direction._route.tag,
+                                journey.currentToDeparture.toFixed(2),
+                                journey.arrivalToDestination.toFixed(2),
+                                journey.walkingLength.toFixed(2));
+                    if (journey.walkingLength > totalDistance * MUNI_TOLERANCE) {
+                        console.log("Long walk " + journey.departure._direction._route.tag,
+                                    journey.walkingLength.toFixed(2), totalDistance.toFixed(2));
+                        return false;
+                    } else {
+                        console.log("Riding fraction for " + journey.departure._direction._route.tag,
+                                    ((totalDistance - journey.walkingLength) / totalDistance).toFixed(2));
+                        return true;
+                    }
+                });
+                
+                cachedBegin = begin;
+                cachedEnd = end;
+                cachedJourneys = journeys;
+            }
             
             return journeys;
         }
