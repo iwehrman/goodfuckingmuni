@@ -327,8 +327,11 @@ define(function (require, exports, module) {
                     }
                     
                     function refreshWithBestJourneysList(bestJourneysList) {
-                        var refreshError = new Error("Refresh");
-                        refreshError.bestJourneyList = bestJourneysList;
+                        function getRefreshError() {
+                            var refreshError = new Error("Refresh");
+                            refreshError.bestJourneysList = bestJourneysList;
+                            return refreshError;
+                        }
                         
                         if ($entries.length === bestJourneysList.length) {
                             $entries.each(function (index, entry) {
@@ -342,7 +345,7 @@ define(function (require, exports, module) {
                                     stopTag = $entry.attr("data-stop");
                                 
                                 if (placeId !== place.id) {
-                                    throw refreshError;
+                                    throw getRefreshError();
                                 }
                                 
                                 if (journey) {
@@ -353,11 +356,11 @@ define(function (require, exports, module) {
                                     if (route.tag !== routeTag ||
                                             direction.tag !== dirTag ||
                                             departure.tag !== stopTag) {
-                                        throw refreshError;
+                                        throw getRefreshError();
                                     }
                                 } else {
                                     if (routeTag || dirTag || stopTag) {
-                                        throw refreshError;
+                                        throw getRefreshError();
                                     }
                                 }
                                 
@@ -372,7 +375,7 @@ define(function (require, exports, module) {
                                 }
                             });
                         } else {
-                            throw refreshError;
+                            throw getRefreshError();
                         }
                     }
                     

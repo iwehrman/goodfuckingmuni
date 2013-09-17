@@ -32,6 +32,8 @@ define(function (require, exports, module) {
             refreshInProgress = true;
             handleRefresh(force).then(function () {
                 refreshTimer = window.setTimeout(refreshPage, REFRESH_INTERVAL);
+            }, function (err) {
+                console.log("Canceled refresh: ", err);
             }).fin(function () {
                 refreshInProgress = false;
             });
