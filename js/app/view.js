@@ -372,7 +372,7 @@ define(function (require, exports, module) {
                                 }
                             });
                         } else {
-                            throw new Error("Refresh");
+                            throw refreshError;
                         }
                     }
                     

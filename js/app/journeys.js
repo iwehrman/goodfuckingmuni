@@ -12,14 +12,10 @@ define(function (require, exports, module) {
     
     var MUNI_TOLERANCE = 0.71;
     
-    var cachedBegin             = null,
-        cachedEnd               = null,
-        cachedJourneys          = null;
+    var journeyCache = {};
     
-    function samePosition(pos1, pos2) {
-        return pos1 && pos2 &&
-            pos1.lat === pos2.lat &&
-            pos1.lon === pos2.lon;
+    function positionKey(pos) {
+        return pos.lat.toFixed(5) + "," + pos.lon.toFixed(5);
     }
     
     function getJourneys(begin, end, force) {
@@ -48,9 +44,13 @@ define(function (require, exports, module) {
         }
         
         function getJourneysForRoutes(allRoutes) {
-            var journeys;
+            var journeys,
+                endKey = positionKey(end),
+                beginKey = positionKey(begin),
+                cachedBegin = journeyCache[endKey],
+                cachedJourneys = cachedBegin && cachedBegin[beginKey];
             
-            if (samePosition(begin, cachedBegin) && samePosition(end, cachedEnd) && cachedJourneys) {
+            if (cachedJourneys) {
                 journeys = cachedJourneys.slice(0);
             } else {
                 journeys = [];
@@ -99,9 +99,9 @@ define(function (require, exports, module) {
                     }
                 });
                 
-                cachedBegin = begin;
-                cachedEnd = end;
-                cachedJourneys = journeys;
+                cachedBegin = {};
+                cachedBegin[beginKey] = journeys;
+                journeyCache[endKey] = cachedBegin;
             }
             
             return journeys;
