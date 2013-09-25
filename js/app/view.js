@@ -158,7 +158,7 @@ define(function (require, exports, module) {
                         arrivalPred = journey.feasibleArrivalPredictions[0],
                         finalPred = journey.finalPrediction,
                         title = predictionsTemplate({predictions: departurePred}),
-                        arrivalSubtitle = "↪" + predictionsTemplate({predictions: arrivalPred}),
+                        arrivalSubtitle = "↪ " + predictionsTemplate({predictions: arrivalPred}),
                         finalSubtitle = "... " + predictionsTemplate({predictions: finalPred}),
                         subtitles = [arrivalSubtitle, finalSubtitle],
                         titleHtml = titleTemplate({title: title, subtitles: subtitles});
@@ -301,10 +301,13 @@ define(function (require, exports, module) {
                     if (journeyObj.journey) {
                         var journey = journeyObj.journey,
                             departurePred = journey.departurePredictions[0],
-                            arrivalPred = journey.feasibleArrivalPredictions[0];
-    
+                            finalPred = journey.finalPrediction,
+                            arrivalPred = journey.feasibleArrivalPredictions[0],
+                            arrivalSubtitle = "↪ " + predictionsTemplate({predictions: arrivalPred}),
+                            finalSubtitle = "... " + predictionsTemplate({predictions: finalPred});
+                        
                         title = predictionsTemplate({predictions: departurePred});
-                        subtitles = ["↪ " + predictionsTemplate({predictions: arrivalPred})];
+                        subtitles = [arrivalSubtitle, finalSubtitle];
                     } else {
                         title = null;
                         subtitles = null;
@@ -374,11 +377,15 @@ define(function (require, exports, module) {
                                 if (journey) {
                                     var departurePrediction = journey.departurePredictions[0],
                                         arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                        finalPrediction = journey.finalPrediction,
                                         $departurePred = $entry.find(".entry__title .entry__minutes"),
-                                        $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                        $arrivalPreds = $entry.find(".entry__subtitle .entry__minutes"),
+                                        $arrivalPred = $arrivalPreds.eq(0),
+                                        $finalPred = $arrivalPreds.eq(1);
                                     
                                     $departurePred.text(departurePrediction.minutes);
                                     $arrivalPred.text(arrivalPrediction.minutes);
+                                    $finalPred.text(finalPrediction.minutes);
                                 }
                             });
                         } else {
