@@ -195,19 +195,10 @@ define(function (require, exports, module) {
                 
                 if (feasibleArrivals.length > 0) {
                     journey.feasibleArrivalPredictions = feasibleArrivals;
-                    
-                    var arrivalStopTime = feasibleArrivals[0].seconds,
-                        walkTime = geo.walkTime(journey.arrivalToDestination),
-                        finalArrivalInSeconds = arrivalStopTime + walkTime;
 
-                    journey.finalPrediction = {
-                        seconds: finalArrivalInSeconds,
-                        minutes: Math.round(finalArrivalInSeconds / 60)
-                    };
 
                     console.log("Best arrival for " + journey.departure._direction._route.tag,
-                                (feasibleArrivals[0].seconds / 60).toFixed(2),
-                                journey.finalPrediction.minutes);
+                                (feasibleArrivals[0].seconds / 60).toFixed(2));
                     
                     return true;
                 } else {
@@ -215,10 +206,6 @@ define(function (require, exports, module) {
                                 journey.departure._direction._route.tag);
                     return false;
                 }
-            });
-
-            journeys.sort(function (journey1, journey2) {
-                return journey1.finalPrediction.seconds - journey2.finalPrediction.seconds;
             });
             
             journeys.forEach(function (journey1) {
@@ -243,9 +230,71 @@ define(function (require, exports, module) {
             .then(filterJourneysWithPredictions);
     }
     
+    function getSortedJourneys(begin, end, force) {
+        
+        function sortJourneys(journeys) {
+            journeys.forEach(function (journey) {
+                var feasibleArrival = journey.feasibleArrivalPredictions[0],
+                    arrivalStopTime = feasibleArrival.seconds,
+                    walkTime = geo.walkTime(journey.arrivalToDestination),
+                    finalArrivalInSeconds = arrivalStopTime + walkTime,
+                    finalPrediction = {
+                        seconds: finalArrivalInSeconds,
+                        minutes: Math.round(finalArrivalInSeconds / 60)
+                    };
+                
+                journey.finalPrediction = finalPrediction;
+            });
+            
+            return journeys.sort(function (journey1, journey2) {
+                return journey1.finalPrediction.seconds - journey2.finalPrediction.seconds;
+            });
+        }
+        
+        return getJourneys(begin, end, force)
+            .then(sortJourneys);
+    }
+    
+    function getExplodedJourneys(begin, end, force) {
+        
+        function explodeJourneys(journeys) {
+            var explodedJourneyLists = journeys.map(function (journey) {
+                return journey.feasibleArrivalPredictions.map(function (feasibleArrival, index) {
+                    var arrivalStopTime = feasibleArrival.seconds,
+                        walkTime = geo.walkTime(journey.arrivalToDestination),
+                        finalArrivalInSeconds = arrivalStopTime + walkTime,
+                        finalPrediction = {
+                            seconds: finalArrivalInSeconds,
+                            minutes: Math.round(finalArrivalInSeconds / 60)
+                        };
+                    
+                    return {
+                        departure: journey.departure,
+                        arrival: journey.arrival,
+                        feasibleArrivalPrediction: feasibleArrival,
+                        departurePrediction: journey.departurePredictions[index],
+                        finalPrediction: finalPrediction,
+                        arrivalToDestination: journey.arrivalToDestination
+                    };
+                });
+            });
+            
+            var allExplodedJourneys = explodedJourneyLists.reduce(function (allJourneys, moreJourneys) {
+                return allJourneys.concat(moreJourneys);
+            }, []);
+            
+            return allExplodedJourneys.sort(function (journey1, journey2) {
+                return journey1.finalPrediction.seconds - journey2.finalPrediction.seconds;
+            });
+        }
+        
+        return getJourneys(begin, end, force)
+            .then(explodeJourneys);
+    }
+    
     function getBestJourneys(position, placeList, force) {
         var journeyPromises = placeList.map(function (place) {
-            return Q.all([place, getJourneys(position, place, force)]);
+            return Q.all([place, getSortedJourneys(position, place, force)]);
         });
         
         return Q.all(journeyPromises).then(function (journeyObjs) {
@@ -272,6 +321,6 @@ define(function (require, exports, module) {
         });
     }
 
-    exports.getJourneys = getJourneys;
+    exports.getExplodedJourneys = getExplodedJourneys;
     exports.getBestJourneys = getBestJourneys;
 });

@@ -154,8 +154,8 @@ define(function (require, exports, module) {
                     return titleTemplate({title: title, subtitles: subtitles});
                 },
                 getRight: function (journey) {
-                    var departurePred = journey.departurePredictions[0],
-                        arrivalPred = journey.feasibleArrivalPredictions[0],
+                    var departurePred = journey.departurePrediction,
+                        arrivalPred = journey.feasibleArrivalPrediction,
                         finalPred = journey.finalPrediction,
                         title = predictionsTemplate({predictions: departurePred}),
                         arrivalSubtitle = "↪ " + predictionsTemplate({predictions: arrivalPred}),
@@ -167,7 +167,7 @@ define(function (require, exports, module) {
                 },
                 refresh: function (force, $container) {
                     function getJourneysAtPlace(position) {
-                        var journeysPromise = journeys.getJourneys(position, place, force);
+                        var journeysPromise = journeys.getExplodedJourneys(position, place, force);
                         return Q.all([position, journeysPromise]);
                     }
                     
@@ -206,8 +206,8 @@ define(function (require, exports, module) {
                                         stopTag !== stop.tag) {
                                     throw getReloadError();
                                 } else {
-                                    var departurePrediction = journey.departurePredictions[0],
-                                        arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                    var departurePrediction = journey.departurePrediction,
+                                        arrivalPrediction = journey.feasibleArrivalPrediction,
                                         finalPrediction = journey.finalPrediction,
                                         $departurePred = $entry.find(".entry__title .entry__minutes"),
                                         $arrivalPreds = $entry.find(".entry__subtitle .entry__minutes"),
@@ -240,7 +240,7 @@ define(function (require, exports, module) {
                 miles = geo.kilometersToMiles(meters),
                 distance = distanceTemplate({miles: miles}),
                 title = place.title + " -" + distance,
-                listPromise = journeys.getJourneys(position, place);
+                listPromise = journeys.getExplodedJourneys(position, place);
             
             setRecentPlace(place);
             list.showList(title, listPromise, options);
