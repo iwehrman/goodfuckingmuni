@@ -188,17 +188,27 @@ define(function (require, exports, module) {
                 return preds.length > 0;
             });
             
-            var feasibleArrivalsForRoute = {};
             journeys = journeys.filter(function (journey) {
                 var departures = journey.departurePredictions,
                     arrivals = journey.arrivalPredictions,
                     feasibleArrivals = filterArrivalsByDepartures(departures, arrivals);
                 
                 if (feasibleArrivals.length > 0) {
-                    feasibleArrivalsForRoute[journey.departure._direction._route.tag] = feasibleArrivals;
                     journey.feasibleArrivalPredictions = feasibleArrivals;
+                    
+                    var arrivalStopTime = feasibleArrivals[0].seconds,
+                        walkTime = geo.walkTime(journey.arrivalToDestination),
+                        finalArrivalInSeconds = arrivalStopTime + walkTime;
+
+                    journey.finalPrediction = {
+                        seconds: finalArrivalInSeconds,
+                        minutes: Math.round(finalArrivalInSeconds / 60)
+                    };
+
                     console.log("Best arrival for " + journey.departure._direction._route.tag,
-                                (feasibleArrivals[0].seconds / 60).toFixed(2));
+                                (feasibleArrivals[0].seconds / 60).toFixed(2),
+                                journey.finalPrediction.minutes);
+                    
                     return true;
                 } else {
                     console.log("No feasible arrivals for " +
@@ -208,20 +218,11 @@ define(function (require, exports, module) {
             });
 
             journeys.sort(function (journey1, journey2) {
-                var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
-                    pred2 = feasibleArrivalsForRoute[journey2.departure._direction._route.tag],
-                    arrival1 = pred1[0].seconds,
-                    arrival2 = pred2[0].seconds,
-                    walk1 = geo.walkTime(journey1.arrivalToDestination),
-                    walk2 = geo.walkTime(journey2.arrivalToDestination),
-                    dest1 = arrival1 + walk1,
-                    dest2 = arrival2 + walk2;
-                
-                return dest1 - dest2;
+                return journey1.finalPrediction.seconds - journey2.finalPrediction.seconds;
             });
             
             journeys.forEach(function (journey1) {
-                var pred1 = feasibleArrivalsForRoute[journey1.departure._direction._route.tag],
+                var pred1 = journey1.feasibleArrivalPredictions,
                     arrival1 = pred1[0].seconds,
                     walk1 = geo.walkTime(journey1.arrivalToDestination),
                     dest1 = arrival1 + walk1,

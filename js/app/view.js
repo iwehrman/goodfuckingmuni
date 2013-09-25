@@ -156,8 +156,11 @@ define(function (require, exports, module) {
                 getRight: function (journey) {
                     var departurePred = journey.departurePredictions[0],
                         arrivalPred = journey.feasibleArrivalPredictions[0],
+                        finalPred = journey.finalPrediction,
                         title = predictionsTemplate({predictions: departurePred}),
-                        subtitles = ["↪" + predictionsTemplate({predictions: arrivalPred})],
+                        arrivalSubtitle = "↪" + predictionsTemplate({predictions: arrivalPred}),
+                        finalSubtitle = "... " + predictionsTemplate({predictions: finalPred}),
+                        subtitles = [arrivalSubtitle, finalSubtitle],
                         titleHtml = titleTemplate({title: title, subtitles: subtitles});
     
                     return titleHtml;
@@ -205,11 +208,15 @@ define(function (require, exports, module) {
                                 } else {
                                     var departurePrediction = journey.departurePredictions[0],
                                         arrivalPrediction = journey.feasibleArrivalPredictions[0],
+                                        finalPrediction = journey.finalPrediction,
                                         $departurePred = $entry.find(".entry__title .entry__minutes"),
-                                        $arrivalPred = $entry.find(".entry__subtitle .entry__minutes");
+                                        $arrivalPreds = $entry.find(".entry__subtitle .entry__minutes"),
+                                        $arrivalPred = $arrivalPreds.eq(0),
+                                        $finalPred = $arrivalPreds.eq(1);
                                     
                                     $departurePred.text(departurePrediction.minutes);
                                     $arrivalPred.text(arrivalPrediction.minutes);
+                                    $finalPred.text(finalPrediction.minutes);
                                 }
                             });
                         }
