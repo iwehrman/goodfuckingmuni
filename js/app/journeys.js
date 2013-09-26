@@ -10,7 +10,8 @@ define(function (require, exports, module) {
         preds = require("app/predictions"),
         geo = require("app/geolocation");
     
-    var MUNI_TOLERANCE = 0.71;
+    var MUNI_TOLERANCE = 0.71,
+        WALK_TOLERANCE = 1.5;
     
     var journeyCache = {};
     
@@ -283,13 +284,34 @@ define(function (require, exports, module) {
                 return allJourneys.concat(moreJourneys);
             }, []);
             
-            return allExplodedJourneys.sort(function (journey1, journey2) {
+            return allExplodedJourneys;
+        }
+        
+        function filterByTotalWalkTime(journeys) {
+            var totalWalkDistance   = geo.distance(begin, end),
+                totalWalkTime       = geo.walkTime(totalWalkDistance);
+            
+            return journeys.filter(function (journey) {
+                if (journey.finalPrediction.seconds > totalWalkTime * WALK_TOLERANCE) {
+                    console.log("Shorter walk: ", journey.arrival._direction._route.tag,
+                                journey.departurePrediction.minutes);
+                    return false;
+                } else {
+                    return true;
+                }
+            });
+        }
+        
+        function sortByFinalPredictionTime(journeys) {
+            return journeys.sort(function (journey1, journey2) {
                 return journey1.finalPrediction.seconds - journey2.finalPrediction.seconds;
             });
         }
         
         return getJourneys(begin, end, force)
-            .then(explodeJourneys);
+            .then(explodeJourneys)
+            .then(filterByTotalWalkTime)
+            .then(sortByFinalPredictionTime);
     }
     
     function getBestJourneys(position, placeList, force) {
@@ -297,7 +319,7 @@ define(function (require, exports, module) {
             return Q.all([place, getSortedJourneys(position, place, force)]);
         });
         
-        return Q.all(journeyPromises).then(function (journeyObjs) {
+        function pickBestJourney(journeyObjs) {
             return journeyObjs.map(function (journeyObj) {
                 var place = journeyObj[0],
                     journeys = journeyObj[1],
@@ -311,14 +333,43 @@ define(function (require, exports, module) {
                 }
                 
                 return bestJourneyObj;
-            }).sort(function (journeyObj1, journeyObj2) {
+            });
+        }
+        
+        function filterByTotalWalkTime(journeyObjs) {
+            journeyObjs.forEach(function (journeyObj) {
+                if (journeyObj.journey) {
+                    var journey             = journeyObj.journey,
+                        totalWalkDistance   = geo.distance(position, journeyObj.place),
+                        totalWalkTime       = geo.walkTime(totalWalkDistance);
+    
+                    if (journey.finalPrediction.seconds > totalWalkTime * WALK_TOLERANCE) {
+                        console.log("Shorter walk: ", journey.arrival._direction._route.tag,
+                                    journey.departurePredictions[0].minutes,
+                                   (totalWalkTime / 60).toFixed(2));
+                        delete journeyObj.journey;
+                    }
+                }
+            });
+            
+            return journeyObjs;
+        }
+        
+        function sortByJourneyExistence(journeyObjs) {
+            return journeyObjs.sort(function (journeyObj1, journeyObj2) {
                 if (journeyObj1.journey) {
                     return journeyObj2.journey ? 0 : -1;
                 } else {
                     return journeyObj2.journey ? 1 : 0;
                 }
             });
-        });
+        }
+        
+        return Q.all(journeyPromises)
+            .then(pickBestJourney)
+            .then(filterByTotalWalkTime)
+            .then(sortByJourneyExistence);
+            
     }
 
     exports.getExplodedJourneys = getExplodedJourneys;
