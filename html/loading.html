@@ -1,182 +1,119 @@
 <style>
-#circularG{
+#floatingCirclesG{
 position:relative;
-width:72px;
-height:72px}
+width:128px;
+height:128px;
+-webkit-transform:scale(0.6);
+transform:scale(0.6);
+}
 
-.circularG{
+.f_circleG{
 position:absolute;
-background-color:#288edf;
-width:16px;
-height:16px;
--moz-border-radius:11px;
--moz-animation-name:bounce_circularG;
--moz-animation-duration:1.12s;
--moz-animation-iteration-count:infinite;
--moz-animation-direction:linear;
--webkit-border-radius:11px;
--webkit-animation-name:bounce_circularG;
--webkit-animation-duration:1.12s;
+background-color:rgba(255, 255, 255, 0);
+height:23px;
+width:23px;
+-webkit-border-radius:12px;
+-webkit-animation-name:f_fadeG;
+-webkit-animation-duration:0.96s;
 -webkit-animation-iteration-count:infinite;
 -webkit-animation-direction:linear;
--ms-border-radius:11px;
--ms-animation-name:bounce_circularG;
--ms-animation-duration:1.12s;
--ms-animation-iteration-count:infinite;
--ms-animation-direction:linear;
--o-border-radius:11px;
--o-animation-name:bounce_circularG;
--o-animation-duration:1.12s;
--o-animation-iteration-count:infinite;
--o-animation-direction:linear;
-border-radius:11px;
-animation-name:bounce_circularG;
-animation-duration:1.12s;
+border-radius:12px;
+animation-name:f_fadeG;
+animation-duration:0.96s;
 animation-iteration-count:infinite;
 animation-direction:linear;
 }
 
-#circularG_1{
+#frotateG_01{
 left:0;
-top:28px;
--moz-animation-delay:0.42s;
--webkit-animation-delay:0.42s;
--ms-animation-delay:0.42s;
--o-animation-delay:0.42s;
-animation-delay:0.42s;
+top:52px;
+-webkit-animation-delay:0.36s;
+animation-delay:0.36s;
 }
 
-#circularG_2{
-left:8px;
-top:8px;
--moz-animation-delay:0.56s;
--webkit-animation-delay:0.56s;
--ms-animation-delay:0.56s;
--o-animation-delay:0.56s;
-animation-delay:0.56s;
+#frotateG_02{
+left:15px;
+top:15px;
+-webkit-animation-delay:0.48s;
+animation-delay:0.48s;
 }
 
-#circularG_3{
+#frotateG_03{
+left:52px;
 top:0;
-left:28px;
--moz-animation-delay:0.7s;
--webkit-animation-delay:0.7s;
--ms-animation-delay:0.7s;
--o-animation-delay:0.7s;
-animation-delay:0.7s;
+-webkit-animation-delay:0.6s;
+animation-delay:0.6s;
 }
 
-#circularG_4{
-right:8px;
-top:8px;
--moz-animation-delay:0.84s;
+#frotateG_04{
+right:15px;
+top:15px;
+-webkit-animation-delay:0.72s;
+animation-delay:0.72s;
+}
+
+#frotateG_05{
+right:0;
+top:52px;
 -webkit-animation-delay:0.84s;
--ms-animation-delay:0.84s;
--o-animation-delay:0.84s;
 animation-delay:0.84s;
 }
 
-#circularG_5{
-right:0;
-top:28px;
--moz-animation-delay:0.98s;
--webkit-animation-delay:0.98s;
--ms-animation-delay:0.98s;
--o-animation-delay:0.98s;
-animation-delay:0.98s;
+#frotateG_06{
+right:15px;
+bottom:15px;
+-webkit-animation-delay:0.96s;
+animation-delay:0.96s;
 }
 
-#circularG_6{
-right:8px;
-bottom:8px;
--moz-animation-delay:1.12s;
--webkit-animation-delay:1.12s;
--ms-animation-delay:1.12s;
--o-animation-delay:1.12s;
-animation-delay:1.12s;
-}
-
-#circularG_7{
-left:28px;
+#frotateG_07{
+left:52px;
 bottom:0;
--moz-animation-delay:1.26s;
--webkit-animation-delay:1.26s;
--ms-animation-delay:1.26s;
--o-animation-delay:1.26s;
-animation-delay:1.26s;
+-webkit-animation-delay:1.08s;
+animation-delay:1.08s;
 }
 
-#circularG_8{
-left:8px;
-bottom:8px;
--moz-animation-delay:1.4s;
--webkit-animation-delay:1.4s;
--ms-animation-delay:1.4s;
--o-animation-delay:1.4s;
-animation-delay:1.4s;
+#frotateG_08{
+left:15px;
+bottom:15px;
+-webkit-animation-delay:1.2s;
+animation-delay:1.2s;
 }
 
-@-moz-keyframes bounce_circularG{
+@-webkit-keyframes f_fadeG{
 0%{
--moz-transform:scale(1)}
+background-color:#288DDF}
 
 100%{
--moz-transform:scale(.3)}
+background-color:#FFFFFF}
 
 }
 
-@-webkit-keyframes bounce_circularG{
+@keyframes f_fadeG{
 0%{
--webkit-transform:scale(1)}
+background-color:#288DDF}
 
 100%{
--webkit-transform:scale(.3)}
-
-}
-
-@-ms-keyframes bounce_circularG{
-0%{
--ms-transform:scale(1)}
-
-100%{
--ms-transform:scale(.3)}
-
-}
-
-@-o-keyframes bounce_circularG{
-0%{
--o-transform:scale(1)}
-
-100%{
--o-transform:scale(.3)}
-
-}
-
-@keyframes bounce_circularG{
-0%{
-transform:scale(1)}
-
-100%{
-transform:scale(.3)}
+background-color:rgba(255, 255, 255, 0)}
 
 }
 
 </style>
-<div id="circularG">
-    <div id="circularG_1" class="circularG">
-    </div>
-    <div id="circularG_2" class="circularG">
-    </div>
-    <div id="circularG_3" class="circularG">
-    </div>
-    <div id="circularG_4" class="circularG">
-    </div>
-    <div id="circularG_5" class="circularG">
-    </div>
-    <div id="circularG_6" class="circularG">
-    </div>
-    <div id="circularG_7" class="circularG">
-    </div>
-    <div id="circularG_8" class="circularG">
-    </div>
+<div id="floatingCirclesG">
+<div class="f_circleG" id="frotateG_01">
+</div>
+<div class="f_circleG" id="frotateG_02">
+</div>
+<div class="f_circleG" id="frotateG_03">
+</div>
+<div class="f_circleG" id="frotateG_04">
+</div>
+<div class="f_circleG" id="frotateG_05">
+</div>
+<div class="f_circleG" id="frotateG_06">
+</div>
+<div class="f_circleG" id="frotateG_07">
+</div>
+<div class="f_circleG" id="frotateG_08">
+</div>
 </div>
