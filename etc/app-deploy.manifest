@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# Cache manifest version 0.0.67
+# Cache manifest version 0.0.68
 
 /favicon.ico
 /css/main.css
@@ -8,10 +8,9 @@ CACHE MANIFEST
 /js/components/requirejs/require.js
 /js/app-built.js
 /img/search.svg
-/img/bus-57.png
-/img/bus-72.png
-/img/bus-114.png
-/img/bus-144.png
+/img/bus-76.png
+/img/bus-120.png
+/img/bus-152.png
 /img/startup-640x1096.png
 /font/SourceSansPro-Regular.otf
 /font/SourceSansPro-Light.otf
