@@ -6,6 +6,7 @@ define(function (require, exports, module) {
     
     var $ = require("jquery"),
         Q = require("q"),
+        fastClick = require("fastclick"),
         astronomy = require("app/astronomy"),
         controller = require("app/controller"),
         view = require("app/view");
@@ -47,6 +48,10 @@ define(function (require, exports, module) {
         
         return deferred.promise;
     }
+    
+    $(function () {
+        fastClick.attach(document.body);
+    });
 
     window.addEventListener("focus", function (event) {
         view.refreshPage(true); // force refresh

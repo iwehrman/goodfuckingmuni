@@ -9,6 +9,7 @@
     "jquery.event.move": "~1.3.5",
     "jquery.event.swipe": "~0.5.2",
     "mustache": "~0.7.2",
-    "q": "~0.9.7"
+    "q": "~0.9.7",
+    "fastclick": "~0.6.10"
   }
 }

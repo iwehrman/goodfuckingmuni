@@ -9,7 +9,8 @@
         rasync: "components/requirejs-plugins/src/async",
         text: "components/requirejs-text/text",
         mustache: "components/mustache/mustache",
-        q: "components/q/q"
+        q: "components/q/q",
+        fastclick: "components/fastclick/lib/fastclick"
     },
     include: ["rasync"],
     name: "app.js",
