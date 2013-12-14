@@ -35,6 +35,15 @@ define(function (require, exports, module) {
         return recentPlace;
     }
     
+    function clearRecentPlace() {
+        localStorage.removeItem(RECENT_PLACE_KEY);
+        
+        if (recentPlaceTimer) {
+            clearTimeout(recentPlaceTimer);
+            recentPlaceTimer = null;
+        }
+    }
+    
     function setRecentPlace(place, timeout) {
         var placeObj = {
             place: place.id,
@@ -418,6 +427,7 @@ define(function (require, exports, module) {
                 }
             }
             
+            clearRecentPlace();
             return journeys.getBestJourneys(position, placeList);
         });
         
