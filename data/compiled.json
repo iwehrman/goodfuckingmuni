@@ -1,3 +1,4 @@
 {
-  "app": "app-built"
+  "app": "app-built",
+  "manifest": "app-deploy.manifest"
 }
