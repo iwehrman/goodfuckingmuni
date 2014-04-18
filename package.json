@@ -1,0 +1,30 @@
+{
+  "name": "goodfuckingmuni",
+  "version": "0.0.1",
+  "description": "Where's the bus?",
+  "main": "index.html",
+  "engines": {
+    "node": "0.10.x"
+  },
+  "directories": {
+    "doc": "doc"
+  },
+  "dependencies": {
+    "serf": "0.0.9",
+    "bower": "^1.3.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "install": "./node_modules/bower/bin/bower --force install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iwehrman/goodfuckingmuni.git"
+  },
+  "author": "Ian Wehrman",
+  "bugs": {
+    "url": "https://github.com/iwehrman/goodfuckingmuni/issues"
+  },
+  "homepage": "https://github.com/iwehrman/goodfuckingmuni"
+}
