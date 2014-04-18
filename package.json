@@ -11,11 +11,12 @@
   },
   "dependencies": {
     "serf": "0.0.9",
-    "bower": "^1.3.2"
+    "bower": "^1.3.2",
+    "requirejs": "~2.1.11",
+    "mustang": "~0.1.1"
   },
-  "devDependencies": {},
   "scripts": {
-    "install": "./node_modules/bower/bin/bower --force install",
+    "install": "./node_modules/bower/bin/bower --force install && ./node_modules/requirejs/bin/r.js -o js/build.js && ./node_modules/mustang/lib/app.js -t html/app.html -i data/debug.json -o debug.html && ./node_modules/mustang/lib/app.js -t html/app.html -i data/compiled.json -o index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

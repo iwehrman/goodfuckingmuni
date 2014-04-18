@@ -1,6 +1,8 @@
 .DS_Store
 *~
 node_modules
+index.html
+debug.html
 
 etc/app.manifest
 js/app-built.js
