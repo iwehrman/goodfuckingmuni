@@ -497,6 +497,7 @@ define(function (require, exports, module) {
                     $searchResults.hide();
                     $searchControls.fadeIn();
                     $title.focus();
+                    $title.select();
     
                     placesService.getDetails({
                         reference: reference
